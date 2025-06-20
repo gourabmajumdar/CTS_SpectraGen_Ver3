@@ -36,16 +36,17 @@
     </div>
 
     <h1>Multi-Test Code Quality Analysis Report</h1>
-    <p class="timestamp">Generated on: 2025-06-18 11:29:32</p>
-    <p><strong>Total Test Cases Analyzed:</strong> 1</p>
+    <p class="timestamp">Generated on: 2025-06-20 10:02:20</p>
+    <p><strong>Total Test Cases Analyzed:</strong> 2</p>
 
     <div id="summary" class="summary">
         <h2>Executive Summary</h2>
         <pre>CODE REVIEW SUMMARY
 ====================
-Generated at: 2025-06-18 11:29:32
-Files analyzed: 1
-  - generated-scripts/check_the_cable_modem_ip_address_of_the_device.py
+Generated at: 2025-06-20 10:02:20
+Files analyzed: 2
+  - generated-scripts/Cable_modem_ip.py
+  - generated-scripts/cable_modem_mac.py
 
 BLACK - CODE FORMATTING: ✅
   Return Code: 0
@@ -59,9 +60,9 @@ BANDIT - SECURITY ANALYSIS: ⚠️
   Return Code: 1
   Status: Issues Found
 
-PYLINT - STATIC CODE ANALYSIS: ✅
-  Return Code: 0
-  Status: Success
+PYLINT - STATIC CODE ANALYSIS: ❌
+  Return Code: 20
+  Status: Issues Found
 
 </pre>
     </div>
@@ -69,7 +70,8 @@ PYLINT - STATIC CODE ANALYSIS: ✅
     <div class="table-of-contents">
         <h2>Table of Contents</h2>
         <ul>
-            <li><a href="#test-case-1">Check the Cable Modem IP address of the Device (check_the_cable_modem_ip_address_of_the_device.py)</a></li>
+            <li><a href="#test-case-1">Cable_modem_ip (Cable_modem_ip.py)</a></li>
+            <li><a href="#test-case-2">cable_modem_mac (cable_modem_mac.py)</a></li>
         </ul>
     </div>
 
@@ -78,15 +80,15 @@ PYLINT - STATIC CODE ANALYSIS: ✅
 
     <div id="test-case-1" class="test-case">
         <div class="test-case-header">
-            <h3>Test Case 1: Check the Cable Modem IP address of the Device</h3>
-            <p><strong>Script File:</strong> check_the_cable_modem_ip_address_of_the_device.py</p>
+            <h3>Test Case 1: Cable_modem_ip</h3>
+            <p><strong>Script File:</strong> Cable_modem_ip.py</p>
         </div>
 
         <div class="tool-section flake8">
             <h4>Flake8 - Style & Lint Checks</h4>
             <p><em>PEP 8 compliance and style issues</em></p>
             <div class="has-issues"><strong>Status:</strong> Issues Found (Return Code: 1)</div>
-            <pre>generated-scripts/check_the_cable_modem_ip_address_of_the_device.py:52:1: W391 blank line at end of file
+            <pre>generated-scripts/Cable_modem_ip.py:51:11: W292 no newline at end of file
 </pre>
         </div>
 
@@ -206,15 +208,15 @@ pre {
     <b>Severity: </b>LOW<br>
     <b>Confidence: </b>HIGH<br>
     <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
-    <b>File: </b><a href="./generated-scripts/check_the_cable_modem_ip_address_of_the_device.py" target="_blank">./generated-scripts/check_the_cable_modem_ip_address_of_the_device.py</a><br>
-    <b>Line number: </b>1<br>
+    <b>File: </b><a href="./generated-scripts/Cable_modem_ip.py" target="_blank">./generated-scripts/Cable_modem_ip.py</a><br>
+    <b>Line number: </b>4<br>
     <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.8.3/blacklists/blacklist_imports.html#b404-import-subprocess" target="_blank">https://bandit.readthedocs.io/en/1.8.3/blacklists/blacklist_imports.html#b404-import-subprocess</a><br>
 
 <div class="code">
 <pre>
-1	import subprocess
-2	import re
 3	
+4	import subprocess
+5	import re
 </pre>
 </div>
 
@@ -229,18 +231,18 @@ pre {
     <b>Severity: </b>LOW<br>
     <b>Confidence: </b>HIGH<br>
     <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
-    <b>File: </b><a href="./generated-scripts/check_the_cable_modem_ip_address_of_the_device.py" target="_blank">./generated-scripts/check_the_cable_modem_ip_address_of_the_device.py</a><br>
-    <b>Line number: </b>6<br>
+    <b>File: </b><a href="./generated-scripts/Cable_modem_ip.py" target="_blank">./generated-scripts/Cable_modem_ip.py</a><br>
+    <b>Line number: </b>9<br>
     <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.8.3/plugins/b607_start_process_with_partial_path.html" target="_blank">https://bandit.readthedocs.io/en/1.8.3/plugins/b607_start_process_with_partial_path.html</a><br>
 
 <div class="code">
 <pre>
-5	    try:
-6	        output = subprocess.run(
-7	            [&quot;dmcli&quot;, &quot;eRT&quot;, &quot;getv&quot;, &quot;Device.DeviceInfo.X_COMCAST-COM_CM_IP&quot;],
-8	            capture_output=True, text=True
-9	        )
-10	        return output.stdout.strip()
+8	    try:
+9	        output = subprocess.run(
+10	            [&quot;dmcli&quot;, &quot;eRT&quot;, &quot;getv&quot;, &quot;Device.DeviceInfo.X_COMCAST-COM_CM_IP&quot;],
+11	            capture_output=True, text=True
+12	        )
+13	        return output.stdout.strip()
 </pre>
 </div>
 
@@ -255,18 +257,18 @@ pre {
     <b>Severity: </b>LOW<br>
     <b>Confidence: </b>HIGH<br>
     <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
-    <b>File: </b><a href="./generated-scripts/check_the_cable_modem_ip_address_of_the_device.py" target="_blank">./generated-scripts/check_the_cable_modem_ip_address_of_the_device.py</a><br>
-    <b>Line number: </b>6<br>
+    <b>File: </b><a href="./generated-scripts/Cable_modem_ip.py" target="_blank">./generated-scripts/Cable_modem_ip.py</a><br>
+    <b>Line number: </b>9<br>
     <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.8.3/plugins/b603_subprocess_without_shell_equals_true.html" target="_blank">https://bandit.readthedocs.io/en/1.8.3/plugins/b603_subprocess_without_shell_equals_true.html</a><br>
 
 <div class="code">
 <pre>
-5	    try:
-6	        output = subprocess.run(
-7	            [&quot;dmcli&quot;, &quot;eRT&quot;, &quot;getv&quot;, &quot;Device.DeviceInfo.X_COMCAST-COM_CM_IP&quot;],
-8	            capture_output=True, text=True
-9	        )
-10	        return output.stdout.strip()
+8	    try:
+9	        output = subprocess.run(
+10	            [&quot;dmcli&quot;, &quot;eRT&quot;, &quot;getv&quot;, &quot;Device.DeviceInfo.X_COMCAST-COM_CM_IP&quot;],
+11	            capture_output=True, text=True
+12	        )
+13	        return output.stdout.strip()
 </pre>
 </div>
 
@@ -289,6 +291,228 @@ STDERR:
 </div>
         </div>
     </div>
+
+    <div id="test-case-2" class="test-case">
+        <div class="test-case-header">
+            <h3>Test Case 2: cable_modem_mac</h3>
+            <p><strong>Script File:</strong> cable_modem_mac.py</p>
+        </div>
+
+        <div class="tool-section flake8">
+            <h4>Flake8 - Style & Lint Checks</h4>
+            <p><em>PEP 8 compliance and style issues</em></p>
+            <div class="has-issues"><strong>Status:</strong> Issues Found (Return Code: 1)</div>
+            <pre>generated-scripts/cable_modem_mac.py:9:121: E501 line too long (127 > 120 characters)
+generated-scripts/cable_modem_mac.py:10:1: W293 blank line contains whitespace
+generated-scripts/cable_modem_mac.py:13:1: W293 blank line contains whitespace
+generated-scripts/cable_modem_mac.py:22:26: W292 no newline at end of file
+</pre>
+        </div>
+
+        <div class="tool-section pylint">
+            <h4>Pylint - Static Code Analysis</h4>
+            <p><em>Code quality and potential bugs</em></p>
+            <div class="has-issues"><strong>Status:</strong> Issues Found (Return Code: 20)</div>
+            <pre>************* Module cable_modem_mac
+generated-scripts/cable_modem_mac.py:9: [C0301(line-too-long), ] Line too long (127/120)
+generated-scripts/cable_modem_mac.py:10: [C0303(trailing-whitespace), ] Trailing whitespace
+generated-scripts/cable_modem_mac.py:13: [C0303(trailing-whitespace), ] Trailing whitespace
+generated-scripts/cable_modem_mac.py:22: [C0304(missing-final-newline), ] Final newline missing
+generated-scripts/cable_modem_mac.py:9: [W1510(subprocess-run-check), mac_address_checker] 'subprocess.run' used without explicitly defining the value for 'check'.
+
+------------------------------------------------------------------
+Your code has been rated at 5.45/10 (previous run: 5.45/10, +0.00)
+
+</pre>
+        </div>
+
+        <div class="tool-section black">
+            <h4>Black - Code Formatting</h4>
+            <p><em>Code formatting analysis</em></p>
+            <p class="no-issues">✅ No issues found for this script.</p>
+        </div>
+
+        <div class="tool-section bandit">
+            <h4>Bandit - Security Analysis</h4>
+            <p><em>Security vulnerability scanning</em></p>
+            <div class="has-issues"><strong>Status:</strong> Issues Found (Return Code: 1)</div>
+            <div>
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta charset="UTF-8">
+
+<title>
+    Bandit Report
+</title>
+
+<style>
+
+html * {
+    font-family: "Arial", sans-serif;
+}
+
+pre {
+    font-family: "Monaco", monospace;
+}
+
+.bordered-box {
+    border: 1px solid black;
+    padding-top:.5em;
+    padding-bottom:.5em;
+    padding-left:1em;
+}
+
+.metrics-box {
+    font-size: 1.1em;
+    line-height: 130%;
+}
+
+.metrics-title {
+    font-size: 1.5em;
+    font-weight: 500;
+    margin-bottom: .25em;
+}
+
+.issue-description {
+    font-size: 1.3em;
+    font-weight: 500;
+}
+
+.candidate-issues {
+    margin-left: 2em;
+    border-left: solid 1px; LightGray;
+    padding-left: 5%;
+    margin-top: .2em;
+    margin-bottom: .2em;
+}
+
+.issue-block {
+    border: 1px solid LightGray;
+    padding-left: .5em;
+    padding-top: .5em;
+    padding-bottom: .5em;
+    margin-bottom: .5em;
+}
+
+.issue-sev-high {
+    background-color: Pink;
+}
+
+.issue-sev-medium {
+    background-color: NavajoWhite;
+}
+
+.issue-sev-low {
+    background-color: LightCyan;
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="metrics">
+    <div class="metrics-box bordered-box">
+        <div class="metrics-title">
+            Metrics:<br>
+        </div>
+        Total lines of code: <span id="loc">12</span><br>
+        Total lines skipped (#nosec): <span id="nosec">0</span>
+    </div>
+</div>
+
+
+
+
+<br>
+<div id="results">
+    
+<div id="issue-0">
+<div class="issue-block issue-sev-low">
+    <b>blacklist: </b> Consider possible security implications associated with the subprocess module.<br>
+    <b>Test ID:</b> B404<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>HIGH<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./generated-scripts/cable_modem_mac.py" target="_blank">./generated-scripts/cable_modem_mac.py</a><br>
+    <b>Line number: </b>4<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.8.3/blacklists/blacklist_imports.html#b404-import-subprocess" target="_blank">https://bandit.readthedocs.io/en/1.8.3/blacklists/blacklist_imports.html#b404-import-subprocess</a><br>
+
+<div class="code">
+<pre>
+3	
+4	import subprocess
+5	import re
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-1">
+<div class="issue-block issue-sev-low">
+    <b>start_process_with_partial_path: </b> Starting a process with a partial executable path<br>
+    <b>Test ID:</b> B607<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>HIGH<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./generated-scripts/cable_modem_mac.py" target="_blank">./generated-scripts/cable_modem_mac.py</a><br>
+    <b>Line number: </b>9<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.8.3/plugins/b607_start_process_with_partial_path.html" target="_blank">https://bandit.readthedocs.io/en/1.8.3/plugins/b607_start_process_with_partial_path.html</a><br>
+
+<div class="code">
+<pre>
+8	    # Call dmcli command to get mac address of device
+9	    result = subprocess.run([&quot;dmcli&quot;, &quot;eRT&quot;, &quot;retv&quot;, &quot;Device.DeviceInfo.X_COMCAST-COM_CM_MAC&quot;], capture_output=True, text=True)
+10	    
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-2">
+<div class="issue-block issue-sev-low">
+    <b>subprocess_without_shell_equals_true: </b> subprocess call - check for execution of untrusted input.<br>
+    <b>Test ID:</b> B603<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>HIGH<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./generated-scripts/cable_modem_mac.py" target="_blank">./generated-scripts/cable_modem_mac.py</a><br>
+    <b>Line number: </b>9<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.8.3/plugins/b603_subprocess_without_shell_equals_true.html" target="_blank">https://bandit.readthedocs.io/en/1.8.3/plugins/b603_subprocess_without_shell_equals_true.html</a><br>
+
+<div class="code">
+<pre>
+8	    # Call dmcli command to get mac address of device
+9	    result = subprocess.run([&quot;dmcli&quot;, &quot;eRT&quot;, &quot;retv&quot;, &quot;Device.DeviceInfo.X_COMCAST-COM_CM_MAC&quot;], capture_output=True, text=True)
+10	    
+</pre>
+</div>
+
+
+</div>
+</div>
+
+</div>
+
+</body>
+</html>
+
+STDERR:
+[main]	INFO	profile include tests: None
+[main]	INFO	profile exclude tests: None
+[main]	INFO	cli include tests: None
+[main]	INFO	cli exclude tests: None
+[main]	INFO	running on Python 3.9.6
+[html]	INFO	HTML output written to file: reports/bandit_output_2.html
+</div>
+        </div>
+    </div>
 </div>
 
 <div id="collective-analysis">
@@ -297,32 +521,55 @@ STDERR:
 
     <div class="tool-section flake8">
         <h3>Flake8 - Complete Output</h3>
-        <pre>generated-scripts/check_the_cable_modem_ip_address_of_the_device.py:52:1: W391 blank line at end of file
+        <pre>generated-scripts/Cable_modem_ip.py:51:11: W292 no newline at end of file
+
+
+=== generated-scripts/cable_modem_mac.py ===
+generated-scripts/cable_modem_mac.py:9:121: E501 line too long (127 > 120 characters)
+generated-scripts/cable_modem_mac.py:10:1: W293 blank line contains whitespace
+generated-scripts/cable_modem_mac.py:13:1: W293 blank line contains whitespace
+generated-scripts/cable_modem_mac.py:22:26: W292 no newline at end of file
 </pre>
     </div>
 
     <div class="tool-section pylint">
         <h3>Pylint - Complete Output</h3>
-        <pre>************* Module check_the_cable_modem_ip_address_of_the_device
-generated-scripts/check_the_cable_modem_ip_address_of_the_device.py:52: [C0305(trailing-newlines), ] Trailing newlines
-generated-scripts/check_the_cable_modem_ip_address_of_the_device.py:11: [W0718(broad-exception-caught), get_cm_ip] Catching too general exception Exception
-generated-scripts/check_the_cable_modem_ip_address_of_the_device.py:6: [W1510(subprocess-run-check), get_cm_ip] 'subprocess.run' used without explicitly defining the value for 'check'.
+        <pre>************* Module Cable_modem_ip
+generated-scripts/Cable_modem_ip.py:51: [C0304(missing-final-newline), ] Final newline missing
+generated-scripts/Cable_modem_ip.py:1: [C0103(invalid-name), ] Module name "Cable_modem_ip" doesn't conform to snake_case naming style
+generated-scripts/Cable_modem_ip.py:14: [W0718(broad-exception-caught), get_cm_ip] Catching too general exception Exception
+generated-scripts/Cable_modem_ip.py:9: [W1510(subprocess-run-check), get_cm_ip] 'subprocess.run' used without explicitly defining the value for 'check'.
 
 ------------------------------------------------------------------
-Your code has been rated at 9.14/10 (previous run: 9.14/10, +0.00)
+Your code has been rated at 8.86/10 (previous run: 8.86/10, +0.00)
+
+
+
+=== generated-scripts/cable_modem_mac.py ===
+************* Module cable_modem_mac
+generated-scripts/cable_modem_mac.py:9: [C0301(line-too-long), ] Line too long (127/120)
+generated-scripts/cable_modem_mac.py:10: [C0303(trailing-whitespace), ] Trailing whitespace
+generated-scripts/cable_modem_mac.py:13: [C0303(trailing-whitespace), ] Trailing whitespace
+generated-scripts/cable_modem_mac.py:22: [C0304(missing-final-newline), ] Final newline missing
+generated-scripts/cable_modem_mac.py:9: [W1510(subprocess-run-check), mac_address_checker] 'subprocess.run' used without explicitly defining the value for 'check'.
+
+------------------------------------------------------------------
+Your code has been rated at 5.45/10 (previous run: 5.45/10, +0.00)
 
 </pre>
     </div>
 
     <div class="tool-section black">
         <h3>Black - Complete Output</h3>
-        <pre>--- generated-scripts/check_the_cable_modem_ip_address_of_the_device.py	2025-06-18 15:28:55.936449+00:00
-+++ generated-scripts/check_the_cable_modem_ip_address_of_the_device.py	2025-06-18 15:29:31.417497+00:00
-@@ -1,33 +1,36 @@
+        <pre>--- generated-scripts/Cable_modem_ip.py	2025-06-20 14:02:08.733162+00:00
++++ generated-scripts/Cable_modem_ip.py	2025-06-20 14:02:17.537473+00:00
+@@ -2,35 +2,38 @@
+ # Generated on: 2025-06-18 16:31:05
+ 
  import subprocess
  import re
-+
  
++
  def get_cm_ip():
      try:
          output = subprocess.run(
@@ -361,23 +608,64 @@ Your code has been rated at 9.14/10 (previous run: 9.14/10, +0.00)
      print("Checking the Cable Modem IP Address of the Device...")
  
      raw_output = get_cm_ip()
-@@ -42,11 +45,8 @@
+@@ -45,7 +48,8 @@
              print(raw_output)
              print("Test Result: FAILED")
      else:
          print("Test Result: FAILED")
  
 -if __name__ == '__main__':
+-    main()
+\ No newline at end of file
 +
 +if __name__ == "__main__":
-     main()
--
--
--
--
++    main()
 
 STDERR:
-would reformat generated-scripts/check_the_cable_modem_ip_address_of_the_device.py
+would reformat generated-scripts/Cable_modem_ip.py
+
+All done! ✨ 🍰 ✨
+1 file would be reformatted.
+
+
+=== generated-scripts/cable_modem_mac.py ===
+--- generated-scripts/cable_modem_mac.py	2025-06-20 14:02:08.733563+00:00
++++ generated-scripts/cable_modem_mac.py	2025-06-20 14:02:18.927431+00:00
+@@ -2,21 +2,25 @@
+ # Generated on: 2025-06-18 16:31:06
+ 
+ import subprocess
+ import re
+ 
++
+ def mac_address_checker():
+     # Call dmcli command to get mac address of device
+-    result = subprocess.run(["dmcli", "eRT", "retv", "Device.DeviceInfo.X_COMCAST-COM_CM_MAC"], capture_output=True, text=True)
+-    
++    result = subprocess.run(
++        ["dmcli", "eRT", "retv", "Device.DeviceInfo.X_COMCAST-COM_CM_MAC"], capture_output=True, text=True
++    )
++
+     # Remove leading and trailing whitespace from output
+     mac_address = result.stdout.strip()
+-    
++
+     # Check if mac address matches expected result
+-    match = re.search(r'^[0-9A-F]{12}$', mac_address)
++    match = re.search(r"^[0-9A-F]{12}$", mac_address)
+     if match:
+         print("[PASS] Mac address matches expected result")
+     else:
+         print("[FAIL] Mac address does not match expected result")
+ 
++
+ if __name__ == "__main__":
+-    mac_address_checker()
+\ No newline at end of file
++    mac_address_checker()
+
+STDERR:
+would reformat generated-scripts/cable_modem_mac.py
 
 All done! ✨ 🍰 ✨
 1 file would be reformatted.
@@ -486,15 +774,15 @@ pre {
     <b>Severity: </b>LOW<br>
     <b>Confidence: </b>HIGH<br>
     <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
-    <b>File: </b><a href="./generated-scripts/check_the_cable_modem_ip_address_of_the_device.py" target="_blank">./generated-scripts/check_the_cable_modem_ip_address_of_the_device.py</a><br>
-    <b>Line number: </b>1<br>
+    <b>File: </b><a href="./generated-scripts/Cable_modem_ip.py" target="_blank">./generated-scripts/Cable_modem_ip.py</a><br>
+    <b>Line number: </b>4<br>
     <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.8.3/blacklists/blacklist_imports.html#b404-import-subprocess" target="_blank">https://bandit.readthedocs.io/en/1.8.3/blacklists/blacklist_imports.html#b404-import-subprocess</a><br>
 
 <div class="code">
 <pre>
-1	import subprocess
-2	import re
 3	
+4	import subprocess
+5	import re
 </pre>
 </div>
 
@@ -509,18 +797,18 @@ pre {
     <b>Severity: </b>LOW<br>
     <b>Confidence: </b>HIGH<br>
     <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
-    <b>File: </b><a href="./generated-scripts/check_the_cable_modem_ip_address_of_the_device.py" target="_blank">./generated-scripts/check_the_cable_modem_ip_address_of_the_device.py</a><br>
-    <b>Line number: </b>6<br>
+    <b>File: </b><a href="./generated-scripts/Cable_modem_ip.py" target="_blank">./generated-scripts/Cable_modem_ip.py</a><br>
+    <b>Line number: </b>9<br>
     <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.8.3/plugins/b607_start_process_with_partial_path.html" target="_blank">https://bandit.readthedocs.io/en/1.8.3/plugins/b607_start_process_with_partial_path.html</a><br>
 
 <div class="code">
 <pre>
-5	    try:
-6	        output = subprocess.run(
-7	            [&quot;dmcli&quot;, &quot;eRT&quot;, &quot;getv&quot;, &quot;Device.DeviceInfo.X_COMCAST-COM_CM_IP&quot;],
-8	            capture_output=True, text=True
-9	        )
-10	        return output.stdout.strip()
+8	    try:
+9	        output = subprocess.run(
+10	            [&quot;dmcli&quot;, &quot;eRT&quot;, &quot;getv&quot;, &quot;Device.DeviceInfo.X_COMCAST-COM_CM_IP&quot;],
+11	            capture_output=True, text=True
+12	        )
+13	        return output.stdout.strip()
 </pre>
 </div>
 
@@ -535,18 +823,18 @@ pre {
     <b>Severity: </b>LOW<br>
     <b>Confidence: </b>HIGH<br>
     <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
-    <b>File: </b><a href="./generated-scripts/check_the_cable_modem_ip_address_of_the_device.py" target="_blank">./generated-scripts/check_the_cable_modem_ip_address_of_the_device.py</a><br>
-    <b>Line number: </b>6<br>
+    <b>File: </b><a href="./generated-scripts/Cable_modem_ip.py" target="_blank">./generated-scripts/Cable_modem_ip.py</a><br>
+    <b>Line number: </b>9<br>
     <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.8.3/plugins/b603_subprocess_without_shell_equals_true.html" target="_blank">https://bandit.readthedocs.io/en/1.8.3/plugins/b603_subprocess_without_shell_equals_true.html</a><br>
 
 <div class="code">
 <pre>
-5	    try:
-6	        output = subprocess.run(
-7	            [&quot;dmcli&quot;, &quot;eRT&quot;, &quot;getv&quot;, &quot;Device.DeviceInfo.X_COMCAST-COM_CM_IP&quot;],
-8	            capture_output=True, text=True
-9	        )
-10	        return output.stdout.strip()
+8	    try:
+9	        output = subprocess.run(
+10	            [&quot;dmcli&quot;, &quot;eRT&quot;, &quot;getv&quot;, &quot;Device.DeviceInfo.X_COMCAST-COM_CM_IP&quot;],
+11	            capture_output=True, text=True
+12	        )
+13	        return output.stdout.strip()
 </pre>
 </div>
 
@@ -565,6 +853,183 @@ pre {
 [main]	INFO	cli exclude tests: None
 [main]	INFO	running on Python 3.9.6
 [html]	INFO	HTML output written to file: reports/bandit_output_1.html
+ -->
+
+
+<!-- === generated-scripts/cable_modem_mac.py === -->
+
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta charset="UTF-8">
+
+<title>
+    Bandit Report
+</title>
+
+<style>
+
+html * {
+    font-family: "Arial", sans-serif;
+}
+
+pre {
+    font-family: "Monaco", monospace;
+}
+
+.bordered-box {
+    border: 1px solid black;
+    padding-top:.5em;
+    padding-bottom:.5em;
+    padding-left:1em;
+}
+
+.metrics-box {
+    font-size: 1.1em;
+    line-height: 130%;
+}
+
+.metrics-title {
+    font-size: 1.5em;
+    font-weight: 500;
+    margin-bottom: .25em;
+}
+
+.issue-description {
+    font-size: 1.3em;
+    font-weight: 500;
+}
+
+.candidate-issues {
+    margin-left: 2em;
+    border-left: solid 1px; LightGray;
+    padding-left: 5%;
+    margin-top: .2em;
+    margin-bottom: .2em;
+}
+
+.issue-block {
+    border: 1px solid LightGray;
+    padding-left: .5em;
+    padding-top: .5em;
+    padding-bottom: .5em;
+    margin-bottom: .5em;
+}
+
+.issue-sev-high {
+    background-color: Pink;
+}
+
+.issue-sev-medium {
+    background-color: NavajoWhite;
+}
+
+.issue-sev-low {
+    background-color: LightCyan;
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="metrics">
+    <div class="metrics-box bordered-box">
+        <div class="metrics-title">
+            Metrics:<br>
+        </div>
+        Total lines of code: <span id="loc">12</span><br>
+        Total lines skipped (#nosec): <span id="nosec">0</span>
+    </div>
+</div>
+
+
+
+
+<br>
+<div id="results">
+    
+<div id="issue-0">
+<div class="issue-block issue-sev-low">
+    <b>blacklist: </b> Consider possible security implications associated with the subprocess module.<br>
+    <b>Test ID:</b> B404<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>HIGH<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./generated-scripts/cable_modem_mac.py" target="_blank">./generated-scripts/cable_modem_mac.py</a><br>
+    <b>Line number: </b>4<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.8.3/blacklists/blacklist_imports.html#b404-import-subprocess" target="_blank">https://bandit.readthedocs.io/en/1.8.3/blacklists/blacklist_imports.html#b404-import-subprocess</a><br>
+
+<div class="code">
+<pre>
+3	
+4	import subprocess
+5	import re
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-1">
+<div class="issue-block issue-sev-low">
+    <b>start_process_with_partial_path: </b> Starting a process with a partial executable path<br>
+    <b>Test ID:</b> B607<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>HIGH<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./generated-scripts/cable_modem_mac.py" target="_blank">./generated-scripts/cable_modem_mac.py</a><br>
+    <b>Line number: </b>9<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.8.3/plugins/b607_start_process_with_partial_path.html" target="_blank">https://bandit.readthedocs.io/en/1.8.3/plugins/b607_start_process_with_partial_path.html</a><br>
+
+<div class="code">
+<pre>
+8	    # Call dmcli command to get mac address of device
+9	    result = subprocess.run([&quot;dmcli&quot;, &quot;eRT&quot;, &quot;retv&quot;, &quot;Device.DeviceInfo.X_COMCAST-COM_CM_MAC&quot;], capture_output=True, text=True)
+10	    
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-2">
+<div class="issue-block issue-sev-low">
+    <b>subprocess_without_shell_equals_true: </b> subprocess call - check for execution of untrusted input.<br>
+    <b>Test ID:</b> B603<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>HIGH<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./generated-scripts/cable_modem_mac.py" target="_blank">./generated-scripts/cable_modem_mac.py</a><br>
+    <b>Line number: </b>9<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.8.3/plugins/b603_subprocess_without_shell_equals_true.html" target="_blank">https://bandit.readthedocs.io/en/1.8.3/plugins/b603_subprocess_without_shell_equals_true.html</a><br>
+
+<div class="code">
+<pre>
+8	    # Call dmcli command to get mac address of device
+9	    result = subprocess.run([&quot;dmcli&quot;, &quot;eRT&quot;, &quot;retv&quot;, &quot;Device.DeviceInfo.X_COMCAST-COM_CM_MAC&quot;], capture_output=True, text=True)
+10	    
+</pre>
+</div>
+
+
+</div>
+</div>
+
+</div>
+
+</body>
+</html>
+
+<!-- STDERR: [main]	INFO	profile include tests: None
+[main]	INFO	profile exclude tests: None
+[main]	INFO	cli include tests: None
+[main]	INFO	cli exclude tests: None
+[main]	INFO	running on Python 3.9.6
+[html]	INFO	HTML output written to file: reports/bandit_output_2.html
  -->
 </div>
     </div>

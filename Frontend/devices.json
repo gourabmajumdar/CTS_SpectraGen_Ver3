@@ -1,0 +1,46 @@
+{
+  "devices": [
+    {
+      "id": "rpi-1",
+      "name": "Raspberry Pi Device 1",
+      "host": "71.185.253.158",
+      "user": "root",
+      "password": "",
+      "port": 22,
+      "description": "Primary test device - Location A",
+      "capabilities": ["python", "ssh", "RDK-B"],
+      "priority": 1,
+      "active": true
+    },
+    {
+      "id": "rpi-2",
+      "name": "Raspberry Pi Device 2",
+      "host": "65.78.96.246",
+      "user": "root",
+      "password": "",
+      "port": 22,
+      "description": "Secondary test device - Location B",
+      "capabilities": ["python", "ssh", "RDK-B"],
+      "priority": 2,
+      "active": true
+    },
+    {
+      "id": "rpi-3",
+      "name": "Raspberry Pi Device 3",
+      "host": "192.168.1.100",
+      "user": "pi",
+      "password": "raspberry",
+      "port": 22,
+      "description": "Development test device - Local Network",
+      "capabilities": ["python", "gpio"],
+      "priority": 3,
+      "active": false
+    }
+  ],
+  "settings": {
+    "connection_timeout": 5,
+    "retry_attempts": 3,
+    "retry_delay": 2,
+    "health_check_interval": 30
+  }
+}

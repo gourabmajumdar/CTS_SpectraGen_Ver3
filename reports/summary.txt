@@ -1,8 +1,9 @@
 CODE REVIEW SUMMARY
 ====================
-Generated at: 2025-06-18 11:29:32
-Files analyzed: 1
-  - generated-scripts/check_the_cable_modem_ip_address_of_the_device.py
+Generated at: 2025-06-20 10:02:20
+Files analyzed: 2
+  - generated-scripts/Cable_modem_ip.py
+  - generated-scripts/cable_modem_mac.py
 
 BLACK - CODE FORMATTING: ✅
   Return Code: 0
@@ -16,7 +17,7 @@ BANDIT - SECURITY ANALYSIS: ⚠️
   Return Code: 1
   Status: Issues Found
 
-PYLINT - STATIC CODE ANALYSIS: ✅
-  Return Code: 0
-  Status: Success
+PYLINT - STATIC CODE ANALYSIS: ❌
+  Return Code: 20
+  Status: Issues Found
 

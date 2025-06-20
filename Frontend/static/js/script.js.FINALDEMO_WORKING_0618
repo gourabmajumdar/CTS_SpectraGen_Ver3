@@ -1,0 +1,2819 @@
+// ================================================================================================
+// COGNIZANT AUTO TEST DASHBOARD - COMPLETE JAVASCRIPT WITH REAL PROGRESS TRACKING
+// Multi-Test Case Support with Dynamic UI Generation + New Workflow + Real Progress
+// ================================================================================================
+
+// Global Variables
+let uploadedFiles = [];
+let currentOperation = null;
+let ingestedTestCases = [];
+let generatedScripts = [];
+let executionResults = [];
+// 1. ADD THESE NEW GLOBAL VARIABLES (add to existing global variables section)
+let selectedTestCases = new Set(); // Track which test cases are selected for execution
+
+// Progress tracking variables
+let progressPollingInterval = null;
+let currentTaskType = null;
+
+// DOM Elements Cache
+const elements = {
+    uploadArea: null,
+    fileInput: null,
+    fileInfo: null,
+    textArea: null,
+    charCount: null,
+    codeActions: null,
+    progressContainer: null,
+    progressTitle: null,
+    progressStatus: null,
+    progressBar: null,
+    progressPercentage: null,
+    progressSteps: null,
+    toast: null,
+    toastMessage: null
+};
+
+// ================================================================================================
+// INITIALIZATION AND SETUP
+// ================================================================================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Cognizant AutoTest Dashboard Loading...');
+
+    // Cache DOM elements
+    cacheElements();
+
+    // Setup event listeners
+    initializeEventListeners();
+    setupNavigationListeners();
+
+    // Initialize UI state
+    updateCharCount();
+    initializeHomePage();
+
+    console.log('✅ Dashboard initialized successfully');
+});
+
+function cacheElements() {
+    elements.uploadArea = document.querySelector('.upload-area');
+    elements.fileInput = document.getElementById('fileInput');
+    elements.fileInfo = document.getElementById('fileInfo');
+    elements.textArea = document.getElementById('textArea');
+    elements.charCount = document.getElementById('charCount');
+    elements.codeActions = document.getElementById('codeActions');
+    elements.progressContainer = document.getElementById('progressContainer');
+    elements.progressTitle = document.getElementById('progressTitle');
+    elements.progressStatus = document.getElementById('progressStatus');
+    elements.progressBar = document.getElementById('progressBar');
+    elements.progressPercentage = document.getElementById('progressPercentage');
+    elements.progressSteps = document.getElementById('progressSteps');
+    elements.toast = document.getElementById('toast');
+    elements.toastMessage = document.getElementById('toastMessage');
+}
+
+function hideSaveButtons() {
+    console.log('🔒 Hiding save buttons after review/execution');
+
+    // Hide save buttons in multi-test areas
+    const saveButtons = document.querySelectorAll('.save-btn');
+    saveButtons.forEach(button => {
+        button.style.display = 'none';
+        console.log('🔒 Hidden save button in multi-test area');
+    });
+
+    // Hide save button in single text area (main code actions)
+    const codeActions = document.getElementById('codeActions');
+    if (codeActions) {
+        const singleSaveButton = codeActions.querySelector('button[onclick="saveCode()"]');
+        if (singleSaveButton) {
+            singleSaveButton.style.display = 'none';
+            console.log('🔒 Hidden save button in single text area');
+        }
+    }
+}
+
+function showSaveButtons() {
+    console.log('🔓 Showing save buttons');
+
+    // Show save buttons in multi-test areas
+    const saveButtons = document.querySelectorAll('.save-btn');
+    saveButtons.forEach(button => {
+        button.style.display = 'flex';
+        console.log('🔓 Showed save button in multi-test area');
+    });
+
+    // Show save button in single text area
+    const codeActions = document.getElementById('codeActions');
+    if (codeActions) {
+        const singleSaveButton = codeActions.querySelector('button[onclick="saveCode()"]');
+        if (singleSaveButton) {
+            singleSaveButton.style.display = 'inline-flex';
+            console.log('🔓 Showed save button in single text area');
+        }
+    }
+}
+
+// Simplified modal with just one OK button
+function showErrorModal(title, message, details = null) {
+    console.log(`🚨 Error Modal: ${title} - ${message}`);
+
+    // Create modal HTML with single OK button
+    const modalHTML = `
+        <div id="errorModal" class="error-modal-overlay" style="
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            backdrop-filter: blur(3px);
+        ">
+            <div class="error-modal-content" style="
+                background: white;
+                border-radius: 15px;
+                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+                max-width: 500px;
+                width: 90%;
+                max-height: 80vh;
+                overflow-y: auto;
+                animation: modalSlideIn 0.3s ease-out;
+            ">
+                <div class="error-modal-header" style="
+                    background: linear-gradient(135deg, #ef4444, #dc2626);
+                    color: white;
+                    padding: 20px;
+                    border-radius: 15px 15px 0 0;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                ">
+                    <div style="
+                        font-size: 24px;
+                        width: 40px;
+                        height: 40px;
+                        background: rgba(255, 255, 255, 0.2);
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    ">🚨</div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.3rem; font-weight: 600;">${title}</h3>
+                        <p style="margin: 5px 0 0 0; opacity: 0.9; font-size: 0.9rem;">Connection Error</p>
+                    </div>
+                </div>
+                
+                <div class="error-modal-body" style="
+                    padding: 25px;
+                    line-height: 1.6;
+                ">
+                    <div style="
+                        background: #fef2f2;
+                        border: 1px solid #fecaca;
+                        border-radius: 10px;
+                        padding: 15px;
+                        margin-bottom: 20px;
+                        color: #991b1b;
+                    ">
+                        <strong>Error Details:</strong><br>
+                        ${message}
+                    </div>
+                    
+                    ${details ? `
+                        <div style="
+                            background: #f9fafb;
+                            border: 1px solid #e5e7eb;
+                            border-radius: 10px;
+                            padding: 15px;
+                            margin-bottom: 20px;
+                            font-family: 'Courier New', monospace;
+                            font-size: 0.85rem;
+                            color: #374151;
+                            white-space: pre-wrap;
+                        ">
+                            <strong>Technical Details:</strong><br>
+                            ${details}
+                        </div>
+                    ` : ''}
+                    
+                    <div style="
+                        background: #eff6ff;
+                        border: 1px solid #bfdbfe;
+                        border-radius: 10px;
+                        padding: 15px;
+                        color: #1e40af;
+                    ">
+                        <strong>💡 Suggested Actions:</strong><br>
+                        • Check your network connection<br>
+                        • Verify Remote Device is powered on and accessible<br>
+                        • Try executing the test again using the Execute Code button<br>
+                        • Contact system administrator if problem persists
+                    </div>
+                </div>
+                
+                <div class="error-modal-footer" style="
+                    padding: 20px 25px;
+                    border-top: 1px solid #e5e7eb;
+                    display: flex;
+                    justify-content: center;
+                ">
+                    <button onclick="closeErrorModal()" style="
+                        background: #3b82f6;
+                        color: white;
+                        border: none;
+                        padding: 12px 32px;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-weight: 600;
+                        font-size: 1rem;
+                        transition: all 0.3s ease;
+                        box-shadow: 0 3px 8px rgba(59, 130, 246, 0.3);
+                    " onmouseover="this.style.background='#2563eb'; this.style.transform='translateY(-2px)'"
+                       onmouseout="this.style.background='#3b82f6'; this.style.transform='translateY(0)'">
+                        ✓ OK
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <style>
+            @keyframes modalSlideIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(-50px) scale(0.9);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0) scale(1);
+                }
+            }
+            
+            .error-modal-overlay {
+                animation: fadeIn 0.3s ease-out;
+            }
+            
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+        </style>
+    `;
+
+    // Remove any existing modal
+    const existingModal = document.getElementById('errorModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    // Focus the OK button
+    const modal = document.getElementById('errorModal');
+    const okButton = modal.querySelector('button');
+    okButton.focus();
+
+    // Handle escape key
+    const handleEscape = (e) => {
+        if (e.key === 'Escape') {
+            closeErrorModal();
+        }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+
+    // Store cleanup function
+    modal._cleanup = () => {
+        document.removeEventListener('keydown', handleEscape);
+    };
+}
+
+function closeErrorModal() {
+    const modal = document.getElementById('errorModal');
+    if (modal) {
+        // Cleanup event listeners
+        if (modal._cleanup) {
+            modal._cleanup();
+        }
+
+        // Animate out
+        modal.style.animation = 'fadeOut 0.3s ease-out';
+        setTimeout(() => {
+            modal.remove();
+        }, 300);
+    }
+
+    // Note: Execute button remains enabled - user can retry manually
+    console.log('✓ Modal closed - Execute button remains enabled for manual retry');
+}
+
+// Make functions globally available
+window.showErrorModal = showErrorModal;
+window.closeErrorModal = closeErrorModal;
+
+function initializeEventListeners() {
+    console.log('🔧 Setting up event listeners...');
+
+    // File upload events
+    if (elements.uploadArea) {
+        elements.uploadArea.addEventListener('dragover', handleDragOver);
+        elements.uploadArea.addEventListener('dragleave', handleDragLeave);
+        elements.uploadArea.addEventListener('drop', handleDrop);
+        elements.uploadArea.addEventListener('click', () => {
+            if (elements.fileInput) elements.fileInput.click();
+        });
+    }
+
+    if (elements.fileInput) {
+        elements.fileInput.addEventListener('change', handleFileSelect);
+    }
+
+    // Text area events
+    if (elements.textArea) {
+        elements.textArea.addEventListener('input', handleTextAreaInput);
+    }
+
+    // Prevent default drag behaviors
+    document.addEventListener('dragover', preventDefault);
+    document.addEventListener('drop', preventDefault);
+
+    console.log('✅ Event listeners attached');
+}
+
+function setupNavigationListeners() {
+    console.log('🧭 Setting up navigation...');
+
+    const navItems = document.querySelectorAll('.nav-item');
+
+    if (navItems.length >= 2) {
+        // Home navigation
+        navItems[0].addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('🏠 Home navigation clicked');
+            showHome();
+        });
+
+        // AutoTest navigation
+        navItems[1].addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('🧪 AutoTest navigation clicked');
+            showAutoTest();
+        });
+
+        console.log('✅ Navigation listeners attached');
+    } else {
+        console.error('❌ Navigation items not found!');
+    }
+}
+
+function initializeHomePage() {
+    console.log('🏠 Initializing home page...');
+
+    // Reset navigation state
+    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+    const homeNavItem = document.querySelectorAll('.nav-item')[0];
+    if (homeNavItem) {
+        homeNavItem.classList.add('active');
+    }
+
+    // Set initial content state
+    const dashboardTitle = document.getElementById('dashboardTitle');
+    const welcomeMessage = document.getElementById('welcomeMessage');
+    const autoTestContent = document.getElementById('autoTestContent');
+
+    if (dashboardTitle) dashboardTitle.textContent = 'Home';
+
+    if (welcomeMessage) {
+        welcomeMessage.classList.remove('hide');
+        welcomeMessage.classList.add('show');
+        welcomeMessage.style.display = 'block';
+    }
+
+    if (autoTestContent) {
+        autoTestContent.classList.remove('show');
+        autoTestContent.classList.add('hide');
+        autoTestContent.style.display = 'none';
+    }
+
+    console.log('✅ Home page initialized');
+}
+
+// ================================================================================================
+// NAVIGATION FUNCTIONS
+// ================================================================================================
+
+function showHome() {
+    console.log('🏠 Showing Home page');
+
+    // Update navigation state
+    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+    const homeNavItem = document.querySelectorAll('.nav-item')[0];
+    if (homeNavItem) homeNavItem.classList.add('active');
+
+    // Update content visibility
+    const dashboardTitle = document.getElementById('dashboardTitle');
+    const welcomeMessage = document.getElementById('welcomeMessage');
+    const autoTestContent = document.getElementById('autoTestContent');
+
+    if (dashboardTitle) dashboardTitle.textContent = '';
+
+    if (welcomeMessage) {
+        welcomeMessage.classList.remove('hide');
+        welcomeMessage.classList.add('show');
+        welcomeMessage.style.display = 'block';
+    }
+
+    if (autoTestContent) {
+        autoTestContent.classList.remove('show');
+        autoTestContent.classList.add('hide');
+        autoTestContent.style.display = 'none';
+    }
+
+    console.log('✅ Home page displayed');
+}
+
+function showAutoTest() {
+    console.log('🧪 Showing AutoTest page');
+
+    // Update navigation state
+    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+    const autoTestNavItem = document.querySelectorAll('.nav-item')[1];
+    if (autoTestNavItem) autoTestNavItem.classList.add('active');
+
+    // Update content visibility
+    const dashboardTitle = document.getElementById('dashboardTitle');
+    const welcomeMessage = document.getElementById('welcomeMessage');
+    const autoTestContent = document.getElementById('autoTestContent');
+
+    if (dashboardTitle) dashboardTitle.textContent = 'Auto Test';
+
+    if (welcomeMessage) {
+        welcomeMessage.classList.remove('show');
+        welcomeMessage.classList.add('hide');
+        welcomeMessage.style.display = 'none';
+    }
+
+    if (autoTestContent) {
+        autoTestContent.classList.remove('hide');
+        autoTestContent.classList.add('show');
+        autoTestContent.style.display = 'block';
+    }
+
+    console.log('✅ AutoTest page displayed');
+}
+
+// ================================================================================================
+// REAL PROGRESS TRACKING FUNCTIONS
+// ================================================================================================
+
+function startRealProgress(taskType, title, initialSteps = []) {
+    console.log(`🚀 Starting real progress tracking for: ${taskType}`);
+
+    currentTaskType = taskType;
+
+    // Show progress container
+    showProgress(title, initialSteps);
+
+    // Reset progress
+    updateProgress(0, 'Initializing...', 0);
+
+    // Start polling for real progress
+    progressPollingInterval = setInterval(() => {
+        pollProgress(taskType);
+    }, 500); // Poll every 500ms for smooth updates
+}
+
+async function pollProgress(taskType) {
+    try {
+        const response = await fetch(`/progress/${taskType}`);
+        const progressData = await response.json();
+
+        // Update UI with real progress
+        updateProgress(
+            progressData.progress,
+            progressData.step,
+            Math.floor(progressData.progress / 20) // Convert to step index
+        );
+
+        // Check if task is completed
+        if (progressData.completed) {
+            console.log(`✅ Task ${taskType} completed with progress: ${progressData.progress}%`);
+            stopProgressPolling();
+
+            // Small delay to show 100% before hiding
+            setTimeout(() => {
+                hideProgress();
+            }, 1000);
+        }
+
+    } catch (error) {
+        console.error(`❌ Error polling progress for ${taskType}:`, error);
+        // Don't stop polling on error - backend might be processing
+    }
+}
+
+function stopProgressPolling() {
+    if (progressPollingInterval) {
+        clearInterval(progressPollingInterval);
+        progressPollingInterval = null;
+        currentTaskType = null;
+    }
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    stopProgressPolling();
+});
+
+// ================================================================================================
+// UTILITY FUNCTIONS
+// ================================================================================================
+
+function preventDefault(e) {
+    e.preventDefault();
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function getFileIcon(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    const iconMap = {
+        'pdf': '📄', 'rtf': '📄', 'doc': '📝', 'docx': '📝',
+        'xls': '📊', 'xlsx': '📊', 'csv': '📈', 'txt': '📄',
+        'js': '💻', 'py': '🐍', 'html': '🌐', 'css': '🎨',
+        'jpg': '🖼️', 'jpeg': '🖼️', 'png': '🖼️', 'gif': '🖼️',
+        'zip': '📦', 'rar': '📦'
+    };
+    return iconMap[ext] || '📄';
+}
+
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ================================================================================================
+// TOAST NOTIFICATION SYSTEM
+// ================================================================================================
+
+function showToast(message, type = 'info') {
+    console.log(`📢 Toast: ${message} (${type})`);
+
+    if (elements.toastMessage && elements.toast) {
+        elements.toastMessage.textContent = message;
+        elements.toast.className = `toast show ${type}`;
+
+        // Auto-hide after 5 seconds
+        setTimeout(() => hideToast(), 5000);
+    }
+}
+
+function hideToast() {
+    if (elements.toast) {
+        elements.toast.classList.remove('show');
+    }
+}
+
+// ================================================================================================
+// PROGRESS INDICATOR SYSTEM
+// ================================================================================================
+
+function showProgress(title, steps) {
+    if (!elements.progressContainer || !elements.progressTitle || !elements.progressSteps) return;
+
+    elements.progressTitle.textContent = title;
+    elements.progressContainer.classList.add('show');
+
+    // Create step elements
+    elements.progressSteps.innerHTML = '';
+    steps.forEach((step, index) => {
+        const stepElement = document.createElement('div');
+        stepElement.className = 'progress-step';
+        stepElement.innerHTML = `
+            <div class="step-icon pending" id="step-${index}">●</div>
+            <span>${step}</span>
+        `;
+        elements.progressSteps.appendChild(stepElement);
+    });
+}
+
+function updateProgress(percentage, status, activeStepIndex = -1) {
+    if (!elements.progressBar || !elements.progressPercentage || !elements.progressStatus) return;
+
+    elements.progressBar.style.width = percentage + '%';
+    elements.progressPercentage.textContent = Math.round(percentage) + '%';
+    elements.progressStatus.textContent = status;
+
+    // Update step states
+    const stepElements = elements.progressSteps.querySelectorAll('.progress-step');
+    stepElements.forEach((step, index) => {
+        const icon = step.querySelector('.step-icon');
+        step.classList.remove('active', 'completed');
+        icon.classList.remove('active', 'completed', 'pending');
+
+        if (index < activeStepIndex) {
+            step.classList.add('completed');
+            icon.classList.add('completed');
+            icon.textContent = '✓';
+        } else if (index === activeStepIndex) {
+            step.classList.add('active');
+            icon.classList.add('active');
+            icon.textContent = '●';
+        } else {
+            icon.classList.add('pending');
+            icon.textContent = '●';
+        }
+    });
+}
+
+function hideProgress() {
+    setTimeout(() => {
+        if (elements.progressContainer) {
+            elements.progressContainer.classList.remove('show');
+        }
+    }, 1000);
+}
+
+// ================================================================================================
+// FILE HANDLING SYSTEM
+// ================================================================================================
+
+function handleDragOver(e) {
+    e.preventDefault();
+    if (elements.uploadArea) elements.uploadArea.classList.add('dragover');
+}
+
+function handleDragLeave() {
+    if (elements.uploadArea) elements.uploadArea.classList.remove('dragover');
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    if (elements.uploadArea) elements.uploadArea.classList.remove('dragover');
+    const files = e.dataTransfer.files;
+    console.log(`📁 Files dropped: ${files.length}`);
+    handleFiles(files);
+}
+
+function handleFileSelect(e) {
+    const files = e.target.files;
+    console.log(`📁 Files selected: ${files.length}`);
+    if (files && files.length > 0) {
+        handleFiles(files);
+    }
+}
+
+async function handleFiles(files) {
+    if (files.length === 0) {
+        console.log('⚠️ No files to handle');
+        return;
+    }
+
+    console.log('📤 Processing files:', Array.from(files).map(f => f.name));
+
+    try {
+        showProgress('Uploading Files', [
+            'Preparing files',
+            'Uploading to server',
+            'Processing files'
+        ]);
+
+        const formData = new FormData();
+        Array.from(files).forEach(file => {
+            console.log(`📎 Adding file: ${file.name} (${formatFileSize(file.size)})`);
+            formData.append('files', file);
+        });
+
+        updateProgress(30, 'Uploading files to server', 1);
+
+        const response = await fetch('/upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        updateProgress(70, 'Processing uploaded files', 2);
+
+        const result = await response.json();
+        console.log('📥 Upload result:', result);
+
+        if (result.success) {
+            uploadedFiles = result.files;
+            displayFileInfo(result.files, result.total_size);
+            resetButtonStates();
+            updateProgress(100, 'Upload completed successfully', 2);
+            showToast(result.message, 'success');
+        } else {
+            console.error('❌ Upload failed:', result.message);
+            showToast(result.message, 'error');
+        }
+
+    } catch (error) {
+        console.error('❌ Upload error:', error);
+        showToast('Upload failed: ' + error.message, 'error');
+    } finally {
+        hideProgress();
+    }
+}
+
+function displayFileInfo(files, totalSize) {
+    if (!elements.fileInfo) return;
+
+    let fileListHtml = '<div class="file-preview">';
+    files.forEach(file => {
+        fileListHtml += `
+            <div class="file-item">
+                <span class="file-icon">${getFileIcon(file.name)}</span>
+                <div class="file-details">
+                    <div class="file-name">${file.name}</div>
+                    <div class="file-size">${formatFileSize(file.size)}</div>
+                </div>
+            </div>
+        `;
+    });
+    fileListHtml += '</div>';
+
+    elements.fileInfo.innerHTML = `
+        <strong>Files Selected:</strong> ${files.length} file(s)<br>
+        <strong>Total Size:</strong> ${formatFileSize(totalSize)}
+        ${fileListHtml}
+    `;
+    elements.fileInfo.style.display = 'block';
+}
+
+function resetButtonStates() {
+    console.log('🔄 Resetting button states for new workflow');
+
+    const generateBtn = document.getElementById('generateBtn');
+    const reviewBtn = document.getElementById('reviewBtn');
+    const executeBtn = document.getElementById('executeBtn');
+    const ingestBtn = document.getElementById('ingestBtn');
+    const reportButtons = document.getElementById('reportButtons');
+
+    // Reset global data
+    ingestedTestCases = [];
+    generatedScripts = [];
+    executionResults = [];
+
+    // Hide multi-test areas
+    hideMultiTestAreas();
+
+    // UPDATED BUTTON STATES FOR NEW WORKFLOW
+    if (generateBtn) {
+        generateBtn.disabled = true;
+        generateBtn.textContent = 'Generate Code';
+        generateBtn.style.opacity = '0.6';
+        generateBtn.style.cursor = 'not-allowed';
+    }
+
+    if (reviewBtn) {
+        reviewBtn.disabled = true;
+        reviewBtn.textContent = 'Review Code';
+        reviewBtn.style.opacity = '0.6';
+        reviewBtn.style.cursor = 'not-allowed';
+    }
+
+    if (executeBtn) {
+        executeBtn.disabled = true;
+        executeBtn.textContent = 'Execute Code';
+        executeBtn.style.opacity = '0.6';
+        executeBtn.style.cursor = 'not-allowed';
+    }
+
+    if (ingestBtn) {
+        ingestBtn.disabled = false;
+        ingestBtn.textContent = 'Ingest Test';
+        ingestBtn.style.opacity = '1';
+        ingestBtn.style.cursor = 'pointer';
+    }
+
+    // Reset text area
+    if (elements.textArea) elements.textArea.value = '';
+    updateCharCount();
+    if (elements.codeActions) elements.codeActions.classList.remove('show');
+    if (reportButtons) reportButtons.classList.remove('show');
+
+    // ADD THIS LINE: Show save buttons when resetting for new workflow
+    showSaveButtons();
+}
+
+// Make sure the new functions are globally available
+window.hideSaveButtons = hideSaveButtons;
+window.showSaveButtons = showSaveButtons;
+
+// ================================================================================================
+// TEXT AREA MANAGEMENT
+// ================================================================================================
+
+function handleTextAreaInput() {
+    updateCharCount();
+    autoResizeTextarea();
+}
+
+function updateCharCount() {
+    if (!elements.textArea || !elements.charCount) return;
+
+    const count = elements.textArea.value.length;
+    elements.charCount.textContent = `${count} character${count !== 1 ? 's' : ''}`;
+}
+
+function autoResizeTextarea() {
+    if (!elements.textArea) return;
+
+    elements.textArea.style.height = 'auto';
+    elements.textArea.style.height = Math.max(180, elements.textArea.scrollHeight) + 'px';
+}
+
+function updateTestAreaCharCount(index) {
+    const textarea = document.getElementById(`testArea${index}`);
+    const charCount = document.getElementById(`charCount${index}`);
+
+    if (textarea && charCount) {
+        const count = textarea.value.length;
+        charCount.textContent = `${count} character${count !== 1 ? 's' : ''}`;
+    }
+}
+
+function autoResizeTestTextarea(index) {
+    const textarea = document.getElementById(`testArea${index}`);
+    if (textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.max(250, textarea.scrollHeight) + 'px';
+    }
+}
+
+// ================================================================================================
+// MULTI-TEST AREA MANAGEMENT
+// ================================================================================================
+// 2. UPDATED: Master control panel without Smart Select button
+function createMultiTestAreas() {
+    // FIXED: Only create multi-test areas if there are MULTIPLE scripts
+    if (!generatedScripts || generatedScripts.length <= 1) {
+        console.log('🏗️ Single or no test case - using single test area mode');
+
+        // For single test case, make sure execute button is properly set
+        updateExecuteButtonState();
+
+        // Make sure single text area is visible
+        const singleTextAreaContainer = document.querySelector('.text-area-container');
+        if (singleTextAreaContainer) {
+            singleTextAreaContainer.style.display = 'block';
+        }
+
+        return;
+    }
+
+    // Rest of your existing createMultiTestAreas() function stays exactly the same...
+    console.log('🏗️ Creating multi-test areas for', generatedScripts.length, 'scripts');
+
+    const autoTestContent = document.getElementById('autoTestContent');
+
+    if (!autoTestContent) {
+        console.error('❌ AutoTest content area not found!');
+        return;
+    }
+
+    // Remove existing multi-test areas
+    const existingMultiAreas = document.getElementById('multiTestAreas');
+    if (existingMultiAreas) {
+        existingMultiAreas.remove();
+    }
+
+    // Create new multi-test areas container
+    const multiTestAreas = document.createElement('div');
+    multiTestAreas.id = 'multiTestAreas';
+    multiTestAreas.className = 'multi-test-areas';
+    multiTestAreas.style.marginBottom = '25px';
+
+    // ✨ CLEANED UP: Master Control Panel without Smart Select
+    const masterControlPanel = document.createElement('div');
+    masterControlPanel.id = 'masterControlPanel';
+    masterControlPanel.className = 'master-control-panel';
+    masterControlPanel.style.cssText = `
+        background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+        border: 2px solid #0ea5e9;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 25px;
+        display: none;
+        box-shadow: 0 4px 15px rgba(14, 165, 233, 0.15);
+        animation: slideInFromTop 0.5s ease-out;
+    `;
+
+    masterControlPanel.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <!-- Master Checkbox -->
+                <div style="
+                    background: white;
+                    border: 2px solid #0ea5e9;
+                    border-radius: 10px;
+                    padding: 12px 16px;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    box-shadow: 0 2px 8px rgba(14, 165, 233, 0.1);
+                ">
+                    <input 
+                        type="checkbox" 
+                        id="masterExecuteCheckbox" 
+                        checked 
+                        onchange="toggleAllTests(this.checked)"
+                        style="
+                            width: 20px;
+                            height: 20px;
+                            accent-color: #0ea5e9;
+                            cursor: pointer;
+                        "
+                    >
+                    <label for="masterExecuteCheckbox" style="
+                        font-weight: 600;
+                        color: #0c4a6e;
+                        cursor: pointer;
+                        font-size: 1rem;
+                        margin: 0;
+                    ">
+                        Select All Tests for Execution
+                    </label>
+                </div>
+                
+                <!-- Test Count Display -->
+                <div id="testCountDisplay" style="
+                    background: #0ea5e9;
+                    color: white;
+                    padding: 8px 16px;
+                    border-radius: 25px;
+                    font-size: 0.9rem;
+                    font-weight: 600;
+                    box-shadow: 0 2px 8px rgba(14, 165, 233, 0.3);
+                ">
+                    ${generatedScripts.length} Tests Total
+                </div>
+            </div>
+        </div>
+    `;
+
+    multiTestAreas.appendChild(masterControlPanel);
+
+    // Initialize all test cases as selected by default
+    selectedTestCases.clear();
+    generatedScripts.forEach(script => {
+        selectedTestCases.add(script.id);
+    });
+
+    // Create test areas for each generated script
+    generatedScripts.forEach((script, index) => {
+        const testAreaGroup = document.createElement('div');
+        testAreaGroup.className = 'test-area-group';
+        testAreaGroup.style.cssText = `
+            margin-bottom: 30px;
+            border: 2px solid #e5e7eb;
+            border-radius: 15px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.9);
+            transition: all 0.3s ease;
+        `;
+
+        testAreaGroup.innerHTML = `
+            <div class="test-area-header" style="
+                background: linear-gradient(135deg, #1e40af, #3b82f6);
+                color: white;
+                padding: 15px 20px;
+                font-weight: 600;
+                font-size: 1.1rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                position: relative;
+                overflow: hidden;
+            ">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <!-- Individual Execution Checkbox -->
+                    <div class="execution-checkbox-container" style="
+                        display: none;
+                        background: rgba(255, 255, 255, 0.2);
+                        border-radius: 8px;
+                        padding: 8px 12px;
+                        border: 1px solid rgba(255, 255, 255, 0.3);
+                        backdrop-filter: blur(10px);
+                    " id="checkboxContainer${index}">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem;">
+                            <input 
+                                type="checkbox" 
+                                id="executeCheckbox${index}" 
+                                checked 
+                                onchange="toggleTestSelection(${script.id}, this.checked)"
+                                style="
+                                    width: 18px;
+                                    height: 18px;
+                                    accent-color: #22c55e;
+                                    cursor: pointer;
+                                "
+                            >
+                            <span style="color: white; font-weight: 500;">Execute this test</span>
+                        </label>
+                    </div>
+                    <span>Test Case ${script.id}: ${script.test_case_name}</span>
+                </div>
+                <div style="
+                    background: rgba(255, 255, 255, 0.2);
+                    border-radius: 50%;
+                    width: 30px;
+                    height: 30px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: bold;
+                ">${script.id}</div>
+            </div>
+            <div class="test-area-content" style="position: relative;">
+                <textarea 
+                    class="test-area-textarea" 
+                    id="testArea${index}"
+                    placeholder="Content for ${script.test_case_name} will appear here..."
+                    oninput="updateTestAreaCharCount(${index}); autoResizeTestTextarea(${index})"
+                    style="
+                        width: 100%;
+                        min-height: 250px;
+                        padding: 20px;
+                        border: none;
+                        font-family: 'Courier New', monospace;
+                        font-size: 0.9rem;
+                        resize: vertical;
+                        background: white;
+                        color: #374151;
+                        border-radius: 0 0 13px 13px;
+                    "
+                ></textarea>
+                <div class="test-area-char-count" id="charCount${index}" style="
+                    position: absolute;
+                    bottom: 12px;
+                    right: 18px;
+                    color: #6b7280;
+                    font-size: 0.8rem;
+                    background: rgba(255, 255, 255, 0.95);
+                    padding: 4px 8px;
+                    border-radius: 6px;
+                    border: 1px solid #e5e7eb;
+                ">0 characters</div>
+                <div class="test-area-actions" style="
+                    position: absolute;
+                    top: 12px;
+                    right: 18px;
+                    display: flex;
+                    gap: 8px;
+                    z-index: 10;
+                ">
+                    <button class="action-btn save-btn" onclick="saveTestCode(${index})" title="Save code" style="
+                        width: 36px;
+                        height: 36px;
+                        border: none;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 16px;
+                        background: #22c55e;
+                        color: white;
+                        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+                        transition: all 0.3s ease;
+                    ">
+                        💾
+                    </button>
+                    <button class="action-btn download-btn" onclick="downloadTestCode(${index})" title="Download code" style="
+                        width: 36px;
+                        height: 36px;
+                        border: none;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 16px;
+                        background: #3b82f6;
+                        color: white;
+                        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+                        transition: all 0.3s ease;
+                    ">
+                        📥
+                    </button>
+                </div>
+            </div>
+        `;
+        multiTestAreas.appendChild(testAreaGroup);
+    });
+
+    autoTestContent.appendChild(multiTestAreas);
+
+    // Hide single text area only when showing multi-test areas
+    const singleTextAreaContainer = document.querySelector('.text-area-container');
+    if (singleTextAreaContainer) {
+        singleTextAreaContainer.style.display = 'none';
+    }
+
+    console.log('✅ Multi-test areas created successfully with clean master control panel');
+}
+
+// 2. NEW: Master checkbox toggle function
+function toggleAllTests(isChecked) {
+    console.log(`🎛️ Master toggle: ${isChecked ? 'Selecting' : 'Deselecting'} all tests`);
+
+    if (isChecked) {
+        selectAllTests();
+    } else {
+        deselectAllTests();
+    }
+
+    // Update master checkbox appearance
+    updateMasterCheckbox();
+}
+
+
+// 3. ADD NEW FUNCTIONS for checkbox management
+function toggleTestSelection(testCaseId, isSelected) {
+    console.log(`🎯 Test case ${testCaseId} selection toggled: ${isSelected}`);
+
+    if (isSelected) {
+        selectedTestCases.add(testCaseId);
+    } else {
+        selectedTestCases.delete(testCaseId);
+    }
+
+    updateExecuteButtonState();
+    updateSelectionSummary();
+    updateMasterCheckbox(); // NEW: Update master checkbox state
+
+    console.log(`📋 Selected test cases: [${Array.from(selectedTestCases).join(', ')}]`);
+}
+
+// 4. NEW: Update master checkbox based on individual selections
+function updateMasterCheckbox() {
+    const masterCheckbox = document.getElementById('masterExecuteCheckbox');
+    if (!masterCheckbox) return;
+
+    const totalTests = generatedScripts.length;
+    const selectedCount = selectedTestCases.size;
+
+    if (selectedCount === 0) {
+        masterCheckbox.checked = false;
+        masterCheckbox.indeterminate = false;
+    } else if (selectedCount === totalTests) {
+        masterCheckbox.checked = true;
+        masterCheckbox.indeterminate = false;
+    } else {
+        masterCheckbox.checked = false;
+        masterCheckbox.indeterminate = true; // Partial selection
+    }
+
+    // Update test count display
+    const testCountDisplay = document.getElementById('testCountDisplay');
+    if (testCountDisplay) {
+        if (selectedCount === totalTests) {
+            testCountDisplay.textContent = `All ${totalTests} Tests Selected`;
+            testCountDisplay.style.background = '#22c55e';
+        } else if (selectedCount === 0) {
+            testCountDisplay.textContent = `No Tests Selected (${totalTests} Available)`;
+            testCountDisplay.style.background = '#ef4444';
+        } else {
+            testCountDisplay.textContent = `${selectedCount} of ${totalTests} Tests Selected`;
+            testCountDisplay.style.background = '#f59e0b';
+        }
+    }
+}
+
+function updateExecuteButtonState() {
+    const executeBtn = document.getElementById('executeBtn');
+    if (!executeBtn) return;
+
+    if (!generatedScripts || generatedScripts.length === 0) {
+        // No scripts available
+        executeBtn.disabled = true;
+        executeBtn.textContent = 'Execute Code';
+        executeBtn.classList.remove('selective-execution');
+        return;
+    }
+
+    if (generatedScripts.length === 1) {
+        // Single test case: always enabled, simple text
+        executeBtn.disabled = false;
+        executeBtn.textContent = 'Execute Code';
+        executeBtn.classList.remove('selective-execution');
+        console.log('🔘 Execute button: Single test mode');
+    } else {
+        // Multiple test cases: selection-based
+        const selectedCount = selectedTestCases.size;
+        const totalCount = generatedScripts.length;
+
+        if (selectedCount === 0) {
+            executeBtn.disabled = true;
+            executeBtn.textContent = 'Execute Code (Select Tests First)';
+            executeBtn.classList.add('selective-execution');
+        } else if (selectedCount === totalCount) {
+            executeBtn.disabled = false;
+            executeBtn.textContent = 'Execute All Tests';
+            executeBtn.classList.add('selective-execution');
+        } else {
+            executeBtn.disabled = false;
+            executeBtn.textContent = `Execute Selected Tests (${selectedCount}/${totalCount})`;
+            executeBtn.classList.add('selective-execution');
+        }
+
+        console.log(`🔘 Execute button: Multi-test mode (${selectedCount}/${totalCount} selected)`);
+    }
+}
+
+// 1. UPDATED: Clean selection summary without redundant buttons
+function updateSelectionSummary() {
+    const selectedCount = selectedTestCases.size;
+    const totalCount = generatedScripts ? generatedScripts.length : 0;
+
+    // Remove any existing selection summary
+    const existingSummary = document.getElementById('selectionSummary');
+    if (existingSummary) {
+        existingSummary.remove();
+    }
+
+    // Only show summary if we have tests and some are selected
+    if (totalCount === 0) return;
+
+    // Create clean selection summary without buttons
+    const summaryDiv = document.createElement('div');
+    summaryDiv.id = 'selectionSummary';
+    summaryDiv.className = 'selection-summary';
+
+    // Simple, clean summary without redundant buttons
+    summaryDiv.innerHTML = `
+        <div class="selection-summary-info">
+            <div class="selection-count-badge">${selectedCount}</div>
+            <div>
+                <div class="selection-text">${selectedCount} of ${totalCount} tests selected for execution</div>
+                <div class="selection-details">Selected: Test Cases ${Array.from(selectedTestCases).sort((a, b) => a - b).join(', ')}</div>
+            </div>
+        </div>
+    `;
+
+    // Insert before the execute button
+    const executeBtn = document.getElementById('executeBtn');
+    if (executeBtn && executeBtn.parentNode) {
+        executeBtn.parentNode.insertBefore(summaryDiv, executeBtn.parentNode.querySelector('.buttons'));
+    }
+
+    console.log(`📊 Selection summary updated: ${selectedCount}/${totalCount} tests selected`);
+}
+
+// 5. ENHANCED: Select all with master checkbox update
+function selectAllTests() {
+    console.log('✅ Selecting all tests');
+
+    generatedScripts.forEach((script, index) => {
+        selectedTestCases.add(script.id);
+        const checkbox = document.getElementById(`executeCheckbox${index}`);
+        if (checkbox) {
+            checkbox.checked = true;
+        }
+    });
+
+    updateExecuteButtonState();
+    updateSelectionSummary();
+    updateMasterCheckbox();
+}
+
+// 6. ENHANCED: Deselect all with master checkbox update
+function deselectAllTests() {
+    console.log('❌ Deselecting all tests');
+
+    selectedTestCases.clear();
+
+    generatedScripts.forEach((script, index) => {
+        const checkbox = document.getElementById(`executeCheckbox${index}`);
+        if (checkbox) {
+            checkbox.checked = false;
+        }
+    });
+
+    updateExecuteButtonState();
+    updateSelectionSummary();
+    updateMasterCheckbox();
+}
+
+// 7. NEW: Smart selection based on review results (placeholder logic)
+/*
+function selectRecommended() {
+    console.log('⭐ Smart selecting recommended tests');
+
+    // Clear current selection
+    selectedTestCases.clear();
+
+    // Smart logic: Select tests that don't have obvious error indicators
+    generatedScripts.forEach((script, index) => {
+        const textarea = document.getElementById(`testArea${index}`);
+        const content = textarea ? textarea.value.toLowerCase() : '';
+
+        // Simple heuristic: avoid tests with error indicators
+        const hasErrors = content.includes('[fail]') ||
+                         content.includes('error:') ||
+                         content.includes('critical') ||
+                         content.includes('security vulnerability') ||
+                         content.includes('static code analysis fails');
+
+        const checkbox = document.getElementById(`executeCheckbox${index}`);
+        if (checkbox) {
+            if (!hasErrors || content.includes('[pass]')) {
+                selectedTestCases.add(script.id);
+                checkbox.checked = true;
+            } else {
+                checkbox.checked = false;
+            }
+        }
+    });
+
+    updateExecuteButtonState();
+    updateSelectionSummary();
+    updateMasterCheckbox();
+
+    const selectedCount = selectedTestCases.size;
+    const totalCount = generatedScripts.length;
+    const skippedCount = totalCount - selectedCount;
+
+    if (skippedCount > 0) {
+        showToast(`Smart selection: Selected ${selectedCount} tests, skipped ${skippedCount} tests with potential issues`, 'warning');
+    } else {
+        showToast(`Smart selection: All ${selectedCount} tests look good for execution!`, 'success');
+    }
+}
+*/
+// 8. ENHANCED: Show checkboxes with master control panel
+function showExecutionCheckboxes() {
+    console.log('👁️ Showing execution checkboxes and master control panel');
+
+    // Show master control panel
+    const masterControlPanel = document.getElementById('masterControlPanel');
+    if (masterControlPanel) {
+        masterControlPanel.style.display = 'block';
+    }
+
+    // Show individual checkboxes
+    generatedScripts.forEach((script, index) => {
+        const checkboxContainer = document.getElementById(`checkboxContainer${index}`);
+        if (checkboxContainer) {
+            checkboxContainer.style.display = 'block';
+        }
+    });
+
+    updateExecuteButtonState();
+    updateSelectionSummary();
+    updateMasterCheckbox();
+}
+
+// 9. ENHANCED: Hide checkboxes with master control panel
+function hideExecutionCheckboxes() {
+    console.log('🙈 Hiding execution checkboxes and master control panel');
+
+    // Hide master control panel
+    const masterControlPanel = document.getElementById('masterControlPanel');
+    if (masterControlPanel) {
+        masterControlPanel.style.display = 'none';
+    }
+
+    // Hide individual checkboxes
+    generatedScripts.forEach((script, index) => {
+        const checkboxContainer = document.getElementById(`checkboxContainer${index}`);
+        if (checkboxContainer) {
+            checkboxContainer.style.display = 'none';
+        }
+    });
+
+    // Remove selection summary
+    const existingSummary = document.getElementById('selectionSummary');
+    if (existingSummary) {
+        existingSummary.remove();
+    }
+}
+
+
+function areCheckboxesVisible() {
+    if (generatedScripts.length === 0) return false;
+
+    const firstCheckboxContainer = document.getElementById('checkboxContainer0');
+    return firstCheckboxContainer && firstCheckboxContainer.style.display !== 'none';
+}
+
+function hideMultiTestAreas() {
+    console.log('🗑️ Hiding multi-test areas');
+
+    const multiTestAreas = document.getElementById('multiTestAreas');
+    if (multiTestAreas) {
+        multiTestAreas.remove();
+    }
+
+    // Show single text area
+    const singleTextAreaContainer = document.querySelector('.text-area-container');
+    if (singleTextAreaContainer) {
+        singleTextAreaContainer.style.display = 'block';
+    }
+}
+
+// ================================================================================================
+// MAIN FUNCTIONALITY - INGEST TEST
+// ================================================================================================
+
+async function ingestTest() {
+    console.log('📥 Starting test ingestion...');
+
+    if (uploadedFiles.length === 0) {
+        showToast('Please upload files first!', 'warning');
+        return;
+    }
+
+    const ingestBtn = document.getElementById('ingestBtn');
+    if (!ingestBtn) return;
+
+    ingestBtn.disabled = true;
+    ingestBtn.textContent = 'Ingesting...';
+
+    try {
+        showProgress('Ingesting Test Data', [
+            'Reading uploaded files',
+            'Parsing file contents',
+            'Extracting test requirements',
+            'Generating test metadata'
+        ]);
+
+        updateProgress(25, 'Reading uploaded files', 0);
+        await delay(500);
+
+        updateProgress(50, 'Parsing file contents', 1);
+        await delay(700);
+
+        updateProgress(75, 'Extracting test requirements', 2);
+
+        const response = await fetch('/ingest', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ files: uploadedFiles })
+        });
+
+        const result = await response.json();
+        console.log('📊 Ingestion result:', result);
+
+        updateProgress(100, 'Test data ingested successfully', 3);
+
+        if (result.success) {
+            // Store ingested test cases
+            ingestedTestCases = result.processed_files;
+
+            if (elements.textArea) {
+                elements.textArea.value = `Test ingestion completed!\n\nFiles processed: ${uploadedFiles.length}\nTest cases found: ${result.total_test_cases}\n\n${result.processed_files.map(f => `- ${f.name}: ${f.test_cases}`).join('\n')}\n\nReady for Python test code generation.`;
+                updateCharCount();
+                autoResizeTextarea();
+            }
+
+            // Enable Generate Code button
+            const generateBtn = document.getElementById('generateBtn');
+            if (generateBtn) {
+                generateBtn.disabled = false;
+                generateBtn.style.opacity = '1';
+                generateBtn.style.cursor = 'pointer';
+            }
+
+            showToast(result.message, 'success');
+        } else {
+            showToast(result.message, 'error');
+        }
+
+    } catch (error) {
+        console.error('❌ Ingestion error:', error);
+        showToast('Ingestion failed: ' + error.message, 'error');
+    } finally {
+        ingestBtn.disabled = false;
+        ingestBtn.textContent = 'Ingest Test';
+        hideProgress();
+    }
+}
+
+// ================================================================================================
+// MAIN FUNCTIONALITY - GENERATE CODE (WITH REAL PROGRESS)
+// ================================================================================================
+
+async function generateCode() {
+    console.log('🔧 Starting code generation...');
+
+    const generateBtn = document.getElementById('generateBtn');
+    if (!generateBtn) return;
+
+    generateBtn.disabled = true;
+    generateBtn.classList.add('btn-loading');
+
+    try {
+        // Start real progress tracking
+        startRealProgress('generate', 'Generating Python Test Code', [
+            'Analyzing test requirements',
+            'Creating Python test structure',
+            'Generating Python Code',
+            'Optimizing Python code',
+            'Finalizing test suite'
+        ]);
+
+        // Make the actual API call
+        const response = await fetch('/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ input_text: elements.textArea ? elements.textArea.value : '' })
+        });
+
+        const result = await response.json();
+        console.log('🐍 Generation result:', result);
+
+        if (result.success) {
+            // Store generated scripts
+            generatedScripts = result.generated_scripts;
+
+            // Create multi test areas OR show single area
+            if (generatedScripts.length > 1) {
+                createMultiTestAreas();
+            } else {
+                const singleTextAreaContainer = document.querySelector('.text-area-container');
+                if (singleTextAreaContainer) {
+                    singleTextAreaContainer.style.display = 'block';
+                }
+            }
+
+            // Populate text areas
+            generatedScripts.forEach((script, index) => {
+                const textarea = document.getElementById(`testArea${index}`);
+                if (textarea) {
+                    textarea.value = script.code;
+                    updateTestAreaCharCount(index);
+                    autoResizeTestTextarea(index);
+                }
+            });
+
+            // For single test case, update main text area
+            if (generatedScripts.length === 1 && elements.textArea) {
+                elements.textArea.value = generatedScripts[0].code;
+                updateCharCount();
+                autoResizeTextarea();
+                if (elements.codeActions) elements.codeActions.classList.add('show');
+            }
+
+            // Update button states - NEW WORKFLOW: Review before Execute
+            const reviewBtn = document.getElementById('reviewBtn');
+            const executeBtn = document.getElementById('executeBtn');
+            const ingestBtn = document.getElementById('ingestBtn');
+
+            generateBtn.disabled = true;
+            generateBtn.classList.remove('btn-loading');
+            generateBtn.textContent = 'Code Generated ✓';
+            generateBtn.style.opacity = '0.6';
+            generateBtn.style.cursor = 'not-allowed';
+
+            // CHANGED: Enable review button instead of execute
+            if (reviewBtn) {
+                reviewBtn.disabled = false;
+                reviewBtn.style.opacity = '1';
+                reviewBtn.style.cursor = 'pointer';
+            }
+
+            // CHANGED: Keep execute button disabled until review is complete
+            if (executeBtn) {
+                executeBtn.disabled = true;
+                executeBtn.style.opacity = '0.6';
+                executeBtn.style.cursor = 'not-allowed';
+            }
+
+            if (ingestBtn) {
+                ingestBtn.disabled = true;
+                ingestBtn.style.opacity = '0.6';
+            }
+
+            showToast(`Generated ${generatedScripts.length} Python test scripts successfully! Review code before execution.`, 'success');
+        } else {
+            // Stop progress polling on failure
+            stopProgressPolling();
+            hideProgress();
+
+            // Reset button on failure
+            generateBtn.disabled = false;
+            generateBtn.classList.remove('btn-loading');
+            generateBtn.textContent = 'Generate Code';
+            generateBtn.style.opacity = '1';
+            generateBtn.style.cursor = 'pointer';
+            showToast(result.message, 'error');
+        }
+
+    } catch (error) {
+        console.error('❌ Generation error:', error);
+
+        // Stop progress polling on error
+        stopProgressPolling();
+        hideProgress();
+
+        // Reset button on error
+        generateBtn.disabled = false;
+        generateBtn.classList.remove('btn-loading');
+        generateBtn.textContent = 'Generate Code';
+        generateBtn.style.opacity = '1';
+        generateBtn.style.cursor = 'pointer';
+        showToast('Code generation failed: ' + error.message, 'error');
+    }
+}
+
+// ================================================================================================
+// MAIN FUNCTIONALITY - REVIEW CODE (WITH REAL PROGRESS)
+// ================================================================================================
+
+async function reviewCode() {
+    console.log('🔍 Starting code review...');
+
+    // CHANGED: Check for generated scripts instead of execution results
+    if (generatedScripts.length === 0) {
+        showToast('No generated scripts to review. Please generate Python code first!', 'warning');
+        return;
+    }
+
+    const reviewBtn = document.getElementById('reviewBtn');
+    if (!reviewBtn) return;
+
+    reviewBtn.disabled = true;
+    reviewBtn.classList.add('btn-loading');
+
+    try {
+        // Start real progress tracking
+        startRealProgress('review', 'Reviewing Python Code Quality', [
+            'Scanning Python code structure',
+            'Analyzing syntax and PEP 8 compliance',
+            'Checking Python best practices',
+            'Running security analysis',
+            'Generating Python recommendations',
+            'Compiling final review report'
+        ]);
+
+        const response = await fetch('/review', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({})
+        });
+
+        const result = await response.json();
+        console.log('📋 Review result:', result);
+
+        if (result.success) {
+            // NEW: Handle individual reports for multiple test cases
+            if (result.individual_reports && result.individual_reports.length > 0) {
+                console.log('📋 Processing individual reports for multiple test cases');
+
+                // Update each text area with its individual report
+                result.individual_reports.forEach((report, index) => {
+                    const textarea = document.getElementById(`testArea${index}`);
+                    if (textarea) {
+                        const individualReview = `=== CODE REVIEW REPORT ===
+Test Case: ${report.test_case_name}
+Script: ${report.script_name}
+
+${report.review_report}
+
+████████████████████████████████████████████████████████████████████████████████████████████████████████████████
+██ ⚠️  IMPORTANT: CODE REVIEW COMPLETED SUCCESSFULLY. CHECK ERRORS/ISSUES BEFORE EXECUTION. ⚠️  ██
+██ 🚀 CLICK "EXECUTE CODE" TO RUN THE REVIEWED TEST SCRIPTS IF THERE ARE NO STATIC CODE ANALYSIS ISSUE. 🚀 ██
+████████████████████████████████████████████████████████████████████████████████████████████████████████████████`;
+
+                        textarea.value = individualReview;
+                        updateTestAreaCharCount(index);
+                        autoResizeTestTextarea(index);
+                    }
+                });
+
+                showToast(`Reviewed ${result.individual_reports.length} Python test scripts with individual analysis!`, 'success');
+            }
+            // Handle single test case or fallback to old behavior
+            else {
+                console.log('📋 Processing single test case or fallback review');
+
+                // Update text areas with review reports (original behavior)
+                generatedScripts.forEach((script, index) => {
+                    const textarea = document.getElementById(`testArea${index}`);
+                    if (textarea) {
+                        const individualReview = `=== CODE REVIEW REPORT ===
+Test Case: ${script.test_case_name}
+Script: ${script.script_name}
+
+${result.review_report || 'Review completed successfully.'}
+
+=== INDIVIDUAL ANALYSIS ===
+This review covers the specific test case: ${script.test_case_name}
+
+████████████████████████████████████████████████████████████████████████████████████████████████████████████████
+██ ⚠️  IMPORTANT: CODE REVIEW COMPLETED SUCCESSFULLY. CHECK ERRORS/ISSUES BEFORE EXECUTION. ⚠️  ██
+██ 🚀 CLICK "EXECUTE CODE" TO RUN THE REVIEWED TEST SCRIPTS IF THERE ARE NO STATIC CODE ANALYSIS ISSUE. 🚀 ██
+████████████████████████████████████████████████████████████████████████████████████████████████████████████████`;
+
+                        textarea.value = individualReview;
+                        updateTestAreaCharCount(index);
+                        autoResizeTestTextarea(index);
+                    }
+                });
+
+                showToast(`Reviewed ${generatedScripts.length} Python test scripts successfully!`, 'success');
+            }
+
+            // Single test case handling (when only one script)
+            if (generatedScripts.length === 1 && elements.textArea) {
+                const singleScript = generatedScripts[0];
+                const singleReview = `=== CODE REVIEW REPORT ===
+Test Case: ${singleScript.test_case_name}
+Script: ${singleScript.script_name}
+
+${result.review_report || result.main_summary || 'Review completed successfully.'}
+
+=== ACTIONS REQUIRED ===
+   ✅ 1. Look for [PASS] ✅ or [FAIL] ❌ indicators in the analysis above
+   ✅ 2. CHECK "OPEN REPORT" FOR COMPREHENSIVE HTML RESULTS
+   ✅ 3. CLICK THE **"EXECUTE CODE"** BUTTON IF NO CRITICAL ISSUES
+   ❌ 4. DO NOT PROCEED IF STATIC CODE ANALYSIS FAILS OR SECURITY VULNERABILITIES ARE FOUND
+   
+████████████████████████████████████████████████████████████████████████████████████████████████████████████████
+██ ⚠️  IMPORTANT: CODE REVIEW COMPLETED SUCCESSFULLY. CHECK ERRORS/ISSUES BEFORE EXECUTION. ⚠️  ██
+██ 🚀 CLICK "EXECUTE CODE" TO RUN THE REVIEWED TEST SCRIPT IF THERE ARE NO STATIC CODE ANALYSIS ISSUE. 🚀 ██
+████████████████████████████████████████████████████████████████████████████████████████████████████████████████`;
+
+                elements.textArea.value = singleReview;
+                updateCharCount();
+                autoResizeTextarea();
+            }
+
+            // Update button states
+            const generateBtn = document.getElementById('generateBtn');
+            const executeBtn = document.getElementById('executeBtn');
+            const ingestBtn = document.getElementById('ingestBtn');
+            const reportButtons = document.getElementById('reportButtons');
+
+            if (generateBtn) {
+                generateBtn.disabled = true;
+                generateBtn.style.opacity = '0.6';
+            }
+
+            if (ingestBtn) {
+                ingestBtn.disabled = true;
+                ingestBtn.style.opacity = '0.6';
+            }
+
+            reviewBtn.disabled = true;
+            reviewBtn.classList.remove('btn-loading');
+            reviewBtn.textContent = 'Review Completed ✓';
+            reviewBtn.style.opacity = '0.6';
+            reviewBtn.style.cursor = 'not-allowed';
+
+            // CHANGED: Enable execute button after successful review
+            if (executeBtn) {
+                executeBtn.disabled = false;
+                executeBtn.style.opacity = '1';
+                executeBtn.style.cursor = 'pointer';
+            }
+
+            if (reportButtons) reportButtons.classList.add('show');
+
+            // NEW: Show execution checkboxes after review completion
+            if (generatedScripts.length > 1) {
+                showExecutionCheckboxes();
+                console.log('✅ Execution checkboxes enabled after review completion');
+            }
+
+            // ADD THIS LINE: Hide save buttons after review completion
+            hideSaveButtons();
+
+        } else {
+            // Stop progress polling on failure
+            stopProgressPolling();
+            hideProgress();
+
+            // Reset button on failure
+            reviewBtn.disabled = false;
+            reviewBtn.classList.remove('btn-loading');
+            reviewBtn.textContent = 'Review Code';
+            reviewBtn.style.opacity = '1';
+            reviewBtn.style.cursor = 'pointer';
+            showToast(result.message, 'error');
+        }
+
+    } catch (error) {
+        console.error('❌ Review error:', error);
+
+        // Stop progress polling on error
+        stopProgressPolling();
+        hideProgress();
+
+        // Reset button on error
+        reviewBtn.disabled = false;
+        reviewBtn.classList.remove('btn-loading');
+        reviewBtn.textContent = 'Review Code';
+        reviewBtn.style.opacity = '1';
+        reviewBtn.style.cursor = 'pointer';
+        showToast('Code review failed: ' + error.message, 'error');
+    }
+}
+
+// ================================================================================================
+// MAIN FUNCTIONALITY - EXECUTE CODE (WITH REAL PROGRESS)
+// ================================================================================================
+/*
+async function executeCode() {
+    console.log('🚀 Execute Code button clicked');
+
+    try {
+        // Check if we have any scripts to execute
+        if (!generatedScripts || generatedScripts.length === 0) {
+            showToast('No test scripts available for execution. Please generate scripts first.', 'error');
+            return;
+        }
+
+        // FIXED: Different logic for single vs multiple tests
+        let selectedTestIds;
+
+        if (generatedScripts.length === 1) {
+            // For single test case: always execute without selection requirement
+            console.log('📝 Single test case detected - executing without selection');
+            selectedTestIds = [generatedScripts[0].id];
+        } else {
+            // For multiple test cases: require selection
+            if (selectedTestCases.size === 0) {
+                showToast('Please select at least one test case for execution.', 'warning');
+                return;
+            }
+            selectedTestIds = Array.from(selectedTestCases);
+            console.log('📝 Multiple test cases - executing selected:', selectedTestIds);
+        }
+
+        // Disable execute button during execution
+        const executeBtn = document.getElementById('executeBtn');
+        if (executeBtn) {
+            executeBtn.disabled = true;
+            executeBtn.classList.add('btn-loading');
+        }
+
+        // Start real progress tracking
+        const selectedCount = selectedTestIds.length;
+        const totalCount = generatedScripts.length;
+
+        let progressTitle = `Executing ${selectedCount} Selected Python Test${selectedCount > 1 ? 's' : ''}`;
+        if (selectedCount === totalCount) {
+            progressTitle = 'Executing All Python Tests';
+        }
+
+        startRealProgress('execute', progressTitle, [
+            'Preparing Python execution environment',
+            'Connecting to test infrastructure',
+            'Running selected Python test cases',
+            'Collecting test results',
+            'Generating execution output'
+        ]);
+
+        console.log(`🎯 Executing ${selectedTestIds.length} test case(s):`, selectedTestIds);
+
+        // Make the API call with selected test IDs
+        const response = await fetch('/execute', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                selected_test_ids: selectedTestIds
+            })
+        });
+
+        const result = await response.json();
+        console.log('🚀 Execution result:', result);
+
+        if (result.success) {
+            // ✅ SUCCESS PATH - FIXED RESULT MAPPING
+            // Store execution results
+            executionResults = result.execution_results;
+
+            // FIXED: Map results by test case ID instead of array index
+            executionResults.forEach((execResult) => {
+                // Find the textarea index that corresponds to this test case ID
+                const scriptIndex = generatedScripts.findIndex(script => script.id === execResult.test_case_id);
+
+                if (scriptIndex !== -1) {
+                    const textarea = document.getElementById(`testArea${scriptIndex}`);
+                    if (textarea) {
+                        const executionOutput = `=== EXECUTION RESULTS ===
+Test Case: ${execResult.test_case_name}
+Script: ${execResult.script_name}
+Connected Host: ${result.connected_host}
+Execution Status: ${execResult.success ? 'SUCCESS' : 'FAILED'}
+
+=== EXECUTION OUTPUT ===
+STDOUT:
+${execResult.stdout}
+
+STDERR:
+${execResult.stderr}
+
+=== EXECUTION COMPLETED ===
+✅Test: ${execResult.test_case_name} Execution Done`;
+
+                        textarea.value = executionOutput;
+                        updateTestAreaCharCount(scriptIndex);
+                        autoResizeTestTextarea(scriptIndex);
+                    }
+                } else {
+                    console.warn(`Could not find textarea for test case ID ${execResult.test_case_id}`);
+                }
+            });
+
+            // FIXED: Single test case handling using test case ID mapping
+            if (executionResults.length === 1 && elements.textArea) {
+                const singleResult = executionResults[0];
+                const singleExecution = `=== EXECUTION RESULTS ===
+Test Case: ${singleResult.test_case_name}
+Script: ${singleResult.script_name}
+Connected Host: ${result.connected_host}
+Execution Status: ${singleResult.success ? 'SUCCESS' : 'FAILED'}
+
+=== EXECUTION OUTPUT ===
+STDOUT:
+${singleResult.stdout}
+
+STDERR:
+${singleResult.stderr}
+
+=== EXECUTION COMPLETED ===
+✅ Test Case Execution Completed`;
+
+                elements.textArea.value = singleExecution;
+                updateCharCount();
+                autoResizeTextarea();
+            }
+
+            // Final button states for SUCCESS
+            const generateBtn = document.getElementById('generateBtn');
+            const reviewBtn = document.getElementById('reviewBtn');
+
+            executeBtn.disabled = true;
+            executeBtn.classList.remove('btn-loading');
+            executeBtn.textContent = `Executed ${selectedCount} Test${selectedCount > 1 ? 's' : ''} ✓`;
+            executeBtn.style.opacity = '0.6';
+            executeBtn.style.cursor = 'not-allowed';
+
+            if (generateBtn) {
+                generateBtn.disabled = true;
+                generateBtn.style.opacity = '0.6';
+            }
+
+            if (reviewBtn) {
+                reviewBtn.disabled = true;
+                reviewBtn.style.opacity = '0.6';
+            }
+
+            // Hide checkboxes after execution (only for multiple tests)
+            if (generatedScripts.length > 1) {
+                hideExecutionCheckboxes();
+            }
+
+            showToast(`Successfully executed ${selectedCount} test${selectedCount > 1 ? 's' : ''} out of ${totalCount} total!`, 'success');
+            hideSaveButtons();
+
+        } else {
+            // Error handling - unchanged from your original
+            console.error('❌ Execute failed:', result.message);
+            stopProgressPolling();
+            hideProgress();
+
+            executeBtn.disabled = false;
+            executeBtn.classList.remove('btn-loading');
+            updateExecuteButtonState();
+
+            if (result.message.includes('Raspberry Pi') ||
+                result.message.includes('connection') ||
+                result.message.includes('connect')) {
+                showErrorModal(
+                    'Test Execution Failed',
+                    result.message,
+                    'Unable to establish connection with the remote test infrastructure. Please verify that the Test devices are online and accessible from your network.'
+                );
+            } else {
+                showToast(result.message, 'error');
+            }
+        }
+
+    } catch (error) {
+        // Error handling - unchanged from your original
+        console.error('❌ Execution error:', error);
+        stopProgressPolling();
+        hideProgress();
+
+        executeBtn.disabled = false;
+        executeBtn.classList.remove('btn-loading');
+        updateExecuteButtonState();
+
+        if (error.message.includes('fetch') ||
+            error.message.includes('network') ||
+            error.message.includes('connection') ||
+            error.message.includes('Failed to fetch')) {
+            showErrorModal(
+                'Network Connection Error',
+                'Failed to communicate with the test server.',
+                `Technical Details: ${error.message}\n\nThis could be due to network connectivity issues or server unavailability.`
+            );
+        } else {
+            showToast('Code execution failed: ' + error.message, 'error');
+        }
+    }
+}
+*/
+
+// NEW FUNCTION: Parse execution output to determine actual test pass/fail status
+function parseTestResult(executionOutput, scriptSuccess) {
+    console.log('🔍 Parsing test result for pass/fail determination');
+
+    const stdout = executionOutput.stdout || '';
+    const stderr = executionOutput.stderr || '';
+    const combinedOutput = (stdout + ' ' + stderr).toLowerCase();
+
+    // If script didn't execute successfully at all, it's definitely a failure
+    if (!scriptSuccess) {
+        return {
+            status: 'failed',
+            reason: 'Script execution failed',
+            color: '#ef4444',
+            text: 'Failed ✗'
+        };
+    }
+
+    // Define patterns that indicate test failure
+    const failurePatterns = [
+        /\[fail\]/i,
+        /\[failed\]/i,
+        /test.*fail/i,
+        /fail.*test/i,
+        /error:/i,
+        /exception/i,
+        /assertion.*fail/i,
+        /test.*not.*pass/i,
+        /does not match/i,
+        /mismatch/i,
+        /incorrect/i,
+        /invalid/i,
+        /test result:.*fail/i,
+        /status:.*fail/i,
+        /result:.*fail/i
+    ];
+
+    // Define patterns that indicate test success/pass
+    const successPatterns = [
+        /\[pass\]/i,
+        /\[passed\]/i,
+        /test.*pass/i,
+        /pass.*test/i,
+        /test.*success/i,
+        /success.*test/i,
+        /test result:.*completed/i,
+        /test result:.*success/i,
+        /test result:.*pass/i,
+        /status:.*success/i,
+        /status:.*pass/i,
+        /result:.*success/i,
+        /result:.*pass/i,
+        /completed successfully/i,
+        /test.*completed/i,
+        /all.*tests.*pass/i
+    ];
+
+    // Check for explicit failure indicators first
+    for (const pattern of failurePatterns) {
+        if (pattern.test(combinedOutput)) {
+            return {
+                status: 'failed',
+                reason: 'Test assertion failed',
+                color: '#ef4444',
+                text: 'Failed ✗'
+            };
+        }
+    }
+
+    // Check for explicit success indicators
+    for (const pattern of successPatterns) {
+        if (pattern.test(combinedOutput)) {
+            return {
+                status: 'passed',
+                reason: 'Test completed successfully',
+                color: '#22c55e',
+                text: 'Passed ✓'
+            };
+        }
+    }
+
+    // Default: Script executed successfully but no clear pass/fail indicators
+    return {
+        status: 'executed',
+        reason: 'Executed successfully (result unclear)',
+        color: '#3b82f6',
+        text: 'Executed ✓'
+    };
+}
+// ================================================================================================
+// ENHANCED EXECUTE CODE FUNCTION WITH STATUS INDICATORS
+// ================================================================================================
+
+async function executeCode() {
+    console.log('🚀 Execute Code button clicked');
+
+    try {
+        // Check if we have any scripts to execute
+        if (!generatedScripts || generatedScripts.length === 0) {
+            showToast('No test scripts available for execution. Please generate scripts first.', 'error');
+            return;
+        }
+
+        // FIXED: Different logic for single vs multiple tests
+        let selectedTestIds;
+
+        if (generatedScripts.length === 1) {
+            // For single test case: always execute without selection requirement
+            console.log('📝 Single test case detected - executing without selection');
+            selectedTestIds = [generatedScripts[0].id];
+        } else {
+            // For multiple test cases: require selection
+            if (selectedTestCases.size === 0) {
+                showToast('Please select at least one test case for execution.', 'warning');
+                return;
+            }
+            selectedTestIds = Array.from(selectedTestCases);
+            console.log('📝 Multiple test cases - executing selected:', selectedTestIds);
+        }
+
+        // Disable execute button during execution
+        const executeBtn = document.getElementById('executeBtn');
+        if (executeBtn) {
+            executeBtn.disabled = true;
+            executeBtn.classList.add('btn-loading');
+        }
+
+        // Start real progress tracking
+        const selectedCount = selectedTestIds.length;
+        const totalCount = generatedScripts.length;
+
+        let progressTitle = `Executing ${selectedCount} Selected Python Test${selectedCount > 1 ? 's' : ''}`;
+        if (selectedCount === totalCount) {
+            progressTitle = 'Executing All Python Tests';
+        }
+
+        startRealProgress('execute', progressTitle, [
+            'Preparing Python execution environment',
+            'Connecting to test infrastructure',
+            'Running selected Python test cases',
+            'Collecting test results',
+            'Generating execution output'
+        ]);
+
+        console.log(`🎯 Executing ${selectedTestIds.length} test case(s):`, selectedTestIds);
+
+        // NEW: Add status indicators to headers BEFORE execution
+        generatedScripts.forEach((script, index) => {
+            const testHeader = document.querySelector(`#multiTestAreas .test-area-group:nth-child(${index + 2}) .test-area-header`);
+            if (testHeader) {
+                // Remove any existing status indicators
+                const existingStatus = testHeader.querySelector('.execution-status');
+                if (existingStatus) {
+                    existingStatus.remove();
+                }
+
+                // Add status indicator
+                const statusDiv = document.createElement('div');
+                statusDiv.className = 'execution-status';
+                statusDiv.style.cssText = `
+                    position: absolute;
+                    top: 50%;
+                    right: 60px;
+                    transform: translateY(-50%);
+                    background: ${selectedTestIds.includes(script.id) ? '#f59e0b' : '#6b7280'};
+                    color: white;
+                    padding: 4px 12px;
+                    border-radius: 15px;
+                    font-size: 0.8rem;
+                    font-weight: 600;
+                    z-index: 10;
+                `;
+                statusDiv.textContent = selectedTestIds.includes(script.id) ? 'Executing...' : 'Not Selected';
+
+                testHeader.appendChild(statusDiv);
+            }
+        });
+
+        // Make the API call with selected test IDs
+        const response = await fetch('/execute', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                selected_test_ids: selectedTestIds
+            })
+        });
+
+        const result = await response.json();
+        console.log('🚀 Execution result:', result);
+
+        if (result.success) {
+            // ✅ SUCCESS PATH - FIXED RESULT MAPPING
+            // Store execution results
+            executionResults = result.execution_results;
+
+            // FIXED: Map results by test case ID instead of array index
+            executionResults.forEach((execResult) => {
+                // Find the textarea index that corresponds to this test case ID
+                const scriptIndex = generatedScripts.findIndex(script => script.id === execResult.test_case_id);
+
+                if (scriptIndex !== -1) {
+                    const textarea = document.getElementById(`testArea${scriptIndex}`);
+                    if (textarea) {
+                        const executionOutput = `=== EXECUTION RESULTS ===
+Test Case: ${execResult.test_case_name}
+Script: ${execResult.script_name}
+Connected Host: ${result.connected_host}
+Execution Status: ${execResult.success ? 'SUCCESS' : 'FAILED'}
+
+=== EXECUTION OUTPUT ===
+STDOUT:
+${execResult.stdout}
+
+STDERR:
+${execResult.stderr}
+
+=== EXECUTION COMPLETED ===
+✅Test: ${execResult.test_case_name} Execution Done`;
+
+                        textarea.value = executionOutput;
+                        updateTestAreaCharCount(scriptIndex);
+                        autoResizeTestTextarea(scriptIndex);
+                    }
+
+                    /*
+                    // NEW: Update header status to show execution completed
+                    const testHeader = document.querySelector(`#multiTestAreas .test-area-group:nth-child(${scriptIndex + 2}) .test-area-header`);
+                    if (testHeader) {
+                        const statusDiv = testHeader.querySelector('.execution-status');
+                        if (statusDiv) {
+                            statusDiv.style.background = execResult.success ? '#22c55e' : '#ef4444';
+                            statusDiv.textContent = execResult.success ? 'Executed ✓' : 'Failed ✗';
+                        }
+                    }*/
+                    // NEW: Update header status with smart pass/fail detection
+                    const testHeader = document.querySelector(`#multiTestAreas .test-area-group:nth-child(${scriptIndex + 2}) .test-area-header`);
+                    if (testHeader) {
+                        const statusDiv = testHeader.querySelector('.execution-status');
+                        if (statusDiv) {
+                            // Use smart parsing to determine actual test result
+                            const smartResult = parseTestResult(execResult, execResult.success);
+                            statusDiv.style.background = smartResult.color;
+                            statusDiv.textContent = smartResult.text;
+                            statusDiv.title = smartResult.reason; // Tooltip for details
+                        }
+                    }
+                } else {
+                    console.warn(`Could not find textarea for test case ID ${execResult.test_case_id}`);
+                }
+            });
+
+            // NEW: Update headers for NON-EXECUTED test cases
+            generatedScripts.forEach((script, index) => {
+                if (!selectedTestIds.includes(script.id)) {
+                    const testHeader = document.querySelector(`#multiTestAreas .test-area-group:nth-child(${index + 2}) .test-area-header`);
+                    if (testHeader) {
+                        const statusDiv = testHeader.querySelector('.execution-status');
+                        if (statusDiv) {
+                            statusDiv.style.background = '#6b7280';
+                            statusDiv.textContent = 'Not Executed, showing Code Review Results';
+                            statusDiv.style.fontSize = '1.0rem'; // Slightly smaller for longer text
+                            statusDiv.style.padding = '4px 8px';
+                        }
+                    }
+                }
+            });
+
+            // FIXED: Single test case handling using test case ID mapping
+            if (executionResults.length === 1 && elements.textArea) {
+                const singleResult = executionResults[0];
+                const singleExecution = `=== EXECUTION RESULTS ===
+Test Case: ${singleResult.test_case_name}
+Script: ${singleResult.script_name}
+Connected Host: ${result.connected_host}
+Execution Status: ${singleResult.success ? 'SUCCESS' : 'FAILED'}
+
+=== EXECUTION OUTPUT ===
+STDOUT:
+${singleResult.stdout}
+
+STDERR:
+${singleResult.stderr}
+
+=== EXECUTION COMPLETED ===
+✅ Test Case Execution Completed`;
+
+                elements.textArea.value = singleExecution;
+                updateCharCount();
+                autoResizeTextarea();
+            }
+
+            // Final button states for SUCCESS
+            const generateBtn = document.getElementById('generateBtn');
+            const reviewBtn = document.getElementById('reviewBtn');
+
+            executeBtn.disabled = true;
+            executeBtn.classList.remove('btn-loading');
+            executeBtn.textContent = `Executed ${selectedCount} Test${selectedCount > 1 ? 's' : ''} ✓`;
+            executeBtn.style.opacity = '0.6';
+            executeBtn.style.cursor = 'not-allowed';
+
+            if (generateBtn) {
+                generateBtn.disabled = true;
+                generateBtn.style.opacity = '0.6';
+            }
+
+            if (reviewBtn) {
+                reviewBtn.disabled = true;
+                reviewBtn.style.opacity = '0.6';
+            }
+
+            // Hide checkboxes after execution (only for multiple tests)
+            if (generatedScripts.length > 1) {
+                hideExecutionCheckboxes();
+            }
+
+            showToast(`Successfully executed ${selectedCount} test${selectedCount > 1 ? 's' : ''} out of ${totalCount} total!`, 'success');
+            hideSaveButtons();
+
+        } else {
+            // Error handling - reset status indicators on failure
+            generatedScripts.forEach((script, index) => {
+                const testHeader = document.querySelector(`#multiTestAreas .test-area-group:nth-child(${index + 2}) .test-area-header`);
+                if (testHeader) {
+                    const statusDiv = testHeader.querySelector('.execution-status');
+                    if (statusDiv) {
+                        statusDiv.style.background = '#ef4444';
+                        statusDiv.textContent = 'Execution Failed';
+                    }
+                }
+            });
+
+            console.error('❌ Execute failed:', result.message);
+            stopProgressPolling();
+            hideProgress();
+
+            executeBtn.disabled = false;
+            executeBtn.classList.remove('btn-loading');
+            updateExecuteButtonState();
+
+            if (result.message.includes('Raspberry Pi') ||
+                result.message.includes('connection') ||
+                result.message.includes('connect')) {
+                showErrorModal(
+                    'Test Execution Failed',
+                    result.message,
+                    'Unable to establish connection with the remote test infrastructure. Please verify that the Test devices are online and accessible from your network.'
+                );
+            } else {
+                showToast(result.message, 'error');
+            }
+        }
+
+    } catch (error) {
+        // Error handling - reset status indicators on error
+        generatedScripts.forEach((script, index) => {
+            const testHeader = document.querySelector(`#multiTestAreas .test-area-group:nth-child(${index + 2}) .test-area-header`);
+            if (testHeader) {
+                const statusDiv = testHeader.querySelector('.execution-status');
+                if (statusDiv) {
+                    statusDiv.style.background = '#ef4444';
+                    statusDiv.textContent = 'Connection Error';
+                }
+            }
+        });
+
+        console.error('❌ Execution error:', error);
+        stopProgressPolling();
+        hideProgress();
+
+        executeBtn.disabled = false;
+        executeBtn.classList.remove('btn-loading');
+        updateExecuteButtonState();
+
+        if (error.message.includes('fetch') ||
+            error.message.includes('network') ||
+            error.message.includes('connection') ||
+            error.message.includes('Failed to fetch')) {
+            showErrorModal(
+                'Network Connection Error',
+                'Failed to communicate with the test server.',
+                `Technical Details: ${error.message}\n\nThis could be due to network connectivity issues or server unavailability.`
+            );
+        } else {
+            showToast('Code execution failed: ' + error.message, 'error');
+        }
+    }
+}
+
+// ================================================================================================
+// INDIVIDUAL TEST CASE FUNCTIONS
+// ================================================================================================
+
+function saveTestCode(index) {
+    console.log(`💾 Saving test code for index: ${index}`);
+
+    const textarea = document.getElementById(`testArea${index}`);
+    if (!textarea) return;
+
+    const code = textarea.value.trim();
+    if (!code) {
+        showToast('No code to save!', 'warning');
+        return;
+    }
+
+    const script = generatedScripts[index];
+
+    fetch('/save_code', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            code: code,
+            test_case_id: script.id,
+            test_case_name: script.test_case_name
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(`Test Case ${script.id} saved successfully!`, 'success');
+        } else {
+            showToast(`Save failed: ${data.message}`, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error saving code:', error);
+        showToast('Error saving code', 'error');
+    });
+}
+
+function downloadTestCode(index) {
+    console.log(`📥 Downloading test code for index: ${index}`);
+
+    const textarea = document.getElementById(`testArea${index}`);
+    if (!textarea) return;
+
+    const code = textarea.value.trim();
+    if (!code) {
+        showToast('No code to download!', 'warning');
+        return;
+    }
+    //debug code - gourabm
+    const codeMarker = '# Generated Python Test Code';
+    const resultMarker = '=== EXECUTION RESULTS ===';
+    const reviewMarker = "=== CODE REVIEW REPORT ==="
+
+    let fileType = 'text/plain';
+    let fileExtension = '.txt';
+    let fileNamePrefix = "";
+    let contentToDownload = code;
+
+    if (code.includes(codeMarker)) {
+        const codeStartIndex = code.indexOf(codeMarker);
+        contentToDownload = code.substring(codeStartIndex);
+        fileType = 'text/x-python';
+        fileExtension = '.py';
+        fileNamePrefix = 'generated-test-code';
+    } else if (code.includes(resultMarker)) {
+        fileNamePrefix = 'execution-results';
+        const resultStartIndex = code.indexOf(resultMarker);
+        contentToDownload = code.substring(resultStartIndex);
+    } else if (code.includes(reviewMarker)) {
+        fileNamePrefix = 'review-results';
+        const resultStartIndex = code.indexOf(reviewMarker);
+        contentToDownload = code.substring(resultStartIndex);
+    } else {
+        showToast('No recognizable content to download!', 'warning');
+        return;
+    }
+
+    const script = generatedScripts[index];
+    const element = document.createElement('a');
+    const file = new Blob([contentToDownload], { type: fileType });
+    element.href = URL.createObjectURL(file);
+    element.download = `${fileNamePrefix}-${new Date().toISOString().slice(0,10)}${fileExtension}`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+
+    showToast(`${fileNamePrefix} ${script.id} downloaded successfully!`, 'success');
+}
+
+// ================================================================================================
+// ORIGINAL CODE ACTIONS (FALLBACK FOR SINGLE TEXTAREA)
+// ================================================================================================
+
+function saveCode() {
+    console.log('💾 Saving code (single textarea mode)');
+
+    if (!elements.textArea) return;
+
+    const code = elements.textArea.value.trim();
+    if (!code) {
+        showToast('No code to save!', 'warning');
+        return;
+    }
+
+    // Save to localStorage as backup
+    localStorage.setItem('dashboard_code', code);
+    localStorage.setItem('dashboard_code_timestamp', new Date().toISOString());
+
+    fetch('/save_code', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ code: code })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(`${data.message}`, 'success');
+        } else {
+            showToast(`Save failed: ${data.message}`, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error saving code:', error);
+        showToast('Error saving code to file', 'error');
+        showToast('Code saved to browser storage only', 'warning');
+    });
+}
+
+function downloadCode() {
+    console.log('📥 Downloading code (single textarea mode)');
+
+    if (!elements.textArea) return;
+
+    const fullText = elements.textArea.value.trim();
+
+    if (!fullText) {
+        showToast('No code to download!', 'warning');
+        return;
+    }
+
+    const codeMarker = '# Generated Python Test Code';
+    const resultMarker = '=== EXECUTION RESULTS ===';
+    const reviewMarker = '=== CODE REVIEW REPORT ===';
+
+    let fileType = 'text/plain';
+    let fileExtension = '.txt';
+    let fileNamePrefix = '';
+    let contentToDownload = fullText;
+
+    if (fullText.includes(codeMarker)) {
+        const codeStartIndex = fullText.indexOf(codeMarker);
+        contentToDownload = fullText.substring(codeStartIndex);
+        fileType = 'text/x-python';
+        fileExtension = '.py';
+        fileNamePrefix = 'generated-test-code';
+    } else if (fullText.includes(resultMarker)) {
+        fileNamePrefix = 'execution-results';
+        const resultStartIndex = fullText.indexOf(resultMarker);
+        contentToDownload = fullText.substring(resultStartIndex);
+    } else if (fullText.includes(reviewMarker)) {
+        fileNamePrefix = 'review-results';
+        const resultStartIndex = fullText.indexOf(reviewMarker);
+        contentToDownload = fullText.substring(resultStartIndex);
+    } else {
+        showToast('No recognizable content to download!', 'warning');
+        return;
+    }
+
+    const element = document.createElement('a');
+    const file = new Blob([contentToDownload], { type: fileType });
+    element.href = URL.createObjectURL(file);
+    element.download = `${fileNamePrefix}-${new Date().toISOString().slice(0,10)}${fileExtension}`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+
+    showToast(`${fileExtension} file downloaded successfully!`, 'success');
+}
+
+// ================================================================================================
+// REPORT FUNCTIONS
+// ================================================================================================
+
+async function openReport() {
+    console.log('📊 Opening report...');
+
+    try {
+        const response = await fetch('/open-report', { method: 'HEAD' });
+        if (!response.ok) {
+            showToast('Report not found on server.', 'error');
+            return;
+        }
+        window.open('/open-report', '_blank');
+        showToast('Report opened in new tab', 'success');
+    } catch (err) {
+        console.error('❌ Failed to open report:', err);
+        showToast('Failed to open report.', 'error');
+    }
+}
+
+async function downloadReport() {
+    console.log('📥 Downloading report...');
+
+    try {
+        const response = await fetch('/download-report', { method: 'HEAD' });
+        if (!response.ok) {
+            showToast('Report not found on server.', 'error');
+            return;
+        }
+        const link = document.createElement('a');
+        link.href = '/download-report';
+        link.download = 'combinedreport.html';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast('Report download started.', 'success');
+    } catch (err) {
+        console.error('❌ Failed to download report:', err);
+        showToast('Failed to download report.', 'error');
+    }
+}
+
+// ================================================================================================
+// KEYBOARD SHORTCUTS AND ACCESSIBILITY
+// ================================================================================================
+
+document.addEventListener('keydown', function(e) {
+    // Ctrl/Cmd + S to save code
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        if (generatedScripts.length > 0) {
+            // Save all test codes
+            generatedScripts.forEach((script, index) => {
+                saveTestCode(index);
+            });
+        } else {
+            saveCode();
+        }
+    }
+
+    // Ctrl/Cmd + D to download code
+    if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        e.preventDefault();
+        if (generatedScripts.length > 0) {
+            // Download all test codes
+            generatedScripts.forEach((script, index) => {
+                downloadTestCode(index);
+            });
+        } else {
+            downloadCode();
+        }
+    }
+
+    // Escape to close toast
+    if (e.key === 'Escape') {
+        hideToast();
+    }
+});
+
+// ================================================================================================
+// ERROR HANDLING AND LOGGING
+// ================================================================================================
+
+window.addEventListener('error', function(event) {
+    console.error('❌ Global error:', event.error);
+    showToast('An unexpected error occurred. Please check the console for details.', 'error');
+});
+
+window.addEventListener('unhandledrejection', function(event) {
+    console.error('❌ Unhandled promise rejection:', event.reason);
+    showToast('An unexpected error occurred. Please check the console for details.', 'error');
+});
+
+// ================================================================================================
+// PERFORMANCE MONITORING
+// ================================================================================================
+
+function measurePerformance(functionName, fn) {
+    return async function(...args) {
+        const startTime = performance.now();
+        try {
+            const result = await fn.apply(this, args);
+            const endTime = performance.now();
+            console.log(`⚡ ${functionName} completed in ${(endTime - startTime).toFixed(2)}ms`);
+            return result;
+        } catch (error) {
+            const endTime = performance.now();
+            console.error(`❌ ${functionName} failed after ${(endTime - startTime).toFixed(2)}ms:`, error);
+            throw error;
+        }
+    };
+}
+
+// Wrap main functions with performance monitoring
+const originalIngestTest = ingestTest;
+const originalGenerateCode = generateCode;
+const originalExecuteCode = executeCode;
+const originalReviewCode = reviewCode;
+
+ingestTest = measurePerformance('ingestTest', originalIngestTest);
+generateCode = measurePerformance('generateCode', originalGenerateCode);
+executeCode = measurePerformance('executeCode', originalExecuteCode);
+reviewCode = measurePerformance('reviewCode', originalReviewCode);
+
+// ================================================================================================
+// GLOBAL FUNCTION EXPORTS FOR ONCLICK HANDLERS
+// ================================================================================================
+
+// Make sure all functions are globally available for onclick handlers
+window.showHome = showHome;
+window.showAutoTest = showAutoTest;
+window.ingestTest = ingestTest;
+window.generateCode = generateCode;
+window.executeCode = executeCode;
+window.reviewCode = reviewCode;
+window.saveCode = saveCode;
+window.downloadCode = downloadCode;
+window.saveTestCode = saveTestCode;
+window.downloadTestCode = downloadTestCode;
+window.downloadReport = downloadReport;
+window.openReport = openReport;
+window.updateTestAreaCharCount = updateTestAreaCharCount;
+window.autoResizeTestTextarea = autoResizeTestTextarea;
+window.hideToast = hideToast;
+// 6. ADD these functions to global exports at the end of the file
+window.toggleTestSelection = toggleTestSelection;
+window.selectAllTests = selectAllTests;
+window.deselectAllTests = deselectAllTests;
+window.showExecutionCheckboxes = showExecutionCheckboxes;
+window.hideExecutionCheckboxes = hideExecutionCheckboxes;
+// 10. Add these functions to global exports
+window.toggleAllTests = toggleAllTests;
+//window.selectRecommended = selectRecommended;
+window.updateMasterCheckbox = updateMasterCheckbox;
+// ================================================================================================
+// INITIALIZATION COMPLETE
+// ================================================================================================
+
+console.log('🎉 Cognizant AutoTest Dashboard - Complete JavaScript with Real Progress Loaded Successfully!');
+console.log('📱 Multi-test case support enabled');
+console.log('🔧 All functions exported globally');
+console.log('⚡ Performance monitoring active');
+console.log('♿ Accessibility features enabled');
+console.log('🛡️ Error handling configured');
+console.log('📊 Real progress tracking implemented');
+console.log('🔄 New workflow: Upload → Ingest → Generate → Review → Execute');
+
+// ================================================================================================
+// DEVELOPMENT HELPERS (Remove in production)
+// ================================================================================================
+
+if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    // Development mode helpers
+    console.log('🔧 Development mode detected');
+
+    // Add debug info to window object for console access
+    window.debugInfo = {
+        uploadedFiles,
+        ingestedTestCases,
+        generatedScripts,
+        executionResults,
+        elements,
+        progressPollingInterval,
+        currentTaskType
+    };
+
+    // Log performance metrics
+    if ('performance' in window) {
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                const navTiming = performance.getEntriesByType('navigation')[0];
+                console.log(`📊 Page load time: ${navTiming.loadEventEnd - navTiming.fetchStart}ms`);
+            }, 0);
+        });
+    }
+}
+
+// ================================================================================================
+// END OF FILE
+// ================================================================================================
