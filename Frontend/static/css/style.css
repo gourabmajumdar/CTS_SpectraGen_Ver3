@@ -162,6 +162,18 @@ body {
     display: none;
 }
 
+/* Ensure QA and other modes use full width */
+.auto-test-content,
+.codebase-manager-content {
+    width: 100%;
+}
+
+.auto-test-content .dashboard-container,
+.codebase-manager-content .dashboard-container {
+    display: block; /* Override any flexbox */
+    max-width: 1200px; /* Restore max-width for other modes */
+}
+
 .upload-area {
     border: 3px dashed #3b82f6;
     border-radius: 15px;
@@ -3342,4 +3354,1415 @@ textarea:focus-visible {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+/* ===============================================================================
+   MODE INDICATOR STYLES
+   =============================================================================== */
+
+.mode-indicator {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 8px 16px;
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.mode-indicator:hover {
+    background: white;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.mode-label {
+    font-size: 0.8rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.mode-value {
+    font-weight: 600;
+    color: #1e40af;
+    margin-left: 5px;
+}
+
+/* ===============================================================================
+   DEVELOPER MODE CONTENT STYLES
+   =============================================================================== */
+
+.developer-content {
+    display: none;
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.developer-content.show {
+    display: block;
+}
+
+/* ONLY apply flexbox layout for Developer Mode */
+.developer-content .dashboard-container {
+    display: flex;
+    gap: 30px;
+    max-width: none; /* Remove max-width restriction for developer mode */
+    width: 100%;
+}
+
+/* Main workflow area - only in developer mode */
+.developer-content .main-workflow-area {
+    flex: 1;
+    min-width: 0; /* Prevent flex item from overflowing */
+}
+
+/* Codebase sidebar - only in developer mode */
+.developer-content .codebase-sidebar {
+    width: 350px;
+    min-width: 350px;
+    background: #f8fafc;
+    border-radius: 15px;
+    padding: 20px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+    position: sticky;
+    top: 20px;
+}
+
+.mode-header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1));
+    border-radius: 15px;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.mode-header h2 {
+    color: #059669;
+    margin-bottom: 10px;
+    font-size: 1.8rem;
+    font-weight: 600;
+}
+
+.mode-header p {
+    color: #047857;
+    font-size: 1rem;
+    opacity: 0.9;
+}
+
+/* Responsive adjustments - only for developer mode */
+@media (max-width: 1200px) {
+    .developer-content .dashboard-container {
+        flex-direction: column;
+    }
+
+    .developer-content .codebase-sidebar {
+        width: 100%;
+        min-width: auto;
+        position: static;
+        max-height: none;
+        order: -1; /* Move to top on mobile */
+    }
+}
+
+@media (max-width: 768px) {
+    .developer-content .codebase-sidebar {
+        padding: 15px;
+    }
+}
+
+/* ===============================================================================
+   CODEBASE CONTEXT PANEL
+   =============================================================================== */
+
+.codebase-context-panel {
+    background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+    border: 2px solid #0ea5e9;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 25px;
+    transition: all 0.3s ease;
+}
+
+.codebase-context-panel.context-loaded {
+    background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+    border-color: #22c55e;
+}
+
+.context-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.context-header h3 {
+    color: #0c4a6e;
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.context-loaded .context-header h3 {
+    color: #14532d;
+}
+
+.context-status {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.status-label {
+    font-weight: 500;
+    color: #475569;
+    font-size: 0.9rem;
+}
+
+.status-value {
+    font-weight: 700;
+    color: #0ea5e9;
+    background: rgba(14, 165, 233, 0.1);
+    padding: 2px 8px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.context-loaded .status-value {
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.1);
+}
+
+/* ===============================================================================
+   DEVELOPER UPLOAD AREA
+   =============================================================================== */
+
+.developer-upload {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.02);
+}
+
+.developer-upload:hover {
+    border-color: #059669;
+    background: rgba(16, 185, 129, 0.05);
+}
+
+.developer-upload .upload-icon {
+    color: #10b981;
+}
+
+.ingest-btn.developer {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.ingest-btn.developer:hover:not(:disabled) {
+    background: linear-gradient(135deg, #059669, #047857);
+}
+
+/* ===============================================================================
+   USER STORIES DISPLAY
+   =============================================================================== */
+
+.user-stories-container {
+    margin: 30px 0;
+    padding: 25px;
+    background: #f8fafc;
+    border-radius: 15px;
+    border: 1px solid #e2e8f0;
+}
+
+.user-stories-container h3 {
+    color: #1e40af;
+    margin-bottom: 20px;
+    font-size: 1.3rem;
+}
+
+.stories-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 20px;
+}
+
+.story-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    border: 2px solid #e5e7eb;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.story-card:hover {
+    border-color: #10b981;
+    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.15);
+    transform: translateY(-2px);
+}
+
+.story-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.story-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.story-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.story-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #10b981;
+    cursor: pointer;
+}
+
+.story-checkbox label {
+    font-size: 0.85rem;
+    color: #475569;
+    cursor: pointer;
+}
+
+.story-id {
+    background: #10b981;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.story-title {
+    color: #1e40af;
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.story-description {
+    color: #475569;
+    line-height: 1.5;
+    margin-bottom: 15px;
+    font-size: 0.9rem;
+}
+
+.story-criteria {
+    background: #f0fdf4;
+    padding: 12px;
+    border-radius: 8px;
+    border-left: 4px solid #22c55e;
+    margin-bottom: 15px;
+}
+
+.story-criteria strong {
+    color: #14532d;
+    font-size: 0.9rem;
+}
+
+.story-criteria p {
+    color: #166534;
+    margin: 8px 0 0 0;
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.story-meta {
+    display: flex;
+    gap: 15px;
+    font-size: 0.8rem;
+}
+
+.story-priority,
+.story-epic {
+    color: #64748b;
+    background: #f1f5f9;
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+
+/* ===============================================================================
+   GENERATED CODE CONTAINER
+   =============================================================================== */
+
+.generated-code-container {
+    margin-top: 30px;
+    display: none;
+}
+
+.generated-code-header {
+    text-align: center;
+    margin-bottom: 25px;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1));
+    border-radius: 15px;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.generated-code-header h3 {
+    color: #059669;
+    margin-bottom: 8px;
+    font-size: 1.5rem;
+}
+
+.generated-code-header p {
+    color: #047857;
+    font-size: 0.95rem;
+    opacity: 0.9;
+}
+
+.code-group {
+    margin-bottom: 30px;
+    border: 2px solid #e5e7eb;
+    border-radius: 15px;
+    overflow: hidden;
+    background: white;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.code-group:hover {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+.code-header {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.code-header h4 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.code-meta {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.code-meta .story-id {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+}
+
+.code-meta .file-name {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-family: 'Courier New', monospace;
+}
+
+.code-content {
+    position: relative;
+    padding: 0;
+}
+
+.code-textarea {
+    width: 100%;
+    min-height: 300px;
+    padding: 20px;
+    border: none;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    resize: vertical;
+    background: #fafafa;
+    color: #374151;
+    line-height: 1.5;
+}
+
+.code-textarea:focus {
+    outline: none;
+    background: white;
+    box-shadow: inset 0 0 0 2px #10b981;
+}
+
+.code-char-count {
+    position: absolute;
+    bottom: 12px;
+    right: 18px;
+    color: #6b7280;
+    font-size: 0.8rem;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+    z-index: 15;
+}
+
+.code-actions {
+    position: absolute;
+    top: 12px;
+    right: 18px;
+    display: flex;
+    gap: 8px;
+    z-index: 20;
+}
+
+/* ===============================================================================
+   CODEBASE MANAGER STYLES
+   =============================================================================== */
+
+.codebase-manager-content {
+    display: none;
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.codebase-manager-content.show {
+    display: block;
+}
+
+.codebase-upload {
+    border-color: #6366f1;
+    background: rgba(99, 102, 241, 0.02);
+}
+
+.codebase-upload:hover {
+    border-color: #4f46e5;
+    background: rgba(99, 102, 241, 0.05);
+}
+
+.codebase-upload .upload-icon {
+    color: #6366f1;
+}
+
+.ingest-btn.codebase {
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+}
+
+.ingest-btn.codebase:hover:not(:disabled) {
+    background: linear-gradient(135deg, #4f46e5, #4338ca);
+}
+
+.codebase-analysis {
+    margin-top: 30px;
+    padding: 25px;
+    background: #f8fafc;
+    border-radius: 15px;
+    border: 1px solid #e2e8f0;
+}
+
+.codebase-analysis h3 {
+    color: #1e40af;
+    margin-bottom: 20px;
+    font-size: 1.3rem;
+}
+
+.analysis-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.analysis-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    border: 2px solid #e5e7eb;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.analysis-card:hover {
+    border-color: #6366f1;
+    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.15);
+    transform: translateY(-2px);
+}
+
+.analysis-card h4 {
+    color: #475569;
+    margin-bottom: 15px;
+    font-size: 1rem;
+}
+
+.analysis-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #6366f1;
+    margin-bottom: 10px;
+}
+
+.analysis-list {
+    margin-top: 10px;
+}
+
+.analysis-items {
+    color: #64748b;
+    font-size: 0.85rem;
+    font-style: italic;
+}
+
+.pattern-tag {
+    display: inline-block;
+    background: #eff6ff;
+    color: #1d4ed8;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    margin: 2px;
+    border: 1px solid #bfdbfe;
+}
+
+/* ===============================================================================
+   DEVELOPER BUTTONS
+   =============================================================================== */
+
+.developer-buttons {
+    margin-top: 25px;
+}
+
+.developer-buttons .btn-primary {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.developer-buttons .btn-primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #059669, #047857);
+}
+
+.developer-buttons .btn-secondary {
+    border-color: #10b981;
+    color: #059669;
+}
+
+.developer-buttons .btn-secondary:hover:not(:disabled) {
+    background: #10b981;
+    color: white;
+}
+
+/* ===============================================================================
+   DEVELOPER PROGRESS STYLES
+   =============================================================================== */
+
+.developer-progress {
+    border-color: rgba(16, 185, 129, 0.2);
+    background: rgba(16, 185, 129, 0.05);
+}
+
+.developer-progress .progress-bar {
+    background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.developer-progress .progress-title {
+    color: #059669;
+}
+
+/* ===============================================================================
+   RESPONSIVE DESIGN FOR DEVELOPER MODE
+   =============================================================================== */
+
+@media (max-width: 768px) {
+    .mode-indicator {
+        position: relative;
+        top: auto;
+        right: auto;
+        margin: 10px auto;
+        text-align: center;
+        width: fit-content;
+    }
+
+    .stories-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .story-header {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+    }
+
+    .context-status {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .code-meta {
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+    }
+
+    .analysis-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .developer-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .mode-header {
+        padding: 15px;
+    }
+
+    .mode-header h2 {
+        font-size: 1.5rem;
+    }
+
+    .codebase-context-panel {
+        padding: 15px;
+    }
+
+    .story-card {
+        padding: 15px;
+    }
+
+    .code-textarea {
+        min-height: 200px;
+        padding: 15px;
+        font-size: 0.8rem;
+    }
+
+    .code-actions {
+        position: static;
+        justify-content: center;
+        margin: 10px 0;
+        padding: 0 15px;
+    }
+
+    .code-char-count {
+        position: static;
+        text-align: center;
+        margin: 10px 15px;
+        width: auto;
+    }
+}
+
+/* ===============================================================================
+   DARK MODE SUPPORT FOR DEVELOPER MODE
+   =============================================================================== */
+
+@media (prefers-color-scheme: dark) {
+    .mode-header {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.2));
+        border-color: rgba(16, 185, 129, 0.3);
+    }
+
+    .codebase-context-panel {
+        background: linear-gradient(135deg, #1f2937, #374151);
+        border-color: #4b5563;
+    }
+
+    .user-stories-container,
+    .codebase-analysis {
+        background: #1f2937;
+        border-color: #374151;
+    }
+
+    .story-card,
+    .analysis-card {
+        background: #374151;
+        border-color: #4b5563;
+        color: #f9fafb;
+    }
+
+    .code-textarea {
+        background: #1f2937;
+        color: #f9fafb;
+        border-color: #374151;
+    }
+
+    .code-char-count {
+        background: rgba(31, 41, 55, 0.95);
+        color: #d1d5db;
+        border-color: #374151;
+    }
+}
+
+/* ===============================================================================
+   ANIMATIONS FOR DEVELOPER MODE
+   =============================================================================== */
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInFromLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.story-card {
+    animation: slideInFromLeft 0.5s ease-out;
+}
+
+.story-card:nth-child(1) { animation-delay: 0.1s; }
+.story-card:nth-child(2) { animation-delay: 0.2s; }
+.story-card:nth-child(3) { animation-delay: 0.3s; }
+.story-card:nth-child(4) { animation-delay: 0.4s; }
+
+.code-group {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.analysis-card {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+.analysis-card:nth-child(1) { animation-delay: 0.1s; }
+.analysis-card:nth-child(2) { animation-delay: 0.2s; }
+.analysis-card:nth-child(3) { animation-delay: 0.3s; }
+
+/* ===============================================================================
+   REDUCED MOTION PREFERENCES
+   =============================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    .developer-content,
+    .codebase-manager-content,
+    .story-card,
+    .code-group,
+    .analysis-card {
+        animation: none;
+    }
+}
+
+/* ===============================================================================
+   HIGH CONTRAST MODE SUPPORT
+   =============================================================================== */
+
+@media (prefers-contrast: high) {
+    .story-card,
+    .code-group,
+    .analysis-card {
+        border-width: 3px;
+    }
+
+    .story-card:hover,
+    .code-group:hover,
+    .analysis-card:hover {
+        border-width: 4px;
+    }
+
+    .codebase-context-panel {
+        border-width: 3px;
+    }
+}
+
+/* ===============================================================================
+   ACCESSIBILITY IMPROVEMENTS
+   =============================================================================== */
+
+.story-checkbox input[type="checkbox"]:focus-visible,
+.code-textarea:focus-visible {
+    outline: 3px solid #10b981;
+    outline-offset: 2px;
+}
+
+.developer-buttons button:focus-visible {
+    outline: 2px solid #10b981;
+    outline-offset: 2px;
+}
+
+/* Screen reader only content */
+.sr-only-developer {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ===============================================================================
+   PERFORMANCE OPTIMIZATIONS
+   =============================================================================== */
+
+.developer-content,
+.codebase-manager-content,
+.story-card,
+.code-group,
+.analysis-card {
+    will-change: transform;
+}
+
+/* ===============================================================================
+   PRINT STYLES FOR DEVELOPER MODE
+   =============================================================================== */
+
+@media print {
+    .mode-indicator,
+    .codebase-context-panel .btn-secondary,
+    .story-checkbox,
+    .code-actions,
+    .developer-buttons {
+        display: none !important;
+    }
+
+    .developer-content,
+    .codebase-manager-content {
+        display: block !important;
+    }
+
+    .story-card,
+    .code-group {
+        page-break-inside: avoid;
+        margin-bottom: 20px;
+        border: 2px solid #000;
+    }
+
+    .mode-header,
+    .code-header {
+        background: #10b981 !important;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        color: white !important;
+    }
+}
+
+.codebase-details {
+    margin-top: 20px;
+    padding: 20px;
+    background: var(--secondary-bg);
+    border-radius: 8px;
+}
+
+.codebase-section {
+    margin-bottom: 25px;
+}
+
+.codebase-section h3 {
+    margin-bottom: 15px;
+    color: var(--primary-color);
+}
+
+.libraries-list, .patterns-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.library-item, .pattern-item {
+    background: var(--primary-bg);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    border: 1px solid var(--border-color);
+}
+
+.functions-list, .classes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.function-item, .class-item {
+    background: var(--primary-bg);
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.file-path {
+    font-size: 12px;
+    color: var(--text-secondary);
+    display: block;
+    margin-top: 5px;
+}
+
+.docstring {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 8px;
+    font-style: italic;
+}
+
+.methods {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 8px;
+}
+
+/* ADD this CSS to your existing style.css file for proper classes display */
+
+.codebase-info {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.codebase-info span {
+    background: rgba(255, 255, 255, 0.8);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+}
+
+.codebase-info span:hover {
+    background: white;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+}
+
+/* Classes section specific styles */
+.classes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.class-item {
+    background: var(--primary-bg, #f8fafc);
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color, #e2e8f0);
+    transition: all 0.3s ease;
+}
+
+.class-item:hover {
+    background: white;
+    border-color: #3b82f6;
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.1);
+    transform: translateY(-1px);
+}
+
+.class-item strong {
+    color: #1e40af;
+    font-size: 1rem;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.methods {
+    font-size: 0.85rem;
+    color: #059669;
+    margin-top: 8px;
+    font-style: italic;
+}
+
+.function-args {
+    font-size: 0.8rem;
+    color: #7c3aed;
+    margin-top: 5px;
+    font-family: 'Courier New', monospace;
+}
+
+/* Responsive design for codebase info */
+@media (max-width: 768px) {
+    .codebase-info {
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .codebase-info span {
+        font-size: 0.8rem;
+        padding: 6px 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .codebase-info {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .codebase-info span {
+        width: 100%;
+        text-align: center;
+    }
+}
+
+/* Main content layout adjustment */
+.dashboard-container {
+    display: flex;
+    gap: 30px;
+    max-width: none; /* Remove max-width restriction */
+    width: 100%;
+}
+
+.main-workflow-area {
+    flex: 1;
+    min-width: 0; /* Prevent flex item from overflowing */
+}
+
+.developer-content .codebase-sidebar {
+    width: 350px;
+    min-width: 350px;
+    background: #f8fafc;
+    border-radius: 15px;
+    padding: 20px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+    position: sticky;
+    top: 20px;
+}
+
+.developer-content .codebase-sidebar h3 {
+    color: #1e40af;
+    margin-bottom: 20px;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 10px;
+}
+
+/* Codebase selector dropdown */
+.developer-content .codebase-selector {
+    margin-bottom: 20px;
+}
+
+.developer-content .codebase-dropdown {
+    width: 100%;
+    padding: 10px 15px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+    color: #374151;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.developer-content .codebase-dropdown:hover {
+    border-color: #3b82f6;
+}
+
+.developer-content .codebase-dropdown:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Codebase status display */
+.developer-content .codebase-status-compact {
+    background: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid #e2e8f0;
+}
+
+.developer-content .status-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.developer-content .status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    animation: pulse 2s infinite;
+}
+
+.developer-content .status-indicator.inactive {
+    background: #ef4444;
+    animation: none;
+}
+
+.developer-content .codebase-name {
+    font-weight: 600;
+    color: #1e40af;
+    font-size: 0.95rem;
+}
+
+.developer-content .sync-time {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
+/* Compact stats */
+.developer-content .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.developer-content .stat-item {
+    background: #f8fafc;
+    padding: 8px 12px;
+    border-radius: 6px;
+    text-align: center;
+    border: 1px solid #e2e8f0;
+}
+
+.developer-content .stat-number {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #1e40af;
+    display: block;
+}
+
+.developer-content .stat-label {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
+/* Expandable sections */
+.developer-content .expandable-section {
+    margin-bottom: 15px;
+}
+
+.developer-content .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: #e2e8f0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.developer-content .section-header:hover {
+    background: #cbd5e1;
+}
+
+.developer-content .section-header h4 {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #374151;
+}
+
+.developer-content .section-toggle {
+    font-size: 0.8rem;
+    color: #6b7280;
+    transition: transform 0.3s ease;
+}
+
+.developer-content .section-toggle.expanded {
+    transform: rotate(180deg);
+}
+
+.developer-content .section-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    background: white;
+    border-radius: 0 0 6px 6px;
+}
+
+.developer-content .section-content.expanded {
+    max-height: 200px;
+    padding: 10px;
+    border: 1px solid #e2e8f0;
+    border-top: none;
+}
+
+/* Compact lists */
+.developer-content .compact-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+.developer-content .compact-item {
+    background: #eff6ff;
+    color: #1d4ed8;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    border: 1px solid #bfdbfe;
+}
+
+.developer-content .compact-function-item,
+.developer-content .compact-class-item {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 6px 8px;
+    margin-bottom: 4px;
+    font-size: 0.8rem;
+}
+
+.developer-content .compact-function-name,
+.developer-content .compact-class-name {
+    font-weight: 600;
+    color: #374151;
+    display: block;
+}
+
+.developer-content .compact-file-path {
+    font-size: 0.7rem;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
+/* Action buttons */
+.developer-content .codebase-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 15px;
+}
+
+.developer-content .action-btn-small {
+    flex: 1;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.developer-content .btn-resync {
+    background: #3b82f6;
+    color: white;
+}
+
+.developer-content .btn-resync:hover {
+    background: #2563eb;
+}
+
+.developer-content .btn-clear {
+    background: #ef4444;
+    color: white;
+}
+
+.developer-content .btn-clear:hover {
+    background: #dc2626;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+    .dashboard-container {
+        flex-direction: column;
+    }
+
+    .codebase-sidebar {
+        width: 100%;
+        min-width: auto;
+        position: static;
+        max-height: none;
+        order: -1; /* Move to top on mobile */
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .codebase-sidebar {
+        padding: 15px;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .codebase-actions {
+        flex-direction: column;
+    }
+}
+
+/* Custom scrollbar for sidebar */
+.developer-content .codebase-sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.developer-content .codebase-sidebar::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+
+.developer-content .codebase-sidebar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.developer-content .codebase-sidebar::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Hide the old codebase details that appear below */
+.codebase-details {
+    display: none !important;
+}
+
+.codebase-context-panel {
+    display: none !important;
+}
+
+.workflow-card:hover {
+    border-color: #3b82f6 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.15);
+}
+
+.workflow-card.active {
+    border-color: #3b82f6 !important;
+    background: linear-gradient(135deg, #eff6ff, #dbeafe) !important;
+}
+
+.workflow-card h4 {
+    font-weight: 600;
+}
+
+@media (max-width: 768px) {
+    .workflow-selector {
+        flex-wrap: wrap;
+    }
+
+    .workflow-card {
+        min-width: 150px;
+    }
 }

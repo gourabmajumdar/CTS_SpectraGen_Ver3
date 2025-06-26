@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cognizant Auto Test Dashboard</title>
+    <title>CTS Development & Testing Hub</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -14,18 +14,36 @@
                 <img src="{{ url_for('static', filename='cog_logo.jpg') }}" alt="Cognizant Logo" class="logo-image">
             </div>
         </div>
-        <div class="header-title">Auto Test Generation Tool</div>
+        <div class="header-title">Development & Testing Hub</div>
+
+        <!-- Mode Indicator (MISSING IN OLD VERSION) -->
+        <div class="mode-indicator" id="modeIndicator">
+            <span class="mode-label">Current Mode:</span>
+            <span class="mode-value" id="currentModeDisplay">QA Testing</span>
+        </div>
     </div>
 
-    <!-- Sidebar -->
+    <!-- Enhanced Sidebar (MISSING ITEMS IN OLD VERSION) -->
     <div class="sidebar">
         <div class="nav-item active" onclick="showHome()">
             <div class="nav-icon">🏠</div>
             <div>Home</div>
         </div>
-        <div class="nav-item" onclick="showAutoTest()">
+        <div class="nav-item" onclick="showDeveloperMode()">
+            <div class="nav-icon">👨‍💻</div>
+            <div>Code Development</div>
+        </div>
+        <div class="nav-item" onclick="showQAMode()">
             <div class="nav-icon">🧪</div>
-            <div>AutoTest</div>
+            <div>QA Testing</div>
+        </div>
+        <div class="nav-item" onclick="showCodebaseManager()">
+            <div class="nav-icon">📚</div>
+            <div>Codebase Manager</div>
+        </div>
+        <div class="nav-item" onclick="showAnalytics()">
+            <div class="nav-icon">📊</div>
+            <div>Analytics</div>
         </div>
     </div>
 
@@ -33,9 +51,33 @@
     <div class="main-content">
         <div class="dashboard-container">
             <h1 class="dashboard-title" id="dashboardTitle"></h1>
-            <!-- Welcome Message (initially visible) -->
+
+            <!-- Welcome Message (keep your existing welcome content) -->
             <div class="welcome-message show" id="welcomeMessage">
                 <style>
+                    /* Keep all your existing styles */
+                    .mode-indicator {
+                        position: absolute;
+                        top: 20px;
+                        right: 20px;
+                        background: rgba(255, 255, 255, 0.9);
+                        padding: 8px 16px;
+                        border-radius: 20px;
+                        backdrop-filter: blur(10px);
+                        border: 1px solid rgba(255, 255, 255, 0.3);
+                    }
+
+                    .mode-label {
+                        font-size: 0.8rem;
+                        color: #6b7280;
+                    }
+
+                    .mode-value {
+                        font-weight: 600;
+                        color: #1e40af;
+                        margin-left: 5px;
+                    }
+
                     /* Modern Dashboard Styles */
                     .modern-welcome {
                         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -343,23 +385,24 @@
                 <!-- Modern Welcome Section -->
                 <div class="modern-welcome">
                     <div class="welcome-hero">
-                        <h1>🚀 CTS AutoTest Dashboard</h1>
-                        <p>Transform your testing workflow with AI-powered automation, comprehensive code analysis, and seamless execution on cloud infrastructure.</p>
+                        <h1>🚀 CTS Development & Testing Hub</h1>
+                        <p>Unified platform for AI-powered code development and comprehensive testing automation.</p>
                     </div>
                 </div>
 
+                <!-- Keep all your existing welcome content (features, stats, workflow, etc.) -->
                 <!-- Key Features Grid -->
                 <div class="features-grid main-features">
                     <div class="feature-card">
                         <span class="feature-icon">🤖</span>
-                        <div class="feature-title">AI-Powered Generation</div>
+                        <div class="feature-title">AI-Powered Code Generation</div>
                         <div class="feature-description">Intelligent test case analysis and automatic Python script generation using advanced AI algorithms.</div>
                     </div>
 
                     <div class="feature-card">
                         <span class="feature-icon">🎯</span>
-                        <div class="feature-title">Multi-Test Support</div>
-                        <div class="feature-description">Handle multiple test cases simultaneously with individual execution tracking and results.</div>
+                        <div class="feature-title">Multi-Story Support</div>
+                        <div class="feature-description">Handle multiple test cases or dev requirements simultaneously with individual execution tracking and results.</div>
                     </div>
 
                     <div class="feature-card">
@@ -395,41 +438,335 @@
                     </div>
                 </div>
 
-                <!-- Enhanced Workflow Section -->
+                <!-- Advanced Features -->
                 <div class="workflow-section">
-                    <h2 class="section-title">🔄 Enhanced Workflow</h2>
-                    <div class="workflow-steps">
-                        <div class="workflow-step">
-                            <div class="step-number">1</div>
-                            <div class="step-title">Upload Files</div>
-                            <div class="step-description">Drag & drop multiple test case files in various formats</div>
+                    <h2 class="section-title">⚡ Advanced Features</h2>
+                    <div class="features-grid advanced-features">
+                        <div class="feature-card">
+                            <span class="feature-icon">🔄</span>
+                            <div class="feature-title">Supports QA and DEV Workflows</div>
+                            <div class="feature-description">Dynamic UI based workflows for QA and DEV.</div>
                         </div>
-                        <div class="workflow-step">
-                            <div class="step-number">2</div>
-                            <div class="step-title">Intelligent Ingestion</div>
-                            <div class="step-description">AI analyzes and extracts test requirements automatically</div>
+
+                        <div class="feature-card">
+                            <span class="feature-icon">🎯</span>
+                            <div class="feature-title">Interactive Prompt Generation</div>
+                            <div class="feature-description">Builds prompts from user stories, requirements & test cases.</div>
                         </div>
-                        <div class="workflow-step">
-                            <div class="step-number">3</div>
-                            <div class="step-title">Generate Scripts</div>
-                            <div class="step-description">Create individual Python scripts for each test case</div>
+
+                        <div class="feature-card">
+                            <span class="feature-icon">⚡</span>
+                            <div class="feature-title">Codebase Intelligence</div>
+                            <div class="feature-description">Scans and loads the entire codebase for effective development.</div>
                         </div>
-                        <div class="workflow-step">
-                            <div class="step-number">4</div>
-                            <div class="step-title">Quality Review</div>
-                            <div class="step-description">Comprehensive code analysis with security checks</div>
+
+                        <div class="feature-card">
+                            <span class="feature-icon">📊</span>
+                            <div class="feature-title">Result Analytics</div>
+                            <div class="feature-description">Stat based analytics and quality score metrics.</div>
                         </div>
-                        <div class="workflow-step">
-                            <div class="step-number">5</div>
-                            <div class="step-title">Cloud Execution</div>
-                            <div class="step-description">Run tests on remote infrastructure with monitoring</div>
+
+                        <div class="feature-card">
+                            <span class="feature-icon">💾</span>
+                            <div class="feature-title">Integrated IDE</div>
+                            <div class="feature-description">Edit, Save and download individual script/code.</div>
                         </div>
-                        <div class="workflow-step">
-                            <div class="step-number">6</div>
-                            <div class="step-title">Professional Reports</div>
-                            <div class="step-description">Download detailed analysis and execution reports</div>
+
+                        <div class="feature-card">
+                            <span class="feature-icon">🔒</span>
+                            <div class="feature-title">Detailed Code Review Report</div>
+                            <div class="feature-description">Detailed Code Review HTML report can be viewed and downloaded.</div>
                         </div>
                     </div>
+                </div>
+
+                <!-- Call to Action (updated) -->
+                <div class="cta-section">
+                    <h2 style="margin-bottom: 15px; font-size: 1.8rem;">Ready to Start?</h2>
+                    <p style="font-size: 1.1rem; opacity: 0.9; margin-bottom: 25px;">
+                        Choose your workflow: Code Development or QA Testing
+                    </p>
+                    <button class="cta-button" onclick="showDeveloperMode()" style="margin-right: 20px;">
+                        👨‍💻 Code Development
+                    </button>
+                    <button class="cta-button" onclick="showQAMode()">
+                        🧪 QA Testing
+                    </button>
+                </div>
+            </div>
+
+            <!-- Developer Mode Content (MISSING IN OLD VERSION) -->
+            <script>/*
+            <div class="developer-content hide" id="developerContent">
+                <div class="mode-header">
+                    <h2>👨‍💻 Code Development Mode</h2>
+                    <p>Generate application code from user stories and requirements with codebase context awareness</p>
+                </div>
+
+                <!-- Codebase Context Panel -->
+                <div class="codebase-context-panel" id="codebaseContextPanel">
+                    <div class="context-header">
+                        <h3>📚 Codebase Context</h3>
+                        <button class="btn-secondary" onclick="showCodebaseManager()">Manage Codebase</button>
+                    </div>
+                    <div class="context-status" id="codebaseStatus">
+                        <div class="status-item">
+                            <span class="status-label">Libraries:</span>
+                            <span class="status-value" id="librariesCount">0</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Functions:</span>
+                            <span class="status-value" id="functionsCount">0</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Patterns:</span>
+                            <span class="status-value" id="patternsCount">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Developer Upload Area -->
+                <div class="upload-area developer-upload">
+                    <div class="upload-icon">📋</div>
+                    <div class="upload-text">Upload JIRA exports, user stories, or feature requirements</div>
+                    <div class="upload-subtext">Supported formats: JSON (JIRA), TXT, PDF, DOC, XML</div>
+                    <input type="file" id="developerFileInput" multiple>
+                    <div class="file-info" id="developerFileInfo"></div>
+                </div>
+
+                <button class="ingest-btn developer" onclick="ingestDeveloperRequirements()" id="ingestDevBtn">Ingest Requirements</button>
+
+                <!-- User Stories Display -->
+                <div class="user-stories-container" id="userStoriesContainer" style="display: none;">
+                    <h3>📝 Processed User Stories</h3>
+                    <div class="stories-grid" id="storiesGrid">
+                        <!-- User stories will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Developer Buttons -->
+                <div class="buttons developer-buttons">
+                    <button class="btn-primary" onclick="generateApplicationCode()" id="generateAppBtn" disabled>Generate Application Code</button>
+                    <button class="btn-secondary" onclick="reviewApplicationCode()" id="reviewAppBtn" disabled>Review Code Quality</button>
+                    <button class="btn-secondary" onclick="deployCode()" id="deployAppBtn" disabled>Deploy & Test</button>
+                </div>
+
+                <!-- Developer Progress Indicator -->
+                <div class="progress-container developer-progress" id="developerProgressContainer">
+                    <div class="progress-header">
+                        <div class="progress-spinner"></div>
+                        <div class="progress-title" id="developerProgressTitle">Processing...</div>
+                    </div>
+                    <div class="progress-status" id="developerProgressStatus">Initializing...</div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="developerProgressBar" style="width: 0%"></div>
+                    </div>
+                    <div class="progress-percentage" id="developerProgressPercentage">0%</div>
+                </div>
+
+                <!-- Generated Code Areas -->
+                <div class="generated-code-container" id="generatedCodeContainer">
+                    <!-- Generated application code will be displayed here -->
+                </div>
+            </div>
+            */</script>
+
+            <!-- REPLACE your developer-content div with this updated structure -->
+            <div class="developer-content hide" id="developerContent">
+                <div class="dashboard-container">
+                    <!-- Main Workflow Area (Left Side) -->
+                    <div class="main-workflow-area">
+                        <div class="mode-header">
+                            <h2>👨‍💻 Code Development Mode</h2>
+                            <p>Generate application code from user stories and requirements with codebase context awareness</p>
+                        </div>
+
+                        <!-- Developer Upload Area -->
+                        <div class="upload-area developer-upload">
+                            <div class="upload-icon">📋</div>
+                            <div class="upload-text">Upload JIRA exports, user stories, or feature requirements</div>
+                            <div class="upload-subtext">Supported formats: JSON (JIRA), TXT, PDF, DOC, XML</div>
+                            <input type="file" id="developerFileInput" multiple>
+                            <div class="file-info" id="developerFileInfo"></div>
+                        </div>
+
+                        <!-- Add this after the upload area -->
+                        <div style="margin-top: 30px;">
+                            <h3 style="margin-bottom: 15px; color: #374151;">Describe your requirement or Technical Prompt:</h3>
+                            <textarea id="requirementText" placeholder="Enter your user story, feature request, or bug description here..."
+                                      style="width: 100%; min-height: 200px; padding: 15px; border: 2px solid #e5e7eb;
+                                             border-radius: 10px; font-size: 0.95rem; resize: vertical;"></textarea>
+                        </div>
+
+                        <button class="ingest-btn developer" onclick="ingestDeveloperRequirements()" id="ingestDevBtn">Ingest Requirements</button>
+
+                        <!-- Add this after the existing ingest button -->
+                        <div style="margin-top: 25px; padding: 20px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
+                            <h3 style="margin-bottom: 15px; color: #374151; font-size: 1.1rem;">⚙️ Generation Options</h3>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" id="includeTests" checked style="width: 18px; height: 18px; accent-color: #3b82f6;">
+                                    <span>Include Unit Tests</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" id="generateDocs" checked style="width: 18px; height: 18px; accent-color: #3b82f6;">
+                                    <span>Generate Documentation</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" id="useLibraries" checked style="width: 18px; height: 18px; accent-color: #3b82f6;">
+                                    <span>Use Existing Libraries</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" id="followPatterns" checked style="width: 18px; height: 18px; accent-color: #3b82f6;">
+                                    <span>Follow Project Patterns</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" id="includeErrors" checked style="width: 18px; height: 18px; accent-color: #3b82f6;">
+                                    <span>Include Error Handling</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" id="performanceOpt" checked style="width: 18px; height: 18px; accent-color: #3b82f6;">
+                                    <span>Performance Optimized</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- User Stories Display -->
+                        <div class="user-stories-container" id="userStoriesContainer" style="display: none;">
+                            <h3>📝 Processed User Stories</h3>
+                            <div class="stories-grid" id="storiesGrid">
+                                <!-- User stories will be populated here -->
+                            </div>
+                        </div>
+
+                        <!-- Developer Buttons -->
+                        <div class="buttons developer-buttons">
+                            <button class="btn-primary" onclick="generateApplicationCode()" id="generateAppBtn" disabled>Generate Application Code</button>
+                            <button class="btn-secondary" onclick="reviewApplicationCode()" id="reviewAppBtn" disabled>Review Code Quality</button>
+                            <button class="btn-secondary" onclick="deployCode()" id="deployAppBtn" disabled>Deploy & Test</button>
+                        </div>
+
+                        <!-- Generated Code Areas -->
+                        <div class="generated-code-container" id="generatedCodeContainer">
+                            <!-- Generated application code will be displayed here -->
+                        </div>
+                    </div>
+
+                    <!-- Codebase Sidebar (Right Side) -->
+                    <div class="codebase-sidebar" id="codebaseSidebar">
+                        <h3>🧠 AI Context</h3>
+
+                        <!-- Codebase Selector -->
+                        <div class="codebase-selector">
+                            <select class="codebase-dropdown" id="codebaseSelector" onchange="switchCodebase(this.value)">
+                                <option value="">Select Codebase...</option>
+                            </select>
+                        </div>
+
+                        <!-- Current Codebase Status -->
+                        <div class="codebase-status-compact" id="currentCodebaseStatus" style="display: none;">
+                            <div class="status-header">
+                                <div>
+                                    <div class="codebase-name" id="currentCodebaseName">No codebase loaded</div>
+                                    <div class="sync-time" id="syncTime">Never synced</div>
+                                </div>
+                                <div class="status-indicator" id="statusIndicator"></div>
+                            </div>
+
+                            <!-- Stats Grid -->
+                            <div class="stats-grid">
+                                <div class="stat-item">
+                                    <span class="stat-number" id="sidebarLibrariesCount">0</span>
+                                    <span class="stat-label">Libraries</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-number" id="sidebarFunctionsCount">0</span>
+                                    <span class="stat-label">Functions</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-number" id="sidebarClassesCount">0</span>
+                                    <span class="stat-label">Classes</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-number" id="sidebarPatternsCount">0</span>
+                                    <span class="stat-label">Patterns</span>
+                                </div>
+                            </div>
+
+                            <!-- Expandable Sections -->
+                            <div class="expandable-section">
+                                <div class="section-header" onclick="toggleSection('libraries')">
+                                    <h4>📚 Available Libraries</h4>
+                                    <span class="section-toggle" id="libraries-toggle">▼</span>
+                                </div>
+                                <div class="section-content" id="libraries-content">
+                                    <div class="compact-list" id="librariesList">
+                                        <!-- Libraries will be populated here -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="expandable-section">
+                                <div class="section-header" onclick="toggleSection('functions')">
+                                    <h4>⚡ Key Functions</h4>
+                                    <span class="section-toggle" id="functions-toggle">▼</span>
+                                </div>
+                                <div class="section-content" id="functions-content">
+                                    <div id="functionsList">
+                                        <!-- Functions will be populated here -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="expandable-section">
+                                <div class="section-header" onclick="toggleSection('classes')">
+                                    <h4>🏗️ Key Classes</h4>
+                                    <span class="section-toggle" id="classes-toggle">▼</span>
+                                </div>
+                                <div class="section-content" id="classes-content">
+                                    <div id="classesList">
+                                        <!-- Classes will be populated here -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="expandable-section">
+                                <div class="section-header" onclick="toggleSection('patterns')">
+                                    <h4>🔍 Code Patterns</h4>
+                                    <span class="section-toggle" id="patterns-toggle">▼</span>
+                                </div>
+                                <div class="section-content" id="patterns-content">
+                                    <div class="compact-list" id="patternsList">
+                                        <!-- Patterns will be populated here -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="codebase-actions">
+                                <button class="action-btn-small btn-resync" onclick="resyncCurrentCodebase()">
+                                    🔄 Resync
+                                </button>
+                                <button class="action-btn-small btn-clear" onclick="clearCurrentCodebase()">
+                                    🗑️ Clear
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Upload New Codebase -->
+                        <div class="upload-new-codebase">
+                            <button class="action-btn-small" onclick="showCodebaseManager()" style="width: 100%; background: #10b981; color: white;">
+                                ➕ Add New Codebase
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- QA Mode Content (renamed from autoTestContent) -->
+            <div class="auto-test-content hide" id="qaContent">
+                <div class="mode-header">
+                    <h2>🧪 QA Testing Mode</h2>
+                    <p>Generate and execute automated test scripts from test cases</p>
                 </div>
 
                 <!-- Test Case Format Requirements -->
@@ -459,61 +796,7 @@
                     </div>
                 </div>
 
-                <!-- Advanced Features -->
-                <div class="workflow-section">
-                    <h2 class="section-title">⚡ Advanced Features</h2>
-                    <div class="features-grid advanced-features">
-                        <div class="feature-card">
-                            <span class="feature-icon">🔄</span>
-                            <div class="feature-title">Auto-Scaling Text Areas</div>
-                            <div class="feature-description">Dynamic UI that adapts based on the number of test cases for optimal viewing.</div>
-                        </div>
-
-                        <div class="feature-card">
-                            <span class="feature-icon">🎯</span>
-                            <div class="feature-title">Individual Script Generation</div>
-                            <div class="feature-description">Each test case gets its own optimized Python script with custom logic.</div>
-                        </div>
-
-                        <div class="feature-card">
-                            <span class="feature-icon">⚡</span>
-                            <div class="feature-title">Parallel Execution</div>
-                            <div class="feature-description">Run multiple tests simultaneously for faster results and better efficiency.</div>
-                        </div>
-
-                        <div class="feature-card">
-                            <span class="feature-icon">📊</span>
-                            <div class="feature-title">Detailed Results</div>
-                            <div class="feature-description">Comprehensive reporting with separate displays for each test case execution.</div>
-                        </div>
-
-                        <div class="feature-card">
-                            <span class="feature-icon">💾</span>
-                            <div class="feature-title">Individual Downloads</div>
-                            <div class="feature-description">Save and download each test script and result independently.</div>
-                        </div>
-
-                        <div class="feature-card">
-                            <span class="feature-icon">🔒</span>
-                            <div class="feature-title">Security Analysis</div>
-                            <div class="feature-description">Built-in security scanning and vulnerability detection for all generated code.</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Call to Action -->
-                <div class="cta-section">
-                    <h2 style="margin-bottom: 15px; font-size: 1.8rem;">Ready to Transform Your Testing?</h2>
-                    <p style="font-size: 1.1rem; opacity: 0.9; margin-bottom: 25px;">
-                        Experience the future of automated testing with intelligent code generation and seamless execution.
-                    </p>
-                    <button class="cta-button" onclick="showAutoTest()">
-                        🚀 Start Testing Now
-                    </button>
-                </div>
-            </div>
-            <!-- Auto Test Content (initially hidden) -->
-            <div class="auto-test-content hide" id="autoTestContent">
+                <!-- Your existing QA content -->
                 <div class="upload-area">
                     <div class="upload-icon">📁</div>
                     <div class="upload-text">Click to upload or drag & drop multiple test cases OR generated Python files</div>
@@ -523,13 +806,13 @@
 
                 <button class="ingest-btn" onclick="ingestTest()" id="ingestBtn">Ingest Test Cases</button>
 
-                 <div class="buttons">
+                <div class="buttons">
                     <button class="btn-primary" onclick="generateCode()" id="generateBtn" disabled>Generate Code</button>
                     <button class="btn-secondary" onclick="reviewCode()" id="reviewBtn" disabled>Review Code</button>
                     <button class="btn-secondary" onclick="executeCode()" id="executeBtn" disabled>Execute Code</button>
                 </div>
 
-                 <!-- Progress Indicator -->
+                <!-- Progress Indicator -->
                 <div class="progress-container" id="progressContainer">
                     <div class="progress-header">
                         <div class="progress-spinner"></div>
@@ -552,17 +835,48 @@
                 <div class="text-area-container" id="singleTextAreaContainer">
                     <textarea placeholder="Upload test case files and click 'Ingest Test Cases' to begin..." id="textArea"></textarea>
                     <div class="char-count" id="charCount">0 characters</div>
-
                     <div class="code-actions" id="codeActions">
-                        <button class="action-btn save-btn" onclick="saveCode()" title="Save code">
-                            💾
-                        </button>
-                        <button class="action-btn download-btn" onclick="downloadCode()" title="Download code">
-                            📥
-                        </button>
+                        <button class="action-btn save-btn" onclick="saveCode()" title="Save code">💾</button>
+                        <button class="action-btn download-btn" onclick="downloadCode()" title="Download code">📥</button>
                     </div>
                 </div>
-                <!-- Multi-test areas will be dynamically inserted here -->
+            </div>
+
+            <!-- Codebase Manager Content (MISSING IN OLD VERSION) -->
+            <div class="codebase-manager-content hide" id="codebaseManagerContent">
+                <div class="mode-header">
+                    <h2>📚 Codebase Manager</h2>
+                    <p>Upload and manage your existing codebase for context-aware code generation</p>
+                </div>
+
+                <div class="upload-area codebase-upload">
+                    <div class="upload-icon">📦</div>
+                    <div class="upload-text">Upload your codebase as a ZIP file</div>
+                    <div class="upload-subtext">Include source code, libraries, and utilities for AI context</div>
+                    <input type="file" id="codebaseFileInput" accept=".zip">
+                </div>
+
+                <button class="ingest-btn codebase" onclick="uploadCodebase()" id="uploadCodebaseBtn">Analyze Codebase</button>
+
+                <div class="codebase-analysis" id="codebaseAnalysis" style="display: none;">
+                    <h3>📊 Codebase Analysis Results</h3>
+                    <div class="analysis-grid">
+                        <div class="analysis-card">
+                            <h4>📚 Libraries Found</h4>
+                            <div class="analysis-value" id="analysisLibraries">0</div>
+                            <div class="analysis-list" id="librariesList"></div>
+                        </div>
+                        <div class="analysis-card">
+                            <h4>⚙️ Functions Detected</h4>
+                            <div class="analysis-value" id="analysisFunctions">0</div>
+                        </div>
+                        <div class="analysis-card">
+                            <h4>🔍 Patterns Identified</h4>
+                            <div class="analysis-value" id="analysisPatterns">0</div>
+                            <div class="analysis-list" id="patternsList"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -578,7 +892,10 @@
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     <script>
         // Initialize the dashboard when page loads
-        document.addEventListener('DOMContentLoaded', function() {showHome();});
+        document.addEventListener('DOMContentLoaded', function() {
+            showHome();
+            loadCurrentContext();
+        });
     </script>
 </body>
 </html>

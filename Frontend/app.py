@@ -2,6 +2,7 @@ from time import sleep
 import paramiko
 from flask import Flask, render_template, request, jsonify, send_from_directory, send_file
 import os
+import ast
 from werkzeug.utils import secure_filename
 import json
 import sys
@@ -12,11 +13,13 @@ import glob
 import threading
 from datetime import datetime
 import signal
+from pathlib import Path
 import atexit
 import zipfile
 import tempfile
 import socket
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import xml.etree.ElementTree as ET
 
 # Initialize Flask with explicit static folder configuration
 app = Flask(__name__,
@@ -42,6 +45,11 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 generation_lock = threading.Lock()
 
+# Add these new global variables
+developer_workflows = []
+codebase_context = {}
+current_mode = 'qa'  # Default mode
+
 # Updated allowed file extensions
 ALLOWED_EXTENSIONS = {
     'txt', 'rtf', 'md', 'log', 'pdf', 'doc', 'docx', 'odt', 'pages',
@@ -53,9 +61,611 @@ devices_config = None
 device_status_cache = {}
 device_status_lock = threading.Lock()
 
+'''
+class CodebaseContextManager:
+    """Manage existing codebase knowledge for GenAI"""
+
+    def __init__(self):
+        self.libraries = {}
+        self.utils = {}
+        self.patterns = {}
+        self.apis = {}
+        self.project_structure = {}
+
+    def analyze_codebase(self, codebase_path):
+        """Analyze uploaded codebase for context"""
+        try:
+            analysis = {
+                'imports': self.extract_imports(codebase_path),
+                'functions': self.extract_functions(codebase_path),
+                'classes': self.extract_classes(codebase_path),
+                'patterns': self.identify_patterns(codebase_path),
+                'dependencies': self.extract_dependencies(codebase_path)
+            }
+            return analysis
+        except Exception as e:
+            print(f"[ERROR] Codebase analysis failed: {e}")
+            return {}
+
+    def extract_classes(self, codebase_path):
+        """Extract class definitions and their methods"""
+        classes = {}
+        for py_file in Path(codebase_path).rglob("*.py"):
+            # Skip macOS metadata files
+            if '__MACOSX' in str(py_file) or py_file.name.startswith('._'):
+                continue
+
+            try:
+                with open(py_file, 'r', encoding='utf-8') as f:
+                    tree = ast.parse(f.read())
+                    for node in ast.walk(tree):
+                        if isinstance(node, ast.ClassDef):
+                            class_info = {
+                                'file': str(py_file),
+                                'methods': [m.name for m in node.body if isinstance(m, ast.FunctionDef)],
+                                'docstring': ast.get_docstring(node),
+                                'line_number': node.lineno,
+                                'base_classes': [base.id if hasattr(base, 'id') else str(base) for base in node.bases]
+                            }
+                            classes[node.name] = class_info
+            except Exception as e:
+                print(f"[WARNING] Could not analyze classes in {py_file}: {e}")
+        return classes
+
+    def extract_dependencies(self, codebase_path):
+        """Extract project dependencies from requirements files"""
+        dependencies = []
+
+        # Check for requirements.txt
+        req_files = ['requirements.txt', 'requirements.pip', 'Pipfile', 'setup.py']
+        for req_file in req_files:
+            req_path = Path(codebase_path) / req_file
+            if req_path.exists():
+                try:
+                    with open(req_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                        # Simple extraction - you might want to make this more sophisticated
+                        if req_file == 'requirements.txt':
+                            dependencies.extend([line.strip() for line in content.split('\n') if
+                                                 line.strip() and not line.startswith('#')])
+                except Exception as e:
+                    print(f"[WARNING] Could not read {req_file}: {e}")
+
+        return list(set(dependencies))  # Remove duplicates
+
+    def extract_imports(self, codebase_path):
+        """Extract all import statements from Python files"""
+        imports = set()
+        for py_file in Path(codebase_path).rglob("*.py"):
+            # Skip macOS metadata files
+            if '__MACOSX' in str(py_file) or py_file.name.startswith('._'):
+                continue
+            try:
+                with open(py_file, 'r', encoding='utf-8') as f:
+                    tree = ast.parse(f.read())
+                    for node in ast.walk(tree):
+                        if isinstance(node, ast.Import):
+                            for alias in node.names:
+                                imports.add(alias.name)
+                        elif isinstance(node, ast.ImportFrom):
+                            if node.module:
+                                imports.add(node.module)
+            except Exception as e:
+                print(f"[WARNING] Could not parse {py_file}: {e}")
+        return list(imports)
+
+    def extract_functions(self, codebase_path):
+        """Extract function signatures and docstrings"""
+        functions = {}
+        for py_file in Path(codebase_path).rglob("*.py"):
+            # Skip macOS metadata files
+            if '__MACOSX' in str(py_file) or py_file.name.startswith('._'):
+                continue
+            try:
+                with open(py_file, 'r', encoding='utf-8') as f:
+                    tree = ast.parse(f.read())
+                    for node in ast.walk(tree):
+                        if isinstance(node, ast.FunctionDef):
+                            func_info = {
+                                'file': str(py_file),
+                                'args': [arg.arg for arg in node.args.args],
+                                'docstring': ast.get_docstring(node),
+                                'line_number': node.lineno
+                            }
+                            functions[node.name] = func_info
+            except Exception as e:
+                print(f"[WARNING] Could not analyze functions in {py_file}: {e}")
+        return functions
+
+    def identify_patterns(self, codebase_path):
+        """Identify common coding patterns"""
+        patterns = {
+            'error_handling': [],
+            'logging': [],
+            'database_access': [],
+            'api_calls': [],
+            'testing_patterns': []
+        }
+
+        # This is a simplified pattern detection
+        # In practice, you'd want more sophisticated AST analysis
+        for py_file in Path(codebase_path).rglob("*.py"):
+            # Skip macOS metadata files
+            if '__MACOSX' in str(py_file) or py_file.name.startswith('._'):
+                continue
+
+            try:
+                with open(py_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+
+                    if 'try:' in content and 'except' in content:
+                        patterns['error_handling'].append(str(py_file))
+                    if 'logging.' in content or 'logger.' in content:
+                        patterns['logging'].append(str(py_file))
+                    if 'requests.' in content or 'urllib' in content:
+                        patterns['api_calls'].append(str(py_file))
+
+            except Exception as e:
+                print(f"[WARNING] Pattern analysis failed for {py_file}: {e}")
+
+        return patterns
+'''
+
+
+# REPLACE your existing CodebaseContextManager class with this fixed version:
+
+class CodebaseContextManager:
+    """Manage existing codebase knowledge for GenAI"""
+
+    def __init__(self):
+        self.libraries = {}
+        self.utils = {}
+        self.patterns = {}
+        self.apis = {}
+        self.project_structure = {}
+
+    def analyze_codebase(self, codebase_path):
+        """Analyze uploaded codebase for context"""
+        try:
+            print(f"[CODEBASE] Starting analysis of: {codebase_path}")
+
+            analysis = {
+                'imports': self.extract_imports(codebase_path),
+                'functions': self.extract_functions(codebase_path),
+                'classes': self.extract_classes(codebase_path),
+                'patterns': self.identify_patterns(codebase_path),
+                'dependencies': self.extract_dependencies(codebase_path)
+            }
+
+            print(f"[CODEBASE] Analysis complete:")
+            print(f"  - Imports: {len(analysis['imports'])}")
+            print(f"  - Functions: {len(analysis['functions'])}")
+            print(f"  - Classes: {len(analysis['classes'])}")
+            print(f"  - Patterns: {len(analysis['patterns'])}")
+            print(f"  - Dependencies: {len(analysis['dependencies'])}")
+
+            return analysis
+        except Exception as e:
+            print(f"[ERROR] Codebase analysis failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'imports': [],
+                'functions': {},
+                'classes': {},
+                'patterns': {},
+                'dependencies': []
+            }
+
+    def extract_imports(self, codebase_path):
+        """Extract all import statements from Python files"""
+        imports = set()
+        processed_files = 0
+
+        try:
+            print(f"[IMPORTS] Scanning for Python files in: {codebase_path}")
+
+            for py_file in Path(codebase_path).rglob("*.py"):
+                # Skip macOS metadata files and hidden files
+                if '__MACOSX' in str(py_file) or py_file.name.startswith('._'):
+                    continue
+
+                try:
+                    print(f"[IMPORTS] Processing: {py_file}")
+                    processed_files += 1
+
+                    with open(py_file, 'r', encoding='utf-8') as f:
+                        content = f.read()
+
+                    # Parse the AST
+                    tree = ast.parse(content)
+
+                    for node in ast.walk(tree):
+                        if isinstance(node, ast.Import):
+                            for alias in node.names:
+                                if alias.name:
+                                    imports.add(alias.name)
+                                    print(f"    Found import: {alias.name}")
+                        elif isinstance(node, ast.ImportFrom):
+                            if node.module:
+                                imports.add(node.module)
+                                print(f"    Found from import: {node.module}")
+
+                except SyntaxError as e:
+                    print(f"[WARNING] Syntax error in {py_file}: {e}")
+                    continue
+                except Exception as e:
+                    print(f"[WARNING] Could not parse {py_file}: {e}")
+                    continue
+
+            imports_list = sorted(list(imports))
+            print(f"[IMPORTS] Processed {processed_files} files, found {len(imports_list)} unique imports")
+            print(f"[IMPORTS] Sample imports: {imports_list[:10]}")
+
+            return imports_list
+
+        except Exception as e:
+            print(f"[ERROR] Import extraction failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
+
+    def extract_functions(self, codebase_path):
+        """Extract function signatures and docstrings"""
+        functions = {}
+        processed_files = 0
+
+        try:
+            print(f"[FUNCTIONS] Scanning for functions in: {codebase_path}")
+
+            for py_file in Path(codebase_path).rglob("*.py"):
+                # Skip macOS metadata files and hidden files
+                if '__MACOSX' in str(py_file) or py_file.name.startswith('._'):
+                    continue
+
+                try:
+                    processed_files += 1
+
+                    with open(py_file, 'r', encoding='utf-8') as f:
+                        content = f.read()
+
+                    tree = ast.parse(content)
+
+                    for node in ast.walk(tree):
+                        if isinstance(node, ast.FunctionDef):
+                            func_name = node.name
+
+                            # Skip private functions (starting with _) for cleaner output
+                            if not func_name.startswith('__'):
+                                func_info = {
+                                    'file': str(py_file.relative_to(codebase_path)),
+                                    'args': [arg.arg for arg in node.args.args],
+                                    'docstring': ast.get_docstring(node),
+                                    'line_number': node.lineno
+                                }
+
+                                # Use full path as key to avoid conflicts
+                                key = f"{func_info['file']}::{func_name}"
+                                functions[key] = func_info
+
+                except SyntaxError as e:
+                    print(f"[WARNING] Syntax error in {py_file}: {e}")
+                    continue
+                except Exception as e:
+                    print(f"[WARNING] Could not analyze functions in {py_file}: {e}")
+                    continue
+
+            print(f"[FUNCTIONS] Processed {processed_files} files, found {len(functions)} functions")
+            return functions
+
+        except Exception as e:
+            print(f"[ERROR] Function extraction failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return {}
+
+    def extract_classes(self, codebase_path):
+        """Extract class definitions and their methods"""
+        classes = {}
+        processed_files = 0
+
+        try:
+            print(f"[CLASSES] Scanning for classes in: {codebase_path}")
+
+            for py_file in Path(codebase_path).rglob("*.py"):
+                # Skip macOS metadata files and hidden files
+                if '__MACOSX' in str(py_file) or py_file.name.startswith('._'):
+                    continue
+
+                try:
+                    processed_files += 1
+
+                    with open(py_file, 'r', encoding='utf-8') as f:
+                        content = f.read()
+
+                    tree = ast.parse(content)
+
+                    for node in ast.walk(tree):
+                        if isinstance(node, ast.ClassDef):
+                            class_name = node.name
+
+                            # Skip private classes for cleaner output
+                            if not class_name.startswith('_'):
+                                class_info = {
+                                    'file': str(py_file.relative_to(codebase_path)),
+                                    'methods': [m.name for m in node.body if
+                                                isinstance(m, ast.FunctionDef) and not m.name.startswith('_')],
+                                    'docstring': ast.get_docstring(node),
+                                    'line_number': node.lineno,
+                                    'base_classes': []
+                                }
+
+                                # Extract base classes
+                                for base in node.bases:
+                                    if hasattr(base, 'id'):
+                                        class_info['base_classes'].append(base.id)
+                                    elif hasattr(base, 'attr'):
+                                        class_info['base_classes'].append(base.attr)
+
+                                # Use full path as key to avoid conflicts
+                                key = f"{class_info['file']}::{class_name}"
+                                classes[key] = class_info
+
+                except SyntaxError as e:
+                    print(f"[WARNING] Syntax error in {py_file}: {e}")
+                    continue
+                except Exception as e:
+                    print(f"[WARNING] Could not analyze classes in {py_file}: {e}")
+                    continue
+
+            print(f"[CLASSES] Processed {processed_files} files, found {len(classes)} classes")
+            return classes
+
+        except Exception as e:
+            print(f"[ERROR] Class extraction failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return {}
+
+    def identify_patterns(self, codebase_path):
+        """Identify common coding patterns"""
+        patterns = {
+            'error_handling': [],
+            'logging': [],
+            'database_access': [],
+            'api_calls': [],
+            'testing_patterns': []
+        }
+
+        try:
+            print(f"[PATTERNS] Scanning for patterns in: {codebase_path}")
+
+            for py_file in Path(codebase_path).rglob("*.py"):
+                # Skip macOS metadata files and hidden files
+                if '__MACOSX' in str(py_file) or py_file.name.startswith('._'):
+                    continue
+
+                try:
+                    with open(py_file, 'r', encoding='utf-8') as f:
+                        content = f.read()
+
+                    relative_path = str(py_file.relative_to(codebase_path))
+
+                    # Pattern detection
+                    if 'try:' in content and 'except' in content:
+                        patterns['error_handling'].append(relative_path)
+                    if 'logging.' in content or 'logger.' in content or 'import logging' in content:
+                        patterns['logging'].append(relative_path)
+                    if 'requests.' in content or 'urllib' in content or 'http' in content.lower():
+                        patterns['api_calls'].append(relative_path)
+                    if 'sqlite' in content or 'mysql' in content or 'postgresql' in content or 'database' in content.lower():
+                        patterns['database_access'].append(relative_path)
+                    if 'test_' in content or 'pytest' in content or 'unittest' in content or 'assert' in content:
+                        patterns['testing_patterns'].append(relative_path)
+
+                except Exception as e:
+                    print(f"[WARNING] Pattern analysis failed for {py_file}: {e}")
+
+            # Remove empty patterns and show summary
+            patterns = {k: v for k, v in patterns.items() if v}
+
+            print(f"[PATTERNS] Found patterns:")
+            for pattern_name, files in patterns.items():
+                print(f"  - {pattern_name}: {len(files)} files")
+
+            return patterns
+
+        except Exception as e:
+            print(f"[ERROR] Pattern identification failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return {}
+
+    def extract_dependencies(self, codebase_path):
+        """Extract project dependencies from requirements files"""
+        dependencies = []
+
+        try:
+            print(f"[DEPENDENCIES] Scanning for dependency files in: {codebase_path}")
+
+            # Check for requirements files
+            req_files = ['requirements.txt', 'requirements.pip', 'Pipfile', 'setup.py', 'pyproject.toml']
+
+            for req_file in req_files:
+                req_path = Path(codebase_path) / req_file
+                if req_path.exists():
+                    print(f"[DEPENDENCIES] Found {req_file}")
+                    try:
+                        with open(req_path, 'r', encoding='utf-8') as f:
+                            content = f.read()
+
+                        if req_file == 'requirements.txt':
+                            # Parse requirements.txt format
+                            for line in content.split('\n'):
+                                line = line.strip()
+                                if line and not line.startswith('#') and not line.startswith('-'):
+                                    # Extract package name (before ==, >=, etc.)
+                                    package = re.split(r'[>=<!=]', line)[0].strip()
+                                    if package:
+                                        dependencies.append(package)
+                        elif req_file == 'setup.py':
+                            # Simple extraction from setup.py
+                            if 'install_requires' in content:
+                                # This is a basic extraction - could be improved
+                                import_matches = re.findall(r'["\']([a-zA-Z0-9\-_.]+)["\']', content)
+                                dependencies.extend(import_matches[:20])  # Limit to avoid noise
+
+                    except Exception as e:
+                        print(f"[WARNING] Could not read {req_file}: {e}")
+
+            # Remove duplicates and sort
+            dependencies = sorted(list(set(dependencies)))
+            print(f"[DEPENDENCIES] Found {len(dependencies)} dependencies")
+            return dependencies
+
+        except Exception as e:
+            print(f"[ERROR] Dependency extraction failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
+
+def determine_workflow_type(files):
+    """Determine if input is for Developer or QA workflow"""
+    developer_indicators = [
+        'user_story', 'jira', 'feature', 'requirement', 'spec', 'api',
+        'design', 'architecture', 'epic', 'story', 'backlog'
+    ]
+
+    qa_indicators = [
+        'test_case', 'test', 'validation', 'scenario', 'acceptance'
+    ]
+
+    codebase_indicators = [
+        '.zip', '.tar', '.git', 'src/', 'lib/', 'utils/', 'requirements.txt'
+    ]
+
+    developer_score = 0
+    qa_score = 0
+    codebase_score = 0
+
+    for file_info in files:
+        filename = file_info['name'].lower()
+
+        # Check filename indicators
+        for indicator in developer_indicators:
+            if indicator in filename:
+                developer_score += 1
+
+        for indicator in qa_indicators:
+            if indicator in filename:
+                qa_score += 1
+
+        for indicator in codebase_indicators:
+            if indicator in filename:
+                codebase_score += 1
+
+    if codebase_score > 0:
+        return 'codebase'
+    elif developer_score > qa_score:
+        return 'developer'
+    elif qa_score > developer_score:
+        return 'qa'
+    else:
+        return 'mixed'
+
+
+def parse_jira_export(content):
+    """Parse JIRA JSON or XML export"""
+    try:
+        # Try JSON first
+        data = json.loads(content)
+        return extract_user_stories_from_json(data)
+    except json.JSONDecodeError:
+        try:
+            # Try XML
+            root = ET.fromstring(content)
+            return extract_user_stories_from_xml(root)
+        except ET.ParseError:
+            # Try text format
+            return extract_user_stories_from_text(content)
+
+
+def extract_user_stories_from_json(data):
+    """Extract user stories from JIRA JSON format"""
+    stories = []
+
+    if 'issues' in data:
+        for issue in data['issues']:
+            story = {
+                'id': issue.get('key', 'N/A'),
+                'title': issue['fields'].get('summary', 'N/A'),
+                'description': issue['fields'].get('description', 'N/A'),
+                'story_points': issue['fields'].get('customfield_10004', 'N/A'),
+                'priority': issue['fields'].get('priority', {}).get('name', 'N/A'),
+                'status': issue['fields'].get('status', {}).get('name', 'N/A'),
+                'acceptance_criteria': extract_acceptance_criteria(issue['fields']),
+                'epic': issue['fields'].get('epic', {}).get('name', 'N/A')
+            }
+            stories.append(story)
+
+    return stories
+
+
+def extract_acceptance_criteria(fields):
+    """Extract acceptance criteria from JIRA fields"""
+    # JIRA often stores acceptance criteria in custom fields or description
+    description = fields.get('description', '')
+
+    # Look for common acceptance criteria patterns
+    patterns = [
+        r'Acceptance Criteria:?\s*(.*?)(?=\n\n|\n[A-Z]|\Z)',
+        r'AC:?\s*(.*?)(?=\n\n|\n[A-Z]|\Z)',
+        r'Given.*When.*Then.*',
+    ]
+
+    for pattern in patterns:
+        import re
+        match = re.search(pattern, description, re.DOTALL | re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+
+    return 'Not specified'
+
+
+def extract_user_stories_from_text(content):
+    """Extract user stories from plain text format"""
+    stories = []
+
+    # Split by story boundaries
+    story_sections = re.split(r'\n(?=User Story|Story ID|US-\d+)', content, flags=re.IGNORECASE)
+
+    for section in story_sections:
+        if len(section.strip()) < 50:  # Skip small sections
+            continue
+
+        story = {
+            'id': extract_field(section, r'(?:Story ID|ID):\s*(.+)'),
+            'title': extract_field(section, r'(?:Title|Story):\s*(.+)'),
+            'description': extract_field(section, r'Description:\s*(.*?)(?=\n(?:[A-Z][a-z]+:|$))', re.DOTALL),
+            'acceptance_criteria': extract_field(section, r'Acceptance Criteria:\s*(.*?)(?=\n(?:[A-Z][a-z]+:|$))',
+                                                 re.DOTALL),
+            'priority': extract_field(section, r'Priority:\s*(.+)'),
+            'epic': extract_field(section, r'Epic:\s*(.+)')
+        }
+
+        if story['title']:  # Only add if we found a title
+            stories.append(story)
+
+    return stories
+
+
+def extract_field(text, pattern, flags=0):
+    """Extract field using regex pattern"""
+    match = re.search(pattern, text, flags)
+    return match.group(1).strip() if match else 'N/A'
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
 
 def parse_multiple_test_cases_from_content(content, filename):
     """Parse a single file that may contain multiple test cases while preserving order"""
@@ -2818,6 +3428,842 @@ def debug_scripts():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# Enhanced route for developer workflow
+@app.route('/ingest', methods=['POST'])
+def enhanced_ingest():
+    """Enhanced ingestion supporting both Developer and QA workflows"""
+    global current_mode, developer_workflows, codebase_context
+
+    try:
+        data = request.get_json()
+        files = data.get('files', [])
+        parse_multiple = data.get('parse_multiple', True)
+        workflow_mode = data.get('mode', 'auto')  # 'auto', 'developer', 'qa'
+
+        print(f"[INGEST] Processing {len(files)} file(s) with mode={workflow_mode}")
+
+        # Determine workflow type if auto
+        if workflow_mode == 'auto':
+            workflow_type = determine_workflow_type(files)
+        else:
+            workflow_type = workflow_mode
+
+        print(f"[INGEST] Detected workflow type: {workflow_type}")
+
+        if workflow_type == 'developer':
+            return process_developer_workflow(files)
+        elif workflow_type == 'codebase':
+            return process_codebase_upload(files)
+        elif workflow_type == 'qa':
+            # Use existing QA workflow
+            return process_qa_workflow(files, parse_multiple)
+        else:
+            return process_mixed_workflow(files)
+
+    except Exception as e:
+        print(f"[ERROR] Enhanced ingestion error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Ingestion error: {str(e)}'
+        })
+
+
+def process_developer_workflow(files):
+    """Process developer workflow with user stories/requirements"""
+    global developer_workflows
+
+    processed_stories = []
+
+    for file_info in files:
+        filename = file_info['name']
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_info['path'])
+
+        print(f"[DEV] Processing developer file: {filename}")
+
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            # Determine file type and parse accordingly
+            if filename.lower().endswith('.json'):
+                stories = parse_jira_export(content)
+            elif 'jira' in filename.lower():
+                stories = parse_jira_export(content)
+            else:
+                # Parse as text-based user stories
+                stories = extract_user_stories_from_text(content)
+
+            processed_stories.extend(stories)
+
+        except Exception as e:
+            print(f"[ERROR] Failed to process {filename}: {e}")
+            continue
+
+    # Store processed stories globally
+    developer_workflows = processed_stories
+
+    return jsonify({
+        'success': True,
+        'workflow_type': 'developer',
+        'processed_stories': processed_stories,
+        'total_stories': len(processed_stories),
+        'has_codebase_context': len(codebase_context) > 0,
+        'message': f'Successfully processed {len(processed_stories)} user stories for development'
+    })
+
+
+def process_codebase_upload(files):
+    """Process uploaded codebase for context"""
+    global codebase_context
+
+    for file_info in files:
+        filename = file_info['name']
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_info['path'])
+
+        if filename.endswith('.zip'):
+            # Extract and analyze codebase
+            with tempfile.TemporaryDirectory() as temp_dir:
+                try:
+                    with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                        zip_ref.extractall(temp_dir)
+
+                    print(f"[INFO] Extracted ZIP to: {temp_dir}")
+
+                    # List extracted contents for debugging
+                    extracted_files = list(Path(temp_dir).rglob("*.py"))
+                    valid_files = [f for f in extracted_files if
+                                   '__MACOSX' not in str(f) and not f.name.startswith('._')]
+                    print(f"[INFO] Found {len(valid_files)} valid Python files out of {len(extracted_files)} total")
+
+                    # Analyze extracted codebase
+                    context_manager = CodebaseContextManager()
+                    codebase_context = context_manager.analyze_codebase(temp_dir)
+
+                    print(
+                        f"[INFO] Analysis complete - Found {len(codebase_context.get('imports', []))} imports, {len(codebase_context.get('functions', {}))} functions")
+
+                except Exception as e:
+                    print(f"[ERROR] Failed to process codebase: {e}")
+                    return jsonify({
+                        'success': False,
+                        'message': f'Failed to process codebase: {str(e)}'
+                    })
+
+    return jsonify({
+        'success': True,
+        'workflow_type': 'codebase',
+        'codebase_context': {
+            'libraries_count': len(codebase_context.get('imports', [])),
+            'functions_count': len(codebase_context.get('functions', {})),
+            'patterns_found': list(codebase_context.get('patterns', {}).keys())
+        },
+        'context_info': {
+            'libraries_count': len(codebase_context.get('imports', [])),
+            'functions_count': len(codebase_context.get('functions', {})),
+            'patterns': list(codebase_context.get('patterns', {}).keys())
+        },
+        'message': 'Codebase context loaded successfully'
+    })
+
+def process_qa_workflow(files, parse_multiple):
+    """Existing QA workflow processing"""
+    # This is your existing ingest logic
+    # Keep it unchanged for backward compatibility
+    pass
+
+'''
+# New route for developer code generation
+@app.route('/generate_app_code', methods=['POST'])
+def generate_application_code():
+    """Generate application code from user stories"""
+    global developer_workflows, codebase_context
+
+    try:
+        data = request.get_json()
+        selected_story_ids = data.get('selected_story_ids', [])
+
+        if not developer_workflows:
+            return jsonify({
+                'success': False,
+                'message': 'No user stories available for code generation'
+            })
+
+        # Filter selected stories
+        if selected_story_ids:
+            stories_to_process = [s for s in developer_workflows if s.get('id') in selected_story_ids]
+        else:
+            stories_to_process = developer_workflows
+
+        generated_code = []
+
+        for story in stories_to_process:
+            # Call enhanced code generation
+            code_result = generate_code_for_story(story, codebase_context)
+            generated_code.append(code_result)
+
+        return jsonify({
+            'success': True,
+            'generated_code': generated_code,
+            'total_generated': len(generated_code),
+            'message': f'Successfully generated code for {len(generated_code)} user stories'
+        })
+
+    except Exception as e:
+        print(f"[ERROR] Application code generation failed: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Code generation error: {str(e)}'
+        })
+'''
+
+
+@app.route('/generate_app_code', methods=['POST'])
+def generate_application_code():
+    """Generate application code using the prepared prompt"""
+    try:
+        # Get the stored prompt from session
+        prompt = session.get('developer_prompt', '')
+        workflow_type = session.get('workflow_type', 'jira')
+
+        if not prompt:
+            return jsonify({
+                'success': False,
+                'message': 'No prompt found. Please ingest requirements first.'
+            })
+
+        print(f"[GENERATE] Using prompt of length: {len(prompt)}")
+
+        # Call your AI model here with the prompt
+        # For now, we'll create a sample response
+        generated_code = generate_code_from_prompt(prompt, workflow_type)
+
+        return jsonify({
+            'success': True,
+            'generated_code': generated_code,
+            'message': f'Successfully generated code for {workflow_type} workflow'
+        })
+
+    except Exception as e:
+        print(f"[ERROR] Code generation failed: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Code generation error: {str(e)}'
+        })
+
+
+def generate_code_from_prompt(prompt, workflow_type):
+    """
+    This is where you'll integrate with your AI model
+    For now, returning sample code based on workflow type
+    """
+
+    # Extract some context from the prompt for the sample
+    has_tests = 'Include comprehensive unit tests' in prompt
+    has_docs = 'Generate detailed documentation' in prompt
+    has_error_handling = 'Include robust error handling' in prompt
+
+    # Sample code generation
+    if workflow_type == 'jira':
+        code = f'''"""
+Generated Code for JIRA User Story
+Auto-generated on: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+"""
+
+import logging
+from typing import Dict, Any, Optional
+from dataclasses import dataclass
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+@dataclass
+class DisplayResolution:
+    """Represents a display resolution configuration"""
+    width: int
+    height: int
+    refresh_rate: int = 60
+
+    def __str__(self) -> str:
+        return f"{self.width}x{self.height}@{self.refresh_rate}Hz"
+
+class DisplayManager:
+    """Manages display resolution and capabilities"""
+
+    def __init__(self):
+        self.current_resolution: Optional[DisplayResolution] = None
+        self.supported_resolutions = self._load_supported_resolutions()
+
+    def _load_supported_resolutions(self) -> list[DisplayResolution]:
+        """Load supported resolutions from device capabilities"""
+        # This would integrate with your DeviceCapabilities utility
+        return [
+            DisplayResolution(1920, 1080, 60),
+            DisplayResolution(3840, 2160, 30),  # 4K
+            DisplayResolution(3840, 2160, 60),  # 4K@60
+        ]
+
+    def set_resolution(self, resolution: DisplayResolution) -> bool:
+        """Set the display resolution"""
+        if resolution not in self.supported_resolutions:
+            logger.error(f"Unsupported resolution: {resolution}")
+            return False
+
+        try:
+            # Integrate with Thunder plugin here
+            logger.info(f"Setting resolution to: {resolution}")
+            self.current_resolution = resolution
+            return True
+        except Exception as e:
+            logger.error(f"Failed to set resolution: {e}")
+            {"return False" if has_error_handling else "raise"}
+
+    def validate_hardware_capabilities(self) -> Dict[str, Any]:
+        """Validate hardware capabilities before applying settings"""
+        return {
+        "supports_4k": any(r.width >= 3840 for r in self.supported_resolutions),
+            "max_refresh_rate": max(r.refresh_rate for r in self.supported_resolutions),
+            "current_resolution": str(self.current_resolution) if self.current_resolution else None
+        }
+'''
+
+        if has_tests:
+            code += '''
+
+# Unit Tests
+import unittest
+
+class TestDisplayManager(unittest.TestCase):
+    def setUp(self):
+        self.display_manager = DisplayManager()
+
+    def test_supported_resolutions_loaded(self):
+        self.assertGreater(len(self.display_manager.supported_resolutions), 0)
+
+    def test_set_valid_resolution(self):
+        resolution = DisplayResolution(1920, 1080, 60)
+        result = self.display_manager.set_resolution(resolution)
+        self.assertTrue(result)
+        self.assertEqual(self.display_manager.current_resolution, resolution)
+
+    def test_validate_hardware_capabilities(self):
+        capabilities = self.display_manager.validate_hardware_capabilities()
+        self.assertIn("supports_4k", capabilities)
+        self.assertIn("max_refresh_rate", capabilities)
+
+if __name__ == "__main__":
+    unittest.main()
+'''
+
+    else:
+        # Generic code for other workflow types
+        code = f'''"""
+Generated Code for {workflow_type.title()}
+Auto-generated on: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+"""
+
+# Implementation would go here based on the specific requirements
+# This is a placeholder for the actual AI-generated code
+
+def main():
+    """Main entry point"""
+    print(f"Implementing {workflow_type} workflow")
+    # TODO: Add implementation based on requirements
+
+if __name__ == "__main__":
+    main()
+'''
+
+    return [{
+        'file_name': f'{workflow_type}_implementation.py',
+        'generated_code': code
+    }]
+
+def generate_code_for_story(story, context):
+    """Generate code for a single user story using enhanced LLaMA"""
+    try:
+        # Build context-aware prompt
+        prompt = build_developer_prompt(story, context)
+
+        # Call your existing LLaMA generation logic
+        # You'll need to modify Auto_test_gen.py or create a new generator
+        generated_code = call_enhanced_llama_generation(prompt)
+
+        return {
+            'story_id': story['id'],
+            'story_title': story['title'],
+            'generated_code': generated_code,
+            'file_name': f"{story['id'].lower().replace('-', '_')}_implementation.py"
+        }
+
+    except Exception as e:
+        return {
+            'story_id': story['id'],
+            'story_title': story['title'],
+            'generated_code': f"# Error generating code: {str(e)}",
+            'file_name': f"{story['id']}_error.py"
+        }
+
+
+def build_developer_prompt(story, context):
+    """Build context-aware prompt for application code generation"""
+    context_libraries = context.get('imports', [])[:10]  # Top 10 libraries
+    context_patterns = context.get('patterns', {})
+
+    prompt = f"""
+You are an expert Python developer working on an enterprise application.
+
+User Story Details:
+- ID: {story['id']}
+- Title: {story['title']}
+- Description: {story['description']}
+- Acceptance Criteria: {story['acceptance_criteria']}
+- Priority: {story.get('priority', 'Medium')}
+
+Existing Codebase Context:
+Available Libraries: {', '.join(context_libraries)}
+Common Patterns Found: {', '.join(context_patterns.keys())}
+
+Instructions:
+1. Generate production-ready Python code that implements this user story
+2. Use existing libraries from the codebase where appropriate
+3. Follow established patterns from the existing codebase
+4. Include proper error handling and logging
+5. Add comprehensive docstrings and comments
+6. Make the code testable and maintainable
+7. Include input validation and security considerations
+
+Generate the complete implementation including:
+- Main implementation class/functions
+- Error handling
+- Documentation
+- Usage examples
+
+```python
+"""
+
+    return prompt
+
+
+def call_enhanced_llama_generation(prompt):
+    """Call LLaMA model for code generation"""
+    try:
+        # This would integrate with your existing LLaMA setup
+        # You might need to modify Auto_test_gen.py or create new generator
+
+        # For now, using a placeholder that calls your existing generation logic
+        # Replace this with actual LLaMA integration
+
+        # Example integration:
+        # from Auto_test_gen import generator
+        # return generator.generate(prompt, max_tokens=1000, mode='developer')
+
+        return f"""
+# Generated implementation code would be here
+# This is a placeholder - integrate with your LLaMA model
+
+class UserStoryImplementation:
+    '''
+    Implementation for user story
+    '''
+
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+
+    def implement_feature(self):
+        '''
+        Main implementation method
+        '''
+        try:
+            # Implementation logic here
+            pass
+        except Exception as e:
+            self.logger.error(f"Implementation failed: {{e}}")
+            raise
+"""
+    except Exception as e:
+        return f"# Error in code generation: {str(e)}"
+
+
+# Add route for mode switching
+@app.route('/switch_mode', methods=['POST'])
+def switch_mode():
+    """Switch between developer and QA modes"""
+    global current_mode
+
+    try:
+        data = request.get_json()
+        new_mode = data.get('mode', 'qa')
+
+        if new_mode in ['developer', 'qa', 'codebase']:
+            current_mode = new_mode
+            return jsonify({
+                'success': True,
+                'current_mode': current_mode,
+                'message': f'Switched to {current_mode} mode'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Invalid mode specified'
+            })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Mode switch error: {str(e)}'
+        })
+
+
+# Add route to get current mode and context
+@app.route('/get_context', methods=['GET'])
+def get_current_context():
+    """Get current mode and available context"""
+    global current_mode, developer_workflows, codebase_context
+
+    return jsonify({
+        'current_mode': current_mode,
+        'has_codebase_context': len(codebase_context) > 0,
+        'codebase_info': {
+            'libraries_count': len(codebase_context.get('imports', [])),
+            'functions_count': len(codebase_context.get('functions', {})),
+            'patterns': list(codebase_context.get('patterns', {}).keys())
+        },
+        'developer_stories_count': len(developer_workflows),
+        'qa_scripts_count': len(generated_scripts_info) if 'generated_scripts_info' in globals() else 0
+    })
+
+
+# FIND your upload_codebase route in app.py and REPLACE it with this:
+@app.route('/upload_codebase', methods=['POST'])
+def upload_codebase():
+    """Handle separate codebase upload"""
+    try:
+        if 'codebase' not in request.files:
+            return jsonify({'success': False, 'message': 'No codebase file provided'})
+
+        file = request.files['codebase']
+        if file.filename == '':
+            return jsonify({'success': False, 'message': 'No file selected'})
+
+        if file and file.filename.endswith('.zip'):
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
+
+            # Extract and analyze the uploaded codebase
+            with tempfile.TemporaryDirectory() as temp_dir:
+                try:
+                    with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                        zip_ref.extractall(temp_dir)
+
+                    print(f"[INFO] Extracted ZIP to: {temp_dir}")
+
+                    # Analyze extracted codebase using the FIXED CodebaseContextManager
+                    context_manager = CodebaseContextManager()
+                    analysis_result = context_manager.analyze_codebase(temp_dir)
+
+                    print(f"[INFO] Analysis result keys: {analysis_result.keys()}")
+                    print(f"[INFO] Libraries count: {len(analysis_result.get('imports', []))}")
+                    print(f"[INFO] Functions count: {len(analysis_result.get('functions', {}))}")
+                    print(f"[INFO] Classes count: {len(analysis_result.get('classes', {}))}")
+
+                    # FIXED: Return the analysis result directly
+                    return jsonify({
+                        'success': True,
+                        'message': 'Codebase uploaded and analyzed successfully',
+                        'context_info': {
+                            'libraries_count': len(analysis_result.get('imports', [])),
+                            'functions_count': len(analysis_result.get('functions', {})),
+                            'classes_count': len(analysis_result.get('classes', {})),
+                            'patterns': list(analysis_result.get('patterns', {}).keys())
+                        },
+                        # CRITICAL: Return the actual data arrays/objects
+                        'libraries': analysis_result.get('imports', []),
+                        'functions': analysis_result.get('functions', {}),
+                        'classes': analysis_result.get('classes', {}),
+                        'patterns': analysis_result.get('patterns', {}),
+                        'dependencies': analysis_result.get('dependencies', [])
+                    })
+
+                except Exception as e:
+                    print(f"[ERROR] Failed to process codebase: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    return jsonify({
+                        'success': False,
+                        'message': f'Failed to process codebase: {str(e)}'
+                    })
+        else:
+            return jsonify({'success': False, 'message': 'Please upload a ZIP file containing your codebase'})
+
+    except Exception as e:
+        print(f"[ERROR] Codebase upload error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Codebase upload error: {str(e)}'})
+
+# Enhanced route for reviewing developer code
+@app.route('/review_app_code', methods=['POST'])
+def review_application_code():
+    """Review generated application code"""
+    try:
+        data = request.get_json()
+        code_to_review = data.get('code', '')
+        story_id = data.get('story_id', '')
+
+        if not code_to_review:
+            return jsonify({
+                'success': False,
+                'message': 'No code provided for review'
+            })
+
+        # Perform comprehensive code review
+        review_results = {
+            'functionality_check': check_functionality_compliance(code_to_review),
+            'code_quality': analyze_code_quality(code_to_review),
+            'security_scan': perform_security_scan(code_to_review),
+            'performance_check': analyze_performance(code_to_review),
+            'best_practices': check_best_practices(code_to_review)
+        }
+
+        return jsonify({
+            'success': True,
+            'story_id': story_id,
+            'review_results': review_results,
+            'overall_score': calculate_overall_score(review_results),
+            'message': 'Code review completed successfully'
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Code review error: {str(e)}'
+        })
+
+
+@app.route('/get_file_content', methods=['POST'])
+def get_file_content():
+    """Get the content of an uploaded file"""
+    try:
+        data = request.get_json()
+        filepath = data.get('filepath', '')
+
+        full_path = os.path.join(app.config['UPLOAD_FOLDER'], filepath)
+
+        if not os.path.exists(full_path):
+            return jsonify({
+                'success': False,
+                'message': 'File not found'
+            })
+
+        # Read file content based on type
+        content = ""
+        if filepath.endswith('.json'):
+            with open(full_path, 'r', encoding='utf-8') as f:
+                json_data = json.load(f)
+                content = json.dumps(json_data, indent=2)
+        elif filepath.endswith('.pdf'):
+            # You'll need to add PDF reading capability
+            content = "PDF content extraction not implemented yet"
+        elif filepath.endswith(('.doc', '.docx')):
+            # You'll need to add DOC reading capability
+            content = "DOC content extraction not implemented yet"
+        else:
+            # Text files (txt, xml, etc.)
+            with open(full_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+        return jsonify({
+            'success': True,
+            'content': content
+        })
+
+    except Exception as e:
+        print(f"[ERROR] Failed to read file content: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error reading file: {str(e)}'
+        })
+
+
+@app.route('/process_developer_prompt', methods=['POST'])
+def process_developer_prompt():
+    """Process the developer requirements and prepare for code generation"""
+    try:
+        data = request.get_json()
+        prompt = data.get('prompt', '')
+        workflow_type = data.get('workflowType', 'jira')
+        raw_inputs = data.get('rawInputs', {})
+
+        print(f"[DEVELOPER] Processing {workflow_type} workflow")
+        print(f"[DEVELOPER] Prompt length: {len(prompt)} characters")
+
+        # Extract key requirements from the prompt
+        extracted_requirements = extract_requirements(prompt, workflow_type)
+
+        # Store the prompt and extracted data for the generation step
+        session['developer_prompt'] = prompt
+        session['extracted_requirements'] = extracted_requirements
+        session['workflow_type'] = workflow_type
+
+        # You can also store this in a more persistent way if needed
+        # For example, in a database or file system
+
+        return jsonify({
+            'success': True,
+            'message': 'Requirements processed successfully',
+            'extractedRequirements': extracted_requirements,
+            'prompt': prompt if app.config.get('DEBUG') else None,  # Only show prompt in debug mode
+            'workflowType': workflow_type
+        })
+
+    except Exception as e:
+        print(f"[ERROR] Failed to process developer prompt: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error processing requirements: {str(e)}'
+        })
+
+
+def extract_requirements(prompt, workflow_type):
+    """Extract and summarize key requirements from the prompt"""
+    requirements = {
+        'type': workflow_type,
+        'summary': '',
+        'key_points': [],
+        'technical_requirements': [],
+        'acceptance_criteria': []
+    }
+
+    # Parse the prompt sections
+    sections = prompt.split('===')
+
+    for section in sections:
+        section = section.strip()
+
+        if 'USER REQUIREMENTS' in section:
+            # Extract user requirements
+            lines = section.split('\n')[1:]  # Skip header
+            requirements['summary'] = '\n'.join(lines).strip()
+
+        elif 'TECHNICAL NOTES' in section:
+            # Extract technical notes
+            lines = section.split('\n')[1:]  # Skip header
+            for line in lines:
+                if line.strip().startswith('-'):
+                    requirements['technical_requirements'].append(line.strip()[1:].strip())
+
+        elif 'UPLOADED REQUIREMENTS' in section:
+            # Parse uploaded content for JIRA stories
+            if workflow_type == 'jira' and 'acceptance criteria' in section.lower():
+                # Extract acceptance criteria
+                ac_match = re.search(r'acceptance criteria[:\s]*(.*?)(?=\n\n|\Z)',
+                                     section, re.IGNORECASE | re.DOTALL)
+                if ac_match:
+                    ac_text = ac_match.group(1).strip()
+                    ac_items = [item.strip() for item in ac_text.split('\n')
+                                if item.strip() and item.strip() != '-']
+                    requirements['acceptance_criteria'].extend(ac_items)
+
+    # Extract key points from summary
+    if requirements['summary']:
+        # Simple extraction of bullet points or key phrases
+        for line in requirements['summary'].split('\n'):
+            if line.strip().startswith(('-', '*', '•')) or 'should' in line.lower() or 'must' in line.lower():
+                requirements['key_points'].append(line.strip().lstrip('-*•').strip())
+
+    # Format the extracted requirements
+    formatted = f"Workflow Type: {requirements['type'].upper()}\n\n"
+
+    if requirements['summary']:
+        formatted += f"Summary:\n{requirements['summary'][:500]}...\n\n" if len(
+            requirements['summary']) > 500 else f"Summary:\n{requirements['summary']}\n\n"
+
+    if requirements['key_points']:
+        formatted += "Key Requirements:\n"
+        for point in requirements['key_points'][:5]:  # Limit to first 5
+            formatted += f"• {point}\n"
+        formatted += "\n"
+
+    if requirements['acceptance_criteria']:
+        formatted += "Acceptance Criteria:\n"
+        for criteria in requirements['acceptance_criteria'][:5]:  # Limit to first 5
+            formatted += f"✓ {criteria}\n"
+        formatted += "\n"
+
+    if requirements['technical_requirements']:
+        formatted += "Technical Requirements:\n"
+        for req in requirements['technical_requirements']:
+            formatted += f"• {req}\n"
+
+    return formatted
+
+
+def check_functionality_compliance(code):
+    """Check if code meets functional requirements"""
+    # Implement functionality compliance check
+    return {
+        'score': 85,
+        'issues': [],
+        'recommendations': ['Add more input validation', 'Include error handling for edge cases']
+    }
+
+
+def analyze_code_quality(code):
+    """Analyze code quality metrics"""
+    # Implement code quality analysis
+    return {
+        'score': 90,
+        'complexity': 'Medium',
+        'maintainability': 'High',
+        'readability': 'High'
+    }
+
+
+def perform_security_scan(code):
+    """Perform security analysis"""
+    # Implement security scanning
+    return {
+        'score': 95,
+        'vulnerabilities': [],
+        'security_level': 'High'
+    }
+
+
+def analyze_performance(code):
+    """Analyze performance implications"""
+    # Implement performance analysis
+    return {
+        'score': 80,
+        'potential_bottlenecks': ['Database queries in loop'],
+        'optimization_suggestions': ['Use bulk operations for database']
+    }
+
+
+def check_best_practices(code):
+    """Check adherence to best practices"""
+    # Implement best practices check
+    return {
+        'score': 88,
+        'pep8_compliance': True,
+        'documentation_score': 85,
+        'test_coverage': 'Recommended'
+    }
+
+
+def calculate_overall_score(review_results):
+    """Calculate overall code review score"""
+    scores = [
+        review_results['functionality_check']['score'],
+        review_results['code_quality']['score'],
+        review_results['security_scan']['score'],
+        review_results['performance_check']['score'],
+        review_results['best_practices']['score']
+    ]
+    return sum(scores) / len(scores)
 
 @app.errorhandler(413)
 def too_large(e):

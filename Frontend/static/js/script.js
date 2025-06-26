@@ -21,6 +21,16 @@ let availableDevices = [];
 let selectedDeviceId = null;
 let deviceStatusPolling = null;
 
+let currentMode = 'qa'; // Track current mode
+let developerWorkflows = [];
+let codebaseContext = {};
+let generatedApplicationCode = [];
+let selectedUserStories = new Set();
+
+// Global variables for codebase management
+let savedCodebases = [];
+let currentCodebaseId = null;
+
 // DOM Elements Cache
 const elements = {
     uploadArea: null,
@@ -39,9 +49,18 @@ const elements = {
     toastMessage: null
 };
 
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 // ================================================================================================
 // INITIALIZATION AND SETUP
 // ================================================================================================
+// Initialize codebase management when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadSavedCodebases();
+    updateCodebaseSelector();
+});
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Cognizant AutoTest Dashboard Loading...');
@@ -63,6 +82,8 @@ document.addEventListener('DOMContentLoaded', function() {
 function cacheElements() {
     elements.uploadArea = document.querySelector('.upload-area');
     elements.fileInput = document.getElementById('fileInput');
+    elements.developerFileInput = document.getElementById('developerFileInput'); // Add this
+    elements.codebaseFileInput = document.getElementById('codebaseFileInput'); // Add this
     elements.fileInfo = document.getElementById('fileInfo');
     elements.textArea = document.getElementById('textArea');
     elements.charCount = document.getElementById('charCount');
@@ -320,7 +341,7 @@ function closeErrorModal() {
 // Make functions globally available
 window.showErrorModal = showErrorModal;
 window.closeErrorModal = closeErrorModal;
-
+/*
 function initializeEventListeners() {
     console.log('🔧 Setting up event listeners...');
 
@@ -349,7 +370,74 @@ function initializeEventListeners() {
 
     console.log('✅ Event listeners attached');
 }
+*/
 
+function initializeEventListeners() {
+    console.log('🔧 Setting up event listeners...');
+
+    // QA Mode File upload events
+    const qaUploadArea = document.querySelector('#qaContent .upload-area');
+    const qaFileInput = document.getElementById('fileInput');
+
+    if (qaUploadArea) {
+        qaUploadArea.addEventListener('dragover', handleDragOver);
+        qaUploadArea.addEventListener('dragleave', handleDragLeave);
+        qaUploadArea.addEventListener('drop', handleDrop);
+        qaUploadArea.addEventListener('click', () => {
+            if (qaFileInput) qaFileInput.click();
+        });
+    }
+
+    if (qaFileInput) {
+        qaFileInput.addEventListener('change', handleFileSelect);
+    }
+
+    // Developer Mode File upload events
+    const devUploadArea = document.querySelector('#developerContent .upload-area');
+    const devFileInput = document.getElementById('developerFileInput');
+
+    if (devUploadArea) {
+        devUploadArea.addEventListener('dragover', handleDragOver);
+        devUploadArea.addEventListener('dragleave', handleDragLeave);
+        devUploadArea.addEventListener('drop', handleDrop);
+        devUploadArea.addEventListener('click', () => {
+            if (devFileInput) devFileInput.click();
+        });
+    }
+
+    if (devFileInput) {
+        devFileInput.addEventListener('change', handleFileSelect);
+    }
+
+    // Codebase Manager File upload events
+    const codebaseUploadArea = document.querySelector('#codebaseManagerContent .upload-area');
+    const codebaseFileInput = document.getElementById('codebaseFileInput');
+
+    if (codebaseUploadArea) {
+        codebaseUploadArea.addEventListener('dragover', handleDragOver);
+        codebaseUploadArea.addEventListener('dragleave', handleDragLeave);
+        codebaseUploadArea.addEventListener('drop', handleDrop);
+        codebaseUploadArea.addEventListener('click', () => {
+            if (codebaseFileInput) codebaseFileInput.click();
+        });
+    }
+
+    if (codebaseFileInput) {
+        codebaseFileInput.addEventListener('change', handleFileSelect);
+    }
+
+    // Text area events
+    const textArea = document.getElementById('textArea');
+    if (textArea) {
+        textArea.addEventListener('input', handleTextAreaInput);
+    }
+
+    // Prevent default drag behaviors
+    document.addEventListener('dragover', preventDefault);
+    document.addEventListener('drop', preventDefault);
+
+    console.log('✅ Event listeners attached');
+}
 function setupNavigationListeners() {
     console.log('🧭 Setting up navigation...');
 
@@ -364,12 +452,13 @@ function setupNavigationListeners() {
         });
 
         // AutoTest navigation
+        /*
         navItems[1].addEventListener('click', function(e) {
             e.preventDefault();
             console.log('🧪 AutoTest navigation clicked');
             showAutoTest();
         });
-
+        */
         console.log('✅ Navigation listeners attached');
     } else {
         console.error('❌ Navigation items not found!');
@@ -389,7 +478,8 @@ function initializeHomePage() {
     // Set initial content state
     const dashboardTitle = document.getElementById('dashboardTitle');
     const welcomeMessage = document.getElementById('welcomeMessage');
-    const autoTestContent = document.getElementById('autoTestContent');
+    //const autoTestContent = document.getElementById('autoTestContent');
+    const autoTestContent = document.getElementById('qaContent');
 
     if (dashboardTitle) dashboardTitle.textContent = 'Home';
 
@@ -407,11 +497,1220 @@ function initializeHomePage() {
 
     console.log('✅ Home page initialized');
 }
+/*
+async function uploadCodebase() {
+    console.log('📤 Starting codebase upload...');
+
+    const codebaseFileInput = document.getElementById('codebaseFileInput');
+    if (!codebaseFileInput || codebaseFileInput.files.length === 0) {
+        showToast('Please select a codebase ZIP file first!', 'warning');
+        return;
+    }
+
+    const uploadBtn = document.getElementById('uploadCodebaseBtn');
+    if (!uploadBtn) return;
+
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = 'Uploading Codebase...';
+
+    try {
+        const formData = new FormData();
+        const file = codebaseFileInput.files[0];
+        formData.append('codebase', file);
+
+        showProgress('Uploading Codebase', [
+            'Uploading ZIP file',
+            'Extracting codebase files',
+            'Analyzing code structure',
+            'Building context database',
+            'Indexing functions and patterns'
+        ]);
+
+        updateProgress(20, 'Uploading file to server', 0);
+
+        const response = await fetch('/upload_codebase', {
+            method: 'POST',
+            body: formData
+        });
+
+        updateProgress(40, 'Processing codebase', 1);
+
+        const result = await response.json();
+
+        if (result.success) {
+            updateProgress(60, 'Analyzing code structure', 2);
+            await delay(1000);
+
+            updateProgress(80, 'Building context', 3);
+            await delay(1000);
+
+            updateProgress(100, 'Codebase loaded successfully', 4);
+
+            // ADD DEBUG OUTPUT
+            debugCodebaseData(result);
+
+            // FIXED: Create complete context info with all data
+            const completeContextInfo = {
+                libraries_count: result.context_info.libraries_count,
+                functions_count: result.context_info.functions_count,
+                classes_count: result.context_info.classes_count || (result.classes ? Object.keys(result.classes).length : 0), // FIXED: Add classes_count
+                patterns: result.context_info.patterns,
+                libraries: result.libraries || [],
+                functions: result.functions || {},
+                classes: result.classes || {},
+                dependencies: result.dependencies || []
+            };
+
+            console.log('📚 Complete context info being passed:', completeContextInfo);
+            updateCodebaseStatus(completeContextInfo);
+
+            // Enable the clear button
+            const clearBtn = document.getElementById('clearCodebaseBtn');
+            if (clearBtn) {
+                clearBtn.disabled = false;
+            }
+
+            showToast(result.message, 'success');
+
+            // Clear the file input
+            codebaseFileInput.value = '';
+
+        } else {
+            showToast(result.message, 'error');
+        }
+
+    } catch (error) {
+        console.error('❌ Codebase upload error:', error);
+        showToast('Failed to upload codebase: ' + error.message, 'error');
+    } finally {
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = 'Upload Codebase';
+        hideProgress();
+    }
+}
+*/
+
+// Save codebase to localStorage
+function saveCodebaseToStorage(codebaseData) {
+    try {
+        const codebaseId = generateCodebaseId(codebaseData.name);
+        const savedCodebase = {
+            id: codebaseId,
+            name: codebaseData.name || `Codebase-${Date.now()}`,
+            syncTime: new Date().toISOString(),
+            data: codebaseData,
+            active: true
+        };
+
+        // Load existing codebases
+        const existing = JSON.parse(localStorage.getItem('savedCodebases') || '[]');
+
+        // Remove existing codebase with same ID if present
+        const filtered = existing.filter(cb => cb.id !== codebaseId);
+
+        // Add new codebase
+        filtered.unshift(savedCodebase); // Add to beginning
+
+        // Keep only last 10 codebases
+        const trimmed = filtered.slice(0, 10);
+
+        localStorage.setItem('savedCodebases', JSON.stringify(trimmed));
+        savedCodebases = trimmed;
+
+        console.log(`💾 Saved codebase: ${savedCodebase.name}`);
+        updateCodebaseSelector();
+        setCurrentCodebase(codebaseId);
+
+        return codebaseId;
+    } catch (error) {
+        console.error('❌ Failed to save codebase:', error);
+        showToast('Failed to save codebase locally', 'error');
+        return null;
+    }
+}
+
+// Load saved codebases from localStorage
+function loadSavedCodebases() {
+    try {
+        const saved = localStorage.getItem('savedCodebases');
+        savedCodebases = saved ? JSON.parse(saved) : [];
+        console.log(`📚 Loaded ${savedCodebases.length} saved codebases`);
+    } catch (error) {
+        console.error('❌ Failed to load saved codebases:', error);
+        savedCodebases = [];
+    }
+}
+
+// Generate unique ID for codebase
+function generateCodebaseId(name) {
+    const cleanName = name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    const timestamp = Date.now();
+    return `${cleanName}_${timestamp}`;
+}
+
+// Update codebase selector dropdown
+function updateCodebaseSelector() {
+    const selector = document.getElementById('codebaseSelector');
+    if (!selector) return;
+
+    selector.innerHTML = '<option value="">Select Codebase...</option>';
+
+    savedCodebases.forEach(codebase => {
+        const option = document.createElement('option');
+        option.value = codebase.id;
+        option.textContent = `${codebase.name} (${formatSyncTime(codebase.syncTime)})`;
+        selector.appendChild(option);
+    });
+
+    // Set current selection
+    if (currentCodebaseId) {
+        selector.value = currentCodebaseId;
+    }
+}
+
+// Format sync time for display
+function formatSyncTime(isoString) {
+    const date = new Date(isoString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
+    return date.toLocaleDateString();
+}
+
+// Switch to a different codebase
+function switchCodebase(codebaseId) {
+    if (!codebaseId) {
+        clearCurrentCodebaseDisplay();
+        currentCodebaseId = null;
+        return;
+    }
+
+    const codebase = savedCodebases.find(cb => cb.id === codebaseId);
+    if (codebase) {
+        setCurrentCodebase(codebaseId);
+        displayCodebaseInSidebar(codebase.data);
+        showToast(`Switched to: ${codebase.name}`, 'success');
+    }
+}
+
+// Set current active codebase
+function setCurrentCodebase(codebaseId) {
+    currentCodebaseId = codebaseId;
+    const selector = document.getElementById('codebaseSelector');
+    if (selector) {
+        selector.value = codebaseId;
+    }
+}
+
+// Display codebase data in the sidebar
+function displayCodebaseInSidebar(contextInfo) {
+    console.log('📊 Displaying codebase in sidebar:', contextInfo);
+
+    // Update current codebase status
+    const statusDiv = document.getElementById('currentCodebaseStatus');
+    if (statusDiv) {
+        statusDiv.style.display = 'block';
+    }
+
+    // Update codebase name and sync time
+    const codebase = savedCodebases.find(cb => cb.id === currentCodebaseId);
+    if (codebase) {
+        const nameElement = document.getElementById('currentCodebaseName');
+        const timeElement = document.getElementById('syncTime');
+
+        if (nameElement) nameElement.textContent = codebase.name;
+        if (timeElement) timeElement.textContent = `Synced ${formatSyncTime(codebase.syncTime)}`;
+    }
+
+    // Update status indicator
+    const statusIndicator = document.getElementById('statusIndicator');
+    if (statusIndicator) {
+        statusIndicator.className = 'status-indicator';
+    }
+
+    // Update stats
+    updateSidebarStats(contextInfo);
+
+    // Update expandable sections
+    updateSidebarSections(contextInfo);
+}
+
+// Update sidebar statistics
+function updateSidebarStats(contextInfo) {
+    const stats = {
+        libraries: contextInfo.libraries_count || (contextInfo.libraries ? contextInfo.libraries.length : 0),
+        functions: contextInfo.functions_count || (contextInfo.functions ? Object.keys(contextInfo.functions).length : 0),
+        classes: contextInfo.classes_count || (contextInfo.classes ? Object.keys(contextInfo.classes).length : 0),
+        patterns: contextInfo.patterns ? (Array.isArray(contextInfo.patterns) ? contextInfo.patterns.length : Object.keys(contextInfo.patterns).length) : 0
+    };
+
+    document.getElementById('sidebarLibrariesCount').textContent = stats.libraries;
+    document.getElementById('sidebarFunctionsCount').textContent = stats.functions;
+    document.getElementById('sidebarClassesCount').textContent = stats.classes;
+    document.getElementById('sidebarPatternsCount').textContent = stats.patterns;
+}
+
+// Update expandable sections content
+function updateSidebarSections(contextInfo) {
+    // Libraries
+    const librariesList = document.getElementById('librariesList');
+    if (librariesList && contextInfo.libraries) {
+        librariesList.innerHTML = '';
+        contextInfo.libraries.slice(0, 15).forEach(lib => {
+            const span = document.createElement('span');
+            span.className = 'compact-item';
+            span.textContent = lib;
+            librariesList.appendChild(span);
+        });
+        if (contextInfo.libraries.length > 15) {
+            const more = document.createElement('span');
+            more.className = 'compact-item';
+            more.textContent = `+${contextInfo.libraries.length - 15} more`;
+            more.style.background = '#f3f4f6';
+            more.style.color = '#6b7280';
+            librariesList.appendChild(more);
+        }
+    }
+
+    // Functions
+    const functionsList = document.getElementById('functionsList');
+    if (functionsList && contextInfo.functions) {
+        functionsList.innerHTML = '';
+        const functions = Object.entries(contextInfo.functions).slice(0, 8);
+        functions.forEach(([name, info]) => {
+            const div = document.createElement('div');
+            div.className = 'compact-function-item';
+            div.innerHTML = `
+                <span class="compact-function-name">${name.split('::').pop()}</span>
+                <span class="compact-file-path">${info.file || 'Unknown file'}</span>
+            `;
+            functionsList.appendChild(div);
+        });
+    }
+
+    // Classes
+    const classesList = document.getElementById('classesList');
+    if (classesList && contextInfo.classes) {
+        classesList.innerHTML = '';
+        const classes = Object.entries(contextInfo.classes).slice(0, 6);
+        classes.forEach(([name, info]) => {
+            const div = document.createElement('div');
+            div.className = 'compact-class-item';
+            div.innerHTML = `
+                <span class="compact-class-name">${name.split('::').pop()}</span>
+                <span class="compact-file-path">${info.file || 'Unknown file'}</span>
+            `;
+            classesList.appendChild(div);
+        });
+    }
+
+    // Patterns
+    const patternsList = document.getElementById('patternsList');
+    if (patternsList && contextInfo.patterns) {
+        patternsList.innerHTML = '';
+        let patternsToShow = [];
+
+        if (Array.isArray(contextInfo.patterns)) {
+            patternsToShow = contextInfo.patterns;
+        } else if (typeof contextInfo.patterns === 'object') {
+            patternsToShow = Object.entries(contextInfo.patterns)
+                .filter(([key, value]) => Array.isArray(value) && value.length > 0)
+                .map(([key, value]) => `${key} (${value.length})`);
+        }
+
+        patternsToShow.forEach(pattern => {
+            const span = document.createElement('span');
+            span.className = 'compact-item';
+            span.textContent = pattern;
+            patternsList.appendChild(span);
+        });
+    }
+}
+
+// Toggle expandable sections
+function toggleSection(sectionId) {
+    const content = document.getElementById(`${sectionId}-content`);
+    const toggle = document.getElementById(`${sectionId}-toggle`);
+
+    if (content && toggle) {
+        const isExpanded = content.classList.contains('expanded');
+
+        if (isExpanded) {
+            content.classList.remove('expanded');
+            toggle.classList.remove('expanded');
+            content.style.maxHeight = '0';
+        } else {
+            content.classList.add('expanded');
+            toggle.classList.add('expanded');
+            content.style.maxHeight = '200px';
+        }
+    }
+}
+
+// Clear current codebase display
+function clearCurrentCodebaseDisplay() {
+    const statusDiv = document.getElementById('currentCodebaseStatus');
+    if (statusDiv) {
+        statusDiv.style.display = 'none';
+    }
+}
+
+// Resync current codebase
+function resyncCurrentCodebase() {
+    if (!currentCodebaseId) {
+        showToast('No codebase selected to resync', 'warning');
+        return;
+    }
+
+    const codebase = savedCodebases.find(cb => cb.id === currentCodebaseId);
+    if (codebase) {
+        showToast(`Resyncing ${codebase.name}...`, 'info');
+        // You can add logic here to re-analyze the codebase
+        // For now, just update the sync time
+        codebase.syncTime = new Date().toISOString();
+        localStorage.setItem('savedCodebases', JSON.stringify(savedCodebases));
+        updateCodebaseSelector();
+        displayCodebaseInSidebar(codebase.data);
+    }
+}
+
+// Clear current codebase
+function clearCurrentCodebase() {
+    if (!currentCodebaseId) {
+        showToast('No codebase selected to clear', 'warning');
+        return;
+    }
+
+    const codebase = savedCodebases.find(cb => cb.id === currentCodebaseId);
+    if (codebase && confirm(`Are you sure you want to remove "${codebase.name}" from saved codebases?`)) {
+        // Remove from saved codebases
+        savedCodebases = savedCodebases.filter(cb => cb.id !== currentCodebaseId);
+        localStorage.setItem('savedCodebases', JSON.stringify(savedCodebases));
+
+        // Clear current selection
+        currentCodebaseId = null;
+        clearCurrentCodebaseDisplay();
+        updateCodebaseSelector();
+
+        showToast(`Removed ${codebase.name}`, 'success');
+    }
+}
+
+// REPLACE your existing uploadCodebase function with this version that includes persistence:
+async function uploadCodebase() {
+    console.log('📤 Starting codebase upload...');
+
+    const codebaseFileInput = document.getElementById('codebaseFileInput');
+    if (!codebaseFileInput || codebaseFileInput.files.length === 0) {
+        showToast('Please select a codebase ZIP file first!', 'warning');
+        return;
+    }
+
+    const uploadBtn = document.getElementById('uploadCodebaseBtn');
+    if (!uploadBtn) return;
+
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = 'Uploading Codebase...';
+
+    try {
+        const formData = new FormData();
+        const file = codebaseFileInput.files[0];
+        formData.append('codebase', file);
+
+        showProgress('Uploading Codebase', [
+            'Uploading ZIP file',
+            'Extracting codebase files',
+            'Analyzing code structure',
+            'Building context database',
+            'Indexing functions and patterns'
+        ]);
+
+        updateProgress(20, 'Uploading file to server', 0);
+
+        const response = await fetch('/upload_codebase', {
+            method: 'POST',
+            body: formData
+        });
+
+        updateProgress(40, 'Processing codebase', 1);
+
+        const result = await response.json();
+
+        if (result.success) {
+            updateProgress(60, 'Analyzing code structure', 2);
+            await delay(1000);
+
+            updateProgress(80, 'Building context', 3);
+            await delay(1000);
+
+            updateProgress(100, 'Codebase loaded successfully', 4);
+
+            // Create complete context info
+            const completeContextInfo = {
+                libraries_count: result.context_info.libraries_count,
+                functions_count: result.context_info.functions_count,
+                classes_count: result.context_info.classes_count || (result.classes ? Object.keys(result.classes).length : 0),
+                patterns: result.context_info.patterns,
+                libraries: result.libraries || [],
+                functions: result.functions || {},
+                classes: result.classes || {},
+                dependencies: result.dependencies || []
+            };
+
+            console.log('📚 Complete context info:', completeContextInfo);
+
+            // NEW: Save codebase for future use
+            const codebaseToSave = {
+                name: file.name.replace('.zip', ''),
+                ...completeContextInfo
+            };
+
+            saveCodebaseToStorage(codebaseToSave);
+            displayCodebaseInSidebar(completeContextInfo);
+
+            // Enable the clear button
+            const clearBtn = document.getElementById('clearCodebaseBtn');
+            if (clearBtn) {
+                clearBtn.disabled = false;
+            }
+
+            showToast(result.message, 'success');
+
+            // Clear the file input
+            codebaseFileInput.value = '';
+
+            // Hide the codebase manager after successful upload
+            setTimeout(() => {
+                showDeveloperMode(); // Return to developer mode with loaded codebase
+            }, 1000);
+
+        } else {
+            showToast(result.message, 'error');
+        }
+
+    } catch (error) {
+        console.error('❌ Codebase upload error:', error);
+        showToast('Failed to upload codebase: ' + error.message, 'error');
+    } finally {
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = 'Upload Codebase';
+        hideProgress();
+    }
+}
+
+async function clearCodebase() {
+    console.log('🧹 Clearing codebase context...');
+
+    if (!confirm('Are you sure you want to clear the loaded codebase context? This action cannot be undone.')) {
+        return;
+    }
+
+    const clearBtn = document.getElementById('clearCodebaseBtn');
+    if (!clearBtn) return;
+
+    clearBtn.disabled = true;
+    clearBtn.textContent = 'Clearing...';
+
+    try {
+        const response = await fetch('/clear_codebase', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Reset the codebase status display
+            updateCodebaseStatus({
+                libraries_count: 0,
+                functions_count: 0,
+                patterns: []
+            });
+
+            // Clear file input
+            const codebaseFileInput = document.getElementById('codebaseFileInput');
+            if (codebaseFileInput) {
+                codebaseFileInput.value = '';
+            }
+
+            clearBtn.disabled = true;
+            clearBtn.textContent = 'Clear Context';
+
+            showToast('Codebase context cleared successfully', 'success');
+        } else {
+            showToast(result.message, 'error');
+        }
+
+    } catch (error) {
+        console.error('❌ Clear codebase error:', error);
+        showToast('Failed to clear codebase: ' + error.message, 'error');
+    } finally {
+        clearBtn.textContent = 'Clear Context';
+    }
+}
+
+async function searchCodebase() {
+    console.log('🔍 Searching codebase...');
+
+    const searchInput = document.getElementById('codebaseSearchInput');
+    const searchBtn = document.getElementById('searchCodebaseBtn');
+    const resultsContainer = document.getElementById('codebaseSearchResults');
+
+    if (!searchInput || !searchBtn || !resultsContainer) return;
+
+    const query = searchInput.value.trim();
+    if (!query) {
+        showToast('Please enter a search query', 'warning');
+        return;
+    }
+
+    searchBtn.disabled = true;
+    searchBtn.textContent = 'Searching...';
+
+    try {
+        const response = await fetch('/search_codebase', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ query: query })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            displaySearchResults(result.results);
+            showToast(`Found ${result.results.length} matches`, 'success');
+        } else {
+            resultsContainer.innerHTML = '<p class="no-results">No results found</p>';
+            showToast(result.message, 'warning');
+        }
+
+    } catch (error) {
+        console.error('❌ Search error:', error);
+        showToast('Search failed: ' + error.message, 'error');
+    } finally {
+        searchBtn.disabled = false;
+        searchBtn.textContent = 'Search';
+    }
+}
+
+function displaySearchResults(results) {
+    const resultsContainer = document.getElementById('codebaseSearchResults');
+    if (!resultsContainer) return;
+
+    if (results.length === 0) {
+        resultsContainer.innerHTML = '<p class="no-results">No results found</p>';
+        return;
+    }
+
+    resultsContainer.innerHTML = '';
+
+    results.forEach(result => {
+        const resultItem = document.createElement('div');
+        resultItem.className = 'search-result-item';
+        resultItem.innerHTML = `
+            <div class="result-header">
+                <span class="result-type">${result.type}</span>
+                <span class="result-file">${result.file_path}</span>
+            </div>
+            <div class="result-content">
+                <div class="result-name">${result.name}</div>
+                ${result.snippet ? `<pre class="result-snippet">${result.snippet}</pre>` : ''}
+                ${result.line_number ? `<span class="result-line">Line ${result.line_number}</span>` : ''}
+            </div>
+        `;
+        resultsContainer.appendChild(resultItem);
+    });
+}
+
+// ================================================================================================
+// MODE MANAGEMENT FUNCTIONS
+// ================================================================================================
+/*
+function displayCodebaseDetails(contextInfo) {
+    console.log('📋 Displaying codebase details:', contextInfo);
+
+    // Find or create a container for codebase details
+    let detailsContainer = document.getElementById('codebaseDetails');
+    if (!detailsContainer) {
+        // Create the container if it doesn't exist
+        detailsContainer = document.createElement('div');
+        detailsContainer.id = 'codebaseDetails';
+        detailsContainer.className = 'codebase-details';
+
+        // Insert it after the codebase status
+        const statusElement = document.getElementById('codebaseStatus');
+        if (statusElement && statusElement.parentNode) {
+            statusElement.parentNode.insertBefore(detailsContainer, statusElement.nextSibling);
+        }
+    }
+
+    // Build the details HTML
+    let detailsHTML = '';
+
+    // Libraries section
+    if (contextInfo.libraries && contextInfo.libraries.length > 0) {
+        detailsHTML += `
+            <div class="codebase-section">
+                <h3>📚 Available Libraries</h3>
+                <div class="libraries-list">
+                    ${contextInfo.libraries.map(lib => `<span class="library-item">${lib}</span>`).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Functions section
+    if (contextInfo.functions && Object.keys(contextInfo.functions).length > 0) {
+        detailsHTML += `
+            <div class="codebase-section">
+                <h3>⚡ Available Functions</h3>
+                <div class="functions-list">
+                    ${Object.entries(contextInfo.functions).map(([name, info]) => `
+                        <div class="function-item">
+                            <strong>${name}</strong>
+                            ${info.file ? `<span class="file-path">${info.file}</span>` : ''}
+                            ${info.docstring ? `<p class="docstring">${info.docstring}</p>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Classes section
+    if (contextInfo.classes && Object.keys(contextInfo.classes).length > 0) {
+        detailsHTML += `
+            <div class="codebase-section">
+                <h3>🏗️ Available Classes</h3>
+                <div class="classes-list">
+                    ${Object.entries(contextInfo.classes).map(([name, info]) => `
+                        <div class="class-item">
+                            <strong>${name}</strong>
+                            ${info.file ? `<span class="file-path">${info.file}</span>` : ''}
+                            ${info.methods && info.methods.length > 0 ? 
+                                `<div class="methods">Methods: ${info.methods.join(', ')}</div>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Patterns section
+    if (contextInfo.patterns && contextInfo.patterns.length > 0) {
+        detailsHTML += `
+            <div class="codebase-section">
+                <h3>🔍 Detected Patterns</h3>
+                <div class="patterns-list">
+                    ${contextInfo.patterns.map(pattern => `<span class="pattern-item">${pattern}</span>`).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    detailsContainer.innerHTML = detailsHTML || '<p>No codebase details available.</p>';
+}
+*/
+
+function displayCodebaseDetails(contextInfo) {
+    console.log('📋 Displaying codebase details:', contextInfo);
+
+    // Find or create a container for codebase details
+    let detailsContainer = document.getElementById('codebaseDetails');
+    if (!detailsContainer) {
+        // Create the container if it doesn't exist
+        detailsContainer = document.createElement('div');
+        detailsContainer.id = 'codebaseDetails';
+        detailsContainer.className = 'codebase-details';
+
+        // Insert it after the codebase status
+        const statusElement = document.getElementById('codebaseStatus');
+        if (statusElement && statusElement.parentNode) {
+            statusElement.parentNode.insertBefore(detailsContainer, statusElement.nextSibling);
+        }
+    }
+
+    // Build the details HTML
+    let detailsHTML = '';
+
+    // Libraries section - FIXED to handle array of library names
+    if (contextInfo.libraries && Array.isArray(contextInfo.libraries) && contextInfo.libraries.length > 0) {
+        detailsHTML += `
+            <div class="codebase-section">
+                <h3>📚 Available Libraries (${contextInfo.libraries.length})</h3>
+                <div class="libraries-list">
+                    ${contextInfo.libraries.slice(0, 20).map(lib => `<span class="library-item">${lib}</span>`).join('')}
+                    ${contextInfo.libraries.length > 20 ? `<span class="library-item">... and ${contextInfo.libraries.length - 20} more</span>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    // Functions section - FIXED to handle object of functions
+    if (contextInfo.functions && typeof contextInfo.functions === 'object' && Object.keys(contextInfo.functions).length > 0) {
+        const functionEntries = Object.entries(contextInfo.functions);
+        detailsHTML += `
+            <div class="codebase-section">
+                <h3>⚡ Available Functions (${functionEntries.length})</h3>
+                <div class="functions-list">
+                    ${functionEntries.slice(0, 10).map(([name, info]) => `
+                        <div class="function-item">
+                            <strong>${name}</strong>
+                            ${info.file ? `<span class="file-path">📁 ${info.file}</span>` : ''}
+                            ${info.docstring ? `<p class="docstring">"${info.docstring.substring(0, 100)}${info.docstring.length > 100 ? '...' : ''}"</p>` : ''}
+                            ${info.args ? `<p class="function-args">Args: ${info.args.join(', ')}</p>` : ''}
+                        </div>
+                    `).join('')}
+                    ${functionEntries.length > 10 ? `<div class="function-item"><strong>... and ${functionEntries.length - 10} more functions</strong></div>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    // Classes section - FIXED to handle object of classes
+    if (contextInfo.classes && typeof contextInfo.classes === 'object' && Object.keys(contextInfo.classes).length > 0) {
+        const classEntries = Object.entries(contextInfo.classes);
+        detailsHTML += `
+            <div class="codebase-section">
+                <h3>🏗️ Available Classes (${classEntries.length})</h3>
+                <div class="classes-list">
+                    ${classEntries.slice(0, 8).map(([name, info]) => `
+                        <div class="class-item">
+                            <strong>${name}</strong>
+                            ${info.file ? `<span class="file-path">📁 ${info.file}</span>` : ''}
+                            ${info.methods && info.methods.length > 0 ? 
+                                `<div class="methods">Methods: ${info.methods.slice(0, 5).join(', ')}${info.methods.length > 5 ? '...' : ''}</div>` : ''}
+                            ${info.docstring ? `<p class="docstring">"${info.docstring.substring(0, 80)}${info.docstring.length > 80 ? '...' : ''}"</p>` : ''}
+                        </div>
+                    `).join('')}
+                    ${classEntries.length > 8 ? `<div class="class-item"><strong>... and ${classEntries.length - 8} more classes</strong></div>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    // Patterns section - FIXED to handle both array and object
+    if (contextInfo.patterns) {
+        let patternsToShow = [];
+
+        if (Array.isArray(contextInfo.patterns)) {
+            patternsToShow = contextInfo.patterns;
+        } else if (typeof contextInfo.patterns === 'object') {
+            // If patterns is an object, extract keys that have non-empty arrays
+            patternsToShow = Object.entries(contextInfo.patterns)
+                .filter(([key, value]) => Array.isArray(value) && value.length > 0)
+                .map(([key, value]) => `${key} (${value.length} files)`);
+        }
+
+        if (patternsToShow.length > 0) {
+            detailsHTML += `
+                <div class="codebase-section">
+                    <h3>🔍 Detected Patterns (${patternsToShow.length})</h3>
+                    <div class="patterns-list">
+                        ${patternsToShow.map(pattern => `<span class="pattern-item">${pattern}</span>`).join('')}
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    // Dependencies section (if available)
+    if (contextInfo.dependencies && Array.isArray(contextInfo.dependencies) && contextInfo.dependencies.length > 0) {
+        detailsHTML += `
+            <div class="codebase-section">
+                <h3>📦 Dependencies (${contextInfo.dependencies.length})</h3>
+                <div class="dependencies-list">
+                    ${contextInfo.dependencies.slice(0, 15).map(dep => `<span class="library-item">${dep}</span>`).join('')}
+                    ${contextInfo.dependencies.length > 15 ? `<span class="library-item">... and ${contextInfo.dependencies.length - 15} more</span>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    if (!detailsHTML) {
+        detailsHTML = '<p>No detailed codebase information available. The codebase may not contain analyzable Python files.</p>';
+    }
+
+    detailsContainer.innerHTML = detailsHTML;
+    console.log('✅ Codebase details displayed successfully');
+}
+
+/*
+// Add this function for codebase status updates
+function updateCodebaseStatus(contextInfo) {
+    console.log('📚 Updating codebase status');
+
+    // Default empty context if not provided
+    if (!contextInfo) {
+        contextInfo = {
+            libraries_count: 0,
+            functions_count: 0,
+            patterns: []
+        };
+    }
+
+    const statusElement = document.getElementById('codebaseStatus');
+    if (!statusElement) return;
+
+    // Update the counts
+    statusElement.innerHTML = `
+        <div class="codebase-info">
+            <span>📚 Libraries: ${contextInfo.libraries_count || 0}</span>
+            <span>⚡ Functions: ${contextInfo.functions_count || 0}</span>
+            <span>🔍 Patterns: ${contextInfo.patterns ? contextInfo.patterns.length : 0}</span>
+        </div>
+    `;
+
+    // Update status indicator
+    const statusPanel = document.getElementById('codebaseContextPanel');
+    if (statusPanel) {
+        if (contextInfo.libraries_count > 0) {
+            statusPanel.classList.add('context-loaded');
+        } else {
+            statusPanel.classList.remove('context-loaded');
+        }
+    }
+    // Display detailed codebase structure
+    displayCodebaseDetails(contextInfo);
+}
+*/
+
+function updateCodebaseStatus(contextInfo) {
+    console.log('📚 Updating codebase status with data:', contextInfo);
+
+    // Default empty context if not provided
+    if (!contextInfo) {
+        contextInfo = {
+            libraries_count: 0,
+            functions_count: 0,
+            patterns: []
+        };
+    }
+
+    const statusElement = document.getElementById('codebaseStatus');
+    if (!statusElement) {
+        console.error('❌ codebaseStatus element not found');
+        return;
+    }
+
+    // FIXED: Extract the correct counts from contextInfo
+    const librariesCount = contextInfo.libraries_count || (contextInfo.libraries ? contextInfo.libraries.length : 0);
+    const functionsCount = contextInfo.functions_count || (contextInfo.functions ? Object.keys(contextInfo.functions).length : 0);
+    const classesCount = contextInfo.classes_count || (contextInfo.classes ? Object.keys(contextInfo.classes).length : 0);
+    const patternsCount = contextInfo.patterns ? (Array.isArray(contextInfo.patterns) ? contextInfo.patterns.length : Object.keys(contextInfo.patterns).length) : 0;
+
+    console.log('📊 Extracted counts:', {
+        libraries: librariesCount,
+        functions: functionsCount,
+        classes: classesCount,
+        patterns: patternsCount
+    });
+
+    // FIXED: Update the status display with correct information
+    statusElement.innerHTML = `
+        <div class="codebase-info">
+            <span>📚 Libraries: ${librariesCount}</span>
+            <span>⚡ Functions: ${functionsCount}</span>
+            <span>🏗️ Classes: ${classesCount}</span>
+            <span>🔍 Patterns: ${patternsCount}</span>
+        </div>
+    `;
+
+    // Update status indicator
+    const statusPanel = document.getElementById('codebaseContextPanel');
+    if (statusPanel) {
+        if (librariesCount > 0 || functionsCount > 0 || classesCount > 0) {
+            statusPanel.classList.add('context-loaded');
+        } else {
+            statusPanel.classList.remove('context-loaded');
+        }
+    }
+
+    // Display detailed codebase structure
+    displayCodebaseDetails(contextInfo);
+
+    console.log('✅ Codebase status updated successfully');
+}
+
+// ALSO ADD this debug function to check what data is being received:
+function debugCodebaseData(result) {
+    console.log('🔍 DEBUG: Full backend response:', result);
+    console.log('🔍 DEBUG: Context info:', result.context_info);
+    console.log('🔍 DEBUG: Libraries array length:', result.libraries ? result.libraries.length : 'undefined');
+    console.log('🔍 DEBUG: Functions object keys:', result.functions ? Object.keys(result.functions).length : 'undefined');
+    console.log('🔍 DEBUG: Classes object keys:', result.classes ? Object.keys(result.classes).length : 'undefined');
+    console.log('🔍 DEBUG: Patterns:', result.patterns);
+}
+
+async function loadCurrentContext() {
+    try {
+        const response = await fetch('/get_context');
+        const context = await response.json();
+
+        currentMode = context.current_mode;
+        updateModeIndicator(currentMode);
+        updateCodebaseStatus(context.codebase_info);
+
+        console.log('✅ Context loaded:', context);
+    } catch (error) {
+        console.error('❌ Failed to load context:', error);
+    }
+}
+
+function updateModeIndicator(mode) {
+    const modeDisplay = document.getElementById('currentModeDisplay');
+    if (modeDisplay) {
+        const modeNames = {
+            'qa': 'QA Testing',
+            'developer': 'Code Development',
+            'codebase': 'Codebase Manager'
+        };
+        modeDisplay.textContent = modeNames[mode] || mode;
+    }
+}
+
+async function switchMode(newMode) {
+    try {
+        const response = await fetch('/switch_mode', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ mode: newMode })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            currentMode = newMode;
+            updateModeIndicator(newMode);
+            showToast(result.message, 'success');
+        } else {
+            showToast(result.message, 'error');
+        }
+    } catch (error) {
+        console.error('❌ Mode switch error:', error);
+        showToast('Failed to switch mode', 'error');
+    }
+}
+
 
 // ================================================================================================
 // NAVIGATION FUNCTIONS
 // ================================================================================================
 
+function resetDeveloperElements() {
+    // Clear developer-specific data
+    const developerFileInput = document.getElementById('developerFileInput');
+    if (developerFileInput) developerFileInput.value = '';
+
+    const developerFileInfo = document.getElementById('developerFileInfo');
+    if (developerFileInfo) developerFileInfo.textContent = '';
+
+    // Hide user stories container
+    const userStoriesContainer = document.getElementById('userStoriesContainer');
+    if (userStoriesContainer) userStoriesContainer.style.display = 'none';
+
+    // Reset developer buttons
+    const generateAppBtn = document.getElementById('generateAppBtn');
+    const reviewAppBtn = document.getElementById('reviewAppBtn');
+    const deployAppBtn = document.getElementById('deployAppBtn');
+
+    if (generateAppBtn) generateAppBtn.disabled = true;
+    if (reviewAppBtn) reviewAppBtn.disabled = true;
+    if (deployAppBtn) deployAppBtn.disabled = true;
+}
+
+function resetQAElements() {
+    // Clear any generated scripts info
+    if (window.generatedScripts) {
+        window.generatedScripts = [];
+    }
+
+    // Reset buttons
+    const generateBtn = document.getElementById('generateBtn');
+    const reviewBtn = document.getElementById('reviewBtn');
+    const executeBtn = document.getElementById('executeBtn');
+
+    if (generateBtn) generateBtn.disabled = true;
+    if (reviewBtn) reviewBtn.disabled = true;
+    if (executeBtn) executeBtn.disabled = true;
+
+    // Clear text areas
+    const textArea = document.getElementById('textArea');
+    if (textArea) textArea.value = '';
+
+    // Remove any dynamically created test areas
+    const multiTestContainer = document.getElementById('multiTestContainer');
+    if (multiTestContainer) {
+        multiTestContainer.remove();
+    }
+
+    // Reset file input
+    const fileInput = document.getElementById('fileInput');
+    if (fileInput) fileInput.value = '';
+
+    const fileInfo = document.getElementById('fileInfo');
+    if (fileInfo) fileInfo.textContent = '';
+}
+
+function showDeveloperMode() {
+    console.log('👨‍💻 Showing Developer Mode');
+
+    hideAllModeContent();
+    // Update navigation state
+    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+    const devNavItem = document.querySelectorAll('.nav-item')[1]; // Developer nav item
+    if (devNavItem) devNavItem.classList.add('active');
+
+    // Update content visibility
+    const developerContent = document.getElementById('developerContent');
+    if (developerContent) {
+        developerContent.classList.remove('hide');
+        developerContent.classList.add('show');
+        developerContent.style.display = 'block';
+    }
+
+    // Update dashboard title
+    const dashboardTitle = document.getElementById('dashboardTitle');
+    if (dashboardTitle) dashboardTitle.textContent = '';
+
+    // Switch mode on backend
+    switchMode('developer');
+
+    // Reset any QA-specific elements
+    resetQAElements();
+
+    console.log('✅ Developer mode displayed');
+}
+
+function showQAMode() {
+    console.log('🧪 Showing QA Mode');
+
+    hideAllModeContent();
+    // Update navigation state
+    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+    const qaNavItem = document.querySelectorAll('.nav-item')[2]; // QA nav item
+    if (qaNavItem) qaNavItem.classList.add('active');
+
+    // Update content visibility
+    const qaContent = document.getElementById('qaContent');
+    if (qaContent) {
+        qaContent.classList.remove('hide');
+        qaContent.classList.add('show');
+        qaContent.style.display = 'block';
+    }
+
+    // Update dashboard title
+    const dashboardTitle = document.getElementById('dashboardTitle');
+    if (dashboardTitle) dashboardTitle.textContent = '';
+
+    // Switch mode on backend
+    switchMode('qa');
+
+    // Reset any developer-specific elements
+    resetDeveloperElements();
+
+    console.log('✅ QA mode displayed');
+}
+
+function showCodebaseManager() {
+    console.log('📚 Showing Codebase Manager');
+
+    // Update navigation state
+    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+    const codebaseNavItem = document.querySelectorAll('.nav-item')[3]; // Codebase nav item
+    if (codebaseNavItem) codebaseNavItem.classList.add('active');
+
+    // Update content visibility
+    hideAllModeContent();
+    const codebaseContent = document.getElementById('codebaseManagerContent');
+    if (codebaseContent) {
+        codebaseContent.classList.remove('hide');
+        codebaseContent.classList.add('show');
+        codebaseContent.style.display = 'block';
+    }
+
+    // Update dashboard title
+    const dashboardTitle = document.getElementById('dashboardTitle');
+    if (dashboardTitle) dashboardTitle.textContent = '';
+
+    // Switch mode on backend
+    switchMode('codebase');
+
+    console.log('✅ Codebase manager displayed');
+}
+
+function hideAllModeContent() {
+    console.log('🔄 Hiding all mode content...');
+
+    // Hide welcome message
+    const welcomeMessage = document.getElementById('welcomeMessage');
+    if (welcomeMessage) {
+        welcomeMessage.classList.remove('show');
+        welcomeMessage.classList.add('hide');
+        welcomeMessage.style.display = 'none';
+    }
+
+    // Hide QA content
+    const qaContent = document.getElementById('qaContent');
+    if (qaContent) {
+        qaContent.classList.remove('show');
+        qaContent.classList.add('hide');
+        qaContent.style.display = 'none';
+    }
+
+    // Hide Developer content
+    const developerContent = document.getElementById('developerContent');
+    if (developerContent) {
+        developerContent.classList.remove('show');
+        developerContent.classList.add('hide');
+        developerContent.style.display = 'none';
+    }
+
+    // Hide Codebase Manager content
+    const codebaseManagerContent = document.getElementById('codebaseManagerContent');
+    if (codebaseManagerContent) {
+        codebaseManagerContent.classList.remove('show');
+        codebaseManagerContent.classList.add('hide');
+        codebaseManagerContent.style.display = 'none';
+    }
+
+    // Hide any multi-test areas that might have been created
+    const multiTestContainer = document.getElementById('multiTestContainer');
+    if (multiTestContainer) {
+        multiTestContainer.style.display = 'none';
+    }
+
+    // Hide single text area container
+    const singleTextAreaContainer = document.getElementById('singleTextAreaContainer');
+    if (singleTextAreaContainer) {
+        singleTextAreaContainer.style.display = 'none';
+    }
+
+    // Hide any progress containers
+    //const progressContainer = document.getElementById('progressContainer');
+    //if (progressContainer) {
+    //    progressContainer.style.display = 'none';
+    //}
+
+    const developerProgressContainer = document.getElementById('developerProgressContainer');
+    if (developerProgressContainer) {
+        developerProgressContainer.style.display = 'none';
+    }
+
+    console.log('✅ All mode content hidden');
+}
+
+/*
 function showHome() {
     console.log('🏠 Showing Home page');
 
@@ -441,6 +1740,34 @@ function showHome() {
 
     console.log('✅ Home page displayed');
 }
+*/
+
+// Override existing showHome function to work with new structure
+function showHome() {
+    console.log('🏠 Showing Home page');
+
+    // Update navigation state
+    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+    const homeNavItem = document.querySelectorAll('.nav-item')[0];
+    if (homeNavItem) homeNavItem.classList.add('active');
+
+    // Hide all mode content
+    hideAllModeContent();
+
+    // Show welcome message
+    const welcomeMessage = document.getElementById('welcomeMessage');
+    if (welcomeMessage) {
+        welcomeMessage.classList.remove('hide');
+        welcomeMessage.classList.add('show');
+        welcomeMessage.style.display = 'block';
+    }
+
+    // Update dashboard title
+    const dashboardTitle = document.getElementById('dashboardTitle');
+    if (dashboardTitle) dashboardTitle.textContent = '';
+
+    console.log('✅ Home page displayed');
+}
 
 function showAutoTest() {
     console.log('🧪 Showing AutoTest page');
@@ -453,7 +1780,8 @@ function showAutoTest() {
     // Update content visibility
     const dashboardTitle = document.getElementById('dashboardTitle');
     const welcomeMessage = document.getElementById('welcomeMessage');
-    const autoTestContent = document.getElementById('autoTestContent');
+    //const autoTestContent = document.getElementById('autoTestContent');
+    const autoTestContent = document.getElementById('qaContent');
 
     if (dashboardTitle) dashboardTitle.textContent = 'Auto Test';
 
@@ -470,6 +1798,649 @@ function showAutoTest() {
     }
 
     console.log('✅ AutoTest page displayed');
+}
+
+// ================================================================================================
+// DEVELOPER MODE FUNCTIONS
+// ================================================================================================
+/*
+async function ingestDeveloperRequirements() {
+    console.log('📥 Starting developer requirements ingestion...');
+
+    const devFileInput = document.getElementById('developerFileInput');
+    if (!devFileInput || devFileInput.files.length === 0) {
+        showToast('Please upload requirement files first!', 'warning');
+        return;
+    }
+
+    const ingestBtn = document.getElementById('ingestDevBtn');
+    if (!ingestBtn) return;
+
+    ingestBtn.disabled = true;
+    ingestBtn.textContent = 'Processing Requirements...';
+
+    try {
+        // Upload files first
+        const formData = new FormData();
+        Array.from(devFileInput.files).forEach(file => {
+            formData.append('files', file);
+        });
+
+        // Add mode information
+        formData.append('mode', 'developer');
+
+        showProgress('Processing Requirements', [
+            'Uploading requirement files',
+            'Parsing user stories',
+            'Extracting acceptance criteria',
+            'Preparing for code generation'
+        ]);
+
+        updateProgress(25, 'Uploading files', 0);
+
+        // Upload files
+        const uploadResponse = await fetch('/upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        updateProgress(50, 'Parsing requirements', 1);
+
+        const uploadResult = await uploadResponse.json();
+
+        if (!uploadResult.success) {
+            throw new Error(uploadResult.message);
+        }
+
+        updateProgress(75, 'Processing user stories', 2);
+
+        // Process with developer workflow
+        const ingestResponse = await fetch('/ingest', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                files: uploadResult.files,
+                mode: 'developer'
+            })
+        });
+
+        const ingestResult = await ingestResponse.json();
+
+        updateProgress(100, 'Requirements processed successfully', 3);
+
+        if (ingestResult.success) {
+            developerWorkflows = ingestResult.processed_stories;
+            displayUserStories(ingestResult.processed_stories);
+
+            // Enable next step
+            const generateBtn = document.getElementById('generateAppBtn');
+            if (generateBtn) {
+                generateBtn.disabled = false;
+            }
+
+            showToast(ingestResult.message, 'success');
+        } else {
+            showToast(ingestResult.message, 'error');
+        }
+
+    } catch (error) {
+        console.error('❌ Developer ingestion error:', error);
+        showToast('Requirements processing failed: ' + error.message, 'error');
+    } finally {
+        ingestBtn.disabled = false;
+        ingestBtn.textContent = 'Ingest Requirements';
+        hideProgress();
+    }
+}
+*/
+
+async function ingestDeveloperRequirements() {
+    console.log('📥 Starting developer requirements ingestion...');
+
+    const devFileInput = document.getElementById('developerFileInput');
+    const requirementText = document.getElementById('requirementText').value.trim();
+    const technicalNotes = document.getElementById('technicalNotes').value.trim();
+
+    // Check if at least one input is provided
+    if ((!devFileInput || devFileInput.files.length === 0) && !requirementText) {
+        showToast('Please upload files or enter requirements!', 'warning');
+        return;
+    }
+
+    const ingestBtn = document.getElementById('ingestDevBtn');
+    if (!ingestBtn) return;
+
+    ingestBtn.disabled = true;
+    ingestBtn.textContent = 'Processing Requirements...';
+
+    try {
+        let uploadedContent = [];
+
+        // Step 1: Upload and process files if any
+        if (devFileInput && devFileInput.files.length > 0) {
+            const formData = new FormData();
+            Array.from(devFileInput.files).forEach(file => {
+                formData.append('files', file);
+            });
+
+            showProgress('Processing Requirements', [
+                'Uploading files',
+                'Extracting content',
+                'Parsing requirements',
+                'Building AI prompt'
+            ]);
+
+            updateProgress(25, 'Uploading files', 0);
+
+            const uploadResponse = await fetch('/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            const uploadResult = await uploadResponse.json();
+
+            if (!uploadResult.success) {
+                throw new Error(uploadResult.message);
+            }
+
+            updateProgress(50, 'Extracting content', 1);
+
+            // Get file contents
+            for (const file of uploadResult.files) {
+                const contentResponse = await fetch('/get_file_content', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ filepath: file.path })
+                });
+
+                const contentResult = await contentResponse.json();
+                if (contentResult.success) {
+                    uploadedContent.push({
+                        filename: file.name,
+                        content: contentResult.content,
+                        type: detectContentType(file.name, contentResult.content)
+                    });
+                }
+            }
+        }
+
+        updateProgress(75, 'Building AI prompt', 2);
+
+        // Step 2: Build the comprehensive prompt
+        const aiPrompt = buildAIPrompt({
+            workflowType: window.selectedWorkflowType || 'jira',
+            uploadedContent: uploadedContent,
+            requirementText: requirementText,
+            technicalNotes: technicalNotes,
+            generationOptions: getGenerationOptions()
+        });
+
+        updateProgress(90, 'Preparing for code generation', 3);
+
+        // Step 3: Send to backend for processing
+        const response = await fetch('/process_developer_prompt', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                prompt: aiPrompt,
+                workflowType: window.selectedWorkflowType || 'jira',
+                rawInputs: {
+                    files: uploadedContent,
+                    requirements: requirementText,
+                    technicalNotes: technicalNotes
+                }
+            })
+        });
+
+        const result = await response.json();
+
+        updateProgress(100, 'Requirements processed successfully', 3);
+
+        if (result.success) {
+            // Display the processed requirements
+            displayProcessedRequirements(result);
+
+            // Enable generate button
+            const generateBtn = document.getElementById('generateAppBtn');
+            if (generateBtn) {
+                generateBtn.disabled = false;
+            }
+
+            showToast('Requirements ingested successfully!', 'success');
+        } else {
+            showToast(result.message, 'error');
+        }
+
+    } catch (error) {
+        console.error('❌ Ingestion error:', error);
+        showToast('Requirements processing failed: ' + error.message, 'error');
+    } finally {
+        ingestBtn.disabled = false;
+        ingestBtn.textContent = 'Ingest Requirements';
+        hideProgress();
+    }
+}
+
+function buildAIPrompt(data) {
+    const { workflowType, uploadedContent, requirementText, technicalNotes, generationOptions } = data;
+
+    let prompt = `You are an expert software developer tasked with generating production-ready code.\n\n`;
+
+    // Add workflow context
+    switch(workflowType) {
+        case 'jira':
+            prompt += `TASK TYPE: JIRA User Story Implementation\n`;
+            prompt += `Generate code that fully implements the user story with all acceptance criteria.\n\n`;
+            break;
+        case 'feature':
+            prompt += `TASK TYPE: New Feature Implementation\n`;
+            prompt += `Create a complete feature implementation based on the requirements.\n\n`;
+            break;
+        case 'enhancement':
+            prompt += `TASK TYPE: Code Enhancement\n`;
+            prompt += `Enhance existing code with improvements and optimizations.\n\n`;
+            break;
+        case 'bug':
+            prompt += `TASK TYPE: Bug Fix\n`;
+            prompt += `Fix the reported bug and ensure the solution is robust.\n\n`;
+            break;
+    }
+
+    // Add uploaded file contents
+    if (uploadedContent.length > 0) {
+        prompt += `=== UPLOADED REQUIREMENTS ===\n`;
+        uploadedContent.forEach((file, index) => {
+            prompt += `\n--- File ${index + 1}: ${file.filename} ---\n`;
+            prompt += `Type: ${file.type}\n`;
+            prompt += `Content:\n${file.content}\n`;
+            prompt += `--- End of ${file.filename} ---\n`;
+        });
+        prompt += `\n`;
+    }
+
+    // Add manual requirements
+    if (requirementText) {
+        prompt += `=== USER REQUIREMENTS ===\n`;
+        prompt += `${requirementText}\n\n`;
+    }
+
+    // Add technical notes
+    if (technicalNotes) {
+        prompt += `=== TECHNICAL NOTES ===\n`;
+        prompt += `${technicalNotes}\n\n`;
+    }
+
+    // Add generation options
+    prompt += `=== GENERATION REQUIREMENTS ===\n`;
+    if (generationOptions.includeTests) {
+        prompt += `- Include comprehensive unit tests with good coverage\n`;
+    }
+    if (generationOptions.generateDocs) {
+        prompt += `- Generate detailed documentation with docstrings and comments\n`;
+    }
+    if (generationOptions.useLibraries) {
+        prompt += `- Utilize existing libraries and frameworks when appropriate\n`;
+    }
+    if (generationOptions.followPatterns) {
+        prompt += `- Follow established project patterns and coding standards\n`;
+    }
+    if (generationOptions.includeErrors) {
+        prompt += `- Include robust error handling and validation\n`;
+    }
+    if (generationOptions.performanceOpt) {
+        prompt += `- Optimize for performance and efficiency\n`;
+    }
+
+    // Add specific instructions
+    prompt += `\n=== INSTRUCTIONS ===\n`;
+    prompt += `1. Analyze all provided requirements carefully\n`;
+    prompt += `2. Generate clean, modular, and maintainable code\n`;
+    prompt += `3. Follow best practices and design patterns\n`;
+    prompt += `4. Ensure the code is production-ready\n`;
+    prompt += `5. Include all necessary imports and dependencies\n`;
+    prompt += `6. Make the code self-documenting where possible\n`;
+
+    if (workflowType === 'jira') {
+        prompt += `7. Ensure ALL acceptance criteria are met\n`;
+        prompt += `8. Implement exactly what the user story requests\n`;
+    }
+
+    prompt += `\nGenerate the complete implementation now:\n`;
+
+    return prompt;
+}
+
+function detectContentType(filename, content) {
+    const lowerFilename = filename.toLowerCase();
+    const lowerContent = content.toLowerCase();
+
+    if (lowerFilename.includes('jira') || content.includes('acceptance criteria')) {
+        return 'JIRA Story';
+    } else if (lowerContent.includes('feature request') || lowerContent.includes('feature:')) {
+        return 'Feature Request';
+    } else if (lowerContent.includes('bug') || lowerContent.includes('error') || lowerContent.includes('issue')) {
+        return 'Bug Report';
+    } else if (lowerContent.includes('enhancement') || lowerContent.includes('improve')) {
+        return 'Enhancement Request';
+    }
+    return 'Requirement Document';
+}
+
+function getGenerationOptions() {
+    return {
+        includeTests: document.getElementById('includeTests')?.checked || false,
+        generateDocs: document.getElementById('generateDocs')?.checked || false,
+        useLibraries: document.getElementById('useLibraries')?.checked || false,
+        followPatterns: document.getElementById('followPatterns')?.checked || false,
+        includeErrors: document.getElementById('includeErrors')?.checked || false,
+        performanceOpt: document.getElementById('performanceOpt')?.checked || false
+    };
+}
+
+function displayProcessedRequirements(result) {
+    // Create or update a section to show processed requirements
+    let container = document.getElementById('processedRequirementsContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'processedRequirementsContainer';
+        container.style.cssText = `
+            margin-top: 30px;
+            padding: 20px;
+            background: #f0f9ff;
+            border-radius: 12px;
+            border: 1px solid #3b82f6;
+        `;
+
+        // Insert after the generation options
+        const genOptions = document.querySelector('.generation-options') ||
+                          document.querySelector('[style*="Generation Options"]');
+        if (genOptions && genOptions.parentNode) {
+            genOptions.parentNode.insertBefore(container, genOptions.nextSibling);
+        }
+    }
+
+    container.innerHTML = `
+        <h3 style="color: #1e40af; margin-bottom: 15px;">✅ Requirements Processed</h3>
+        <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <h4 style="color: #374151; margin-bottom: 10px;">Extracted Requirements:</h4>
+            <pre style="white-space: pre-wrap; color: #4b5563; font-size: 0.9rem;">${result.extractedRequirements || 'Processing complete'}</pre>
+        </div>
+        ${result.prompt ? `
+            <details style="margin-top: 15px;">
+                <summary style="cursor: pointer; color: #6b7280; font-size: 0.9rem;">View AI Prompt (Debug)</summary>
+                <pre style="white-space: pre-wrap; background: #f3f4f6; padding: 15px; 
+                           border-radius: 8px; margin-top: 10px; font-size: 0.8rem; 
+                           max-height: 300px; overflow-y: auto;">${result.prompt}</pre>
+            </details>
+        ` : ''}
+    `;
+}
+
+function displayUserStories(stories) {
+    const container = document.getElementById('userStoriesContainer');
+    const grid = document.getElementById('storiesGrid');
+
+    if (!container || !grid) return;
+
+    container.style.display = 'block';
+    grid.innerHTML = '';
+
+    stories.forEach((story, index) => {
+        const storyCard = document.createElement('div');
+        storyCard.className = 'story-card';
+        storyCard.innerHTML = `
+            <div class="story-header">
+                <div class="story-checkbox">
+                    <input type="checkbox" id="story${index}" checked 
+                           onchange="toggleStorySelection('${story.id}', this.checked)">
+                    <label for="story${index}">Select for generation</label>
+                </div>
+                <div class="story-id">${story.id}</div>
+            </div>
+            <div class="story-content">
+                <h4 class="story-title">${story.title}</h4>
+                <p class="story-description">${story.description}</p>
+                <div class="story-criteria">
+                    <strong>Acceptance Criteria:</strong>
+                    <p>${story.acceptance_criteria}</p>
+                </div>
+                <div class="story-meta">
+                    <span class="story-priority">Priority: ${story.priority || 'Medium'}</span>
+                    <span class="story-epic">Epic: ${story.epic || 'N/A'}</span>
+                </div>
+            </div>
+        `;
+
+        grid.appendChild(storyCard);
+
+        // Add to selected stories by default
+        selectedUserStories.add(story.id);
+    });
+
+    updateStorySelectionStatus();
+}
+
+function toggleStorySelection(storyId, isSelected) {
+    if (isSelected) {
+        selectedUserStories.add(storyId);
+    } else {
+        selectedUserStories.delete(storyId);
+    }
+
+    updateStorySelectionStatus();
+    console.log(`📝 Story ${storyId} ${isSelected ? 'selected' : 'deselected'}`);
+}
+
+function updateStorySelectionStatus() {
+    const generateBtn = document.getElementById('generateAppBtn');
+    if (generateBtn) {
+        if (selectedUserStories.size === 0) {
+            generateBtn.disabled = true;
+            generateBtn.textContent = 'Generate Application Code (Select Stories)';
+        } else {
+            generateBtn.disabled = false;
+            generateBtn.textContent = `Generate Code (${selectedUserStories.size} Selected)`;
+        }
+    }
+}
+
+function updateCodeAreaCharCount(index) {
+    const textarea = document.getElementById(`appCode${index}`);
+    const charCount = document.getElementById(`appCodeCharCount${index}`);
+
+    if (textarea && charCount) {
+        const count = textarea.value.length;
+        charCount.textContent = `${count} character${count !== 1 ? 's' : ''}`;
+    }
+}
+
+function autoResizeCodeTextarea(index) {
+    const textarea = document.getElementById(`appCode${index}`);
+    if (textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.max(300, textarea.scrollHeight) + 'px';
+    }
+}
+
+async function generateApplicationCode() {
+    console.log('🔧 Starting application code generation...');
+
+    if (selectedUserStories.size === 0) {
+        showToast('Please select at least one user story for code generation', 'warning');
+        return;
+    }
+
+    const generateBtn = document.getElementById('generateAppBtn');
+    if (!generateBtn) return;
+
+    generateBtn.disabled = true;
+    generateBtn.classList.add('btn-loading');
+
+    try {
+        showProgress('Generating Application Code', [
+            'Analyzing user stories',
+            'Loading codebase context',
+            'Generating Python code',
+            'Optimizing implementation',
+            'Finalizing code structure'
+        ]);
+
+        updateProgress(20, 'Analyzing selected user stories', 0);
+        await delay(1000);
+
+        updateProgress(40, 'Loading codebase context', 1);
+        await delay(1000);
+
+        updateProgress(60, 'Generating application code', 2);
+
+        const response = await fetch('/generate_app_code', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                selected_story_ids: Array.from(selectedUserStories)
+            })
+        });
+
+        updateProgress(80, 'Optimizing implementation', 3);
+        await delay(1000);
+
+        const result = await response.json();
+
+        updateProgress(100, 'Code generation completed', 4);
+
+        if (result.success) {
+            generatedApplicationCode = result.generated_code;
+            displayGeneratedCode(result.generated_code);
+
+            // Enable review button
+            const reviewBtn = document.getElementById('reviewAppBtn');
+            if (reviewBtn) {
+                reviewBtn.disabled = false;
+            }
+
+            showToast(result.message, 'success');
+        } else {
+            showToast(result.message, 'error');
+        }
+
+    } catch (error) {
+        console.error('❌ Code generation error:', error);
+        showToast('Code generation failed: ' + error.message, 'error');
+    } finally {
+        generateBtn.disabled = false;
+        generateBtn.classList.remove('btn-loading');
+        generateBtn.textContent = `Generate Code (${selectedUserStories.size} Selected)`;
+        hideProgress();
+    }
+}
+
+function displayGeneratedCode(codeResults) {
+    const container = document.getElementById('generatedCodeContainer');
+    if (!container) return;
+
+    container.innerHTML = '';
+    container.style.display = 'block';
+
+    // Create header
+    const header = document.createElement('div');
+    header.className = 'generated-code-header';
+    header.innerHTML = `
+        <h3>🚀 Generated Application Code</h3>
+        <p>Review and customize the generated implementation code</p>
+    `;
+    container.appendChild(header);
+
+    // Create code areas for each generated file
+    codeResults.forEach((codeResult, index) => {
+        const codeGroup = document.createElement('div');
+        codeGroup.className = 'code-group';
+        codeGroup.innerHTML = `
+            <div class="code-header">
+                <h4>${codeResult.story_title}</h4>
+                <div class="code-meta">
+                    <span class="story-id">${codeResult.story_id}</span>
+                    <span class="file-name">${codeResult.file_name}</span>
+                </div>
+            </div>
+            <div class="code-content">
+                <textarea 
+                    class="code-textarea" 
+                    id="appCode${index}"
+                    placeholder="Generated code will appear here..."
+                    oninput="updateCodeAreaCharCount(${index}); autoResizeCodeTextarea(${index})"
+                >${codeResult.generated_code}</textarea>
+                <div class="code-char-count" id="appCodeCharCount${index}">
+                    ${codeResult.generated_code.length} characters
+                </div>
+                <div class="code-actions">
+                    <button class="action-btn save-btn" onclick="saveApplicationCode(${index})" title="Save code">
+                        💾
+                    </button>
+                    <button class="action-btn download-btn" onclick="downloadApplicationCode(${index})" title="Download code">
+                        📥
+                    </button>
+                </div>
+            </div>
+        `;
+
+        container.appendChild(codeGroup);
+
+        // Auto-resize textarea
+        setTimeout(() => autoResizeCodeTextarea(index), 100);
+    });
+}
+
+function saveApplicationCode(index) {
+    console.log(`💾 Saving application code ${index}`);
+
+    const textarea = document.getElementById(`appCode${index}`);
+    if (!textarea) return;
+
+    const code = textarea.value.trim();
+    if (!code) {
+        showToast('No code to save!', 'warning');
+        return;
+    }
+
+    // Save to localStorage as backup
+    localStorage.setItem(`app_code_${index}`, code);
+    localStorage.setItem(`app_code_${index}_timestamp`, new Date().toISOString());
+
+    showToast(`Application code ${index + 1} saved successfully!`, 'success');
+}
+
+function downloadApplicationCode(index) {
+    console.log(`📥 Downloading application code ${index}`);
+
+    const textarea = document.getElementById(`appCode${index}`);
+    if (!textarea) return;
+
+    const code = textarea.value.trim();
+    if (!code) {
+        showToast('No code to download!', 'warning');
+        return;
+    }
+
+    const codeData = generatedApplicationCode[index];
+    const filename = codeData ? codeData.file_name : `application_code_${index + 1}.py`;
+
+    const element = document.createElement('a');
+    const file = new Blob([code], { type: 'text/x-python' });
+    element.href = URL.createObjectURL(file);
+    element.download = filename;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+
+    showToast(`${filename} downloaded successfully!`, 'success');
 }
 
 // ================================================================================================
@@ -561,10 +2532,6 @@ function getFileIcon(filename) {
         'zip': '📦', 'rar': '📦'
     };
     return iconMap[ext] || '📄';
-}
-
-function delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 // ================================================================================================
@@ -1496,7 +3463,8 @@ function createMultiTestAreas() {
     // Rest of your existing createMultiTestAreas() function stays exactly the same...
     console.log('🏗️ Creating multi-test areas for', generatedScripts.length, 'scripts');
 
-    const autoTestContent = document.getElementById('autoTestContent');
+    //const autoTestContent = document.getElementById('autoTestContent');
+    const autoTestContent = document.getElementById('qaContent');
 
     if (!autoTestContent) {
         console.error('❌ AutoTest content area not found!');
@@ -4513,7 +6481,7 @@ window.updateMasterCheckbox = updateMasterCheckbox;
 window.toggleAllScriptsForDownload = toggleAllScriptsForDownload;
 window.toggleScriptForDownload = toggleScriptForDownload;
 window.downloadSelectedScripts = downloadSelectedScripts;
-window.showBulkDownloadControls = showBulkDownloadControls;
+//window.showBulkDownloadControls = showBulkDownloadControls;
 window.hideBulkDownloadControls = hideBulkDownloadControls;
 window.createBulkDownloadControls = createBulkDownloadControls;
 window.showBulkDownloadControlsCompact = showBulkDownloadControlsCompact;
@@ -4530,6 +6498,38 @@ window.refreshDeviceStatus = refreshDeviceStatus;
 window.confirmDeviceSelection = confirmDeviceSelection;
 window.closeDeviceSelectionModal = closeDeviceSelectionModal;
 window.executeCodeWithSelectedDevice = executeCodeWithSelectedDevice;
+
+// Developer mode functions
+window.showDeveloperMode = showDeveloperMode;
+window.showQAMode = showQAMode;
+window.showCodebaseManager = showCodebaseManager;
+window.ingestDeveloperRequirements = ingestDeveloperRequirements;
+window.generateApplicationCode = generateApplicationCode;
+window.toggleStorySelection = toggleStorySelection;
+window.updateCodebaseStatus = updateCodebaseStatus;
+window.updateCodeAreaCharCount = updateCodeAreaCharCount;
+window.autoResizeCodeTextarea = autoResizeCodeTextarea;
+window.displayGeneratedCode = displayGeneratedCode;
+window.saveApplicationCode = saveApplicationCode;
+window.downloadApplicationCode = downloadApplicationCode;
+window.delay = delay;
+
+// Codebase Manager functions
+window.uploadCodebase = uploadCodebase;
+window.clearCodebase = clearCodebase;
+window.searchCodebase = searchCodebase;
+window.displaySearchResults = displaySearchResults;
+
+window.resetDeveloperElements = resetDeveloperElements;
+window.resetQAElements = resetQAElements;
+window.displayCodebaseDetails = displayCodebaseDetails;
+
+window.switchCodebase = switchCodebase;
+window.toggleSection = toggleSection;
+window.resyncCurrentCodebase = resyncCurrentCodebase;
+window.clearCurrentCodebase = clearCurrentCodebase;
+window.saveCodebaseToStorage = saveCodebaseToStorage;
+window.displayCodebaseInSidebar = displayCodebaseInSidebar;
 // ================================================================================================
 // INITIALIZATION COMPLETE
 // ================================================================================================
