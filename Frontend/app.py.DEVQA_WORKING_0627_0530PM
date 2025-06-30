@@ -4004,7 +4004,7 @@ def run_dev_commands_analysis(dev_scripts_dir):
         if result.stderr:
             print(f"[DEV_ANALYSIS] STDERR: {result.stderr}")
 
-        # STEP 4: Run htmlcombiner.py to generate the combined report BEFORE renaming back
+        # STEP 4: Run htmlcombiner.py to generate the combined report
         htmlcombiner_path = os.path.join(os.getcwd(), '..', 'htmlcombiner.py')
         if os.path.exists(htmlcombiner_path):
             print(f"[DEV_ANALYSIS] Running htmlcombiner.py...")
@@ -4019,13 +4019,6 @@ def run_dev_commands_analysis(dev_scripts_dir):
                 print(f"[DEV_ANALYSIS] HTML STDOUT: {html_result.stdout}")
             if html_result.stderr:
                 print(f"[DEV_ANALYSIS] HTML STDERR: {html_result.stderr}")
-
-            # Check if combinedreport.html was created
-            combined_report_path = os.path.join(parent_dir, "reports", "combinedreport.html")
-            if os.path.exists(combined_report_path):
-                print(f"[DEV_ANALYSIS] ✅ combinedreport.html created successfully at {combined_report_path}")
-            else:
-                print(f"[DEV_ANALYSIS] ❌ combinedreport.html was NOT created")
         else:
             print(f"[DEV_ANALYSIS] WARNING: htmlcombiner.py not found at {htmlcombiner_path}")
 
@@ -4052,26 +4045,12 @@ def run_dev_commands_analysis(dev_scripts_dir):
 
         # CLEANUP: Make sure to restore directories even if there's an error
         try:
-            # Check current state and restore properly
-            current_generated = os.path.join(os.getcwd(), "..", "generated-scripts")
-            current_dev = dev_scripts_dir
-            backup_dir = os.path.join(os.getcwd(), "..", "generated-scripts-backup")
-
-            # If generated-scripts exists and it's actually our dev files, rename it back
-            if os.path.exists(current_generated) and not os.path.exists(current_dev):
-                os.rename(current_generated, current_dev)
-                print(f"[CLEANUP] Restored dev-scripts directory")
-
-            # If backup exists, restore the original generated-scripts
+            if os.path.exists(dev_scripts_dir.replace("dev-scripts", "generated-scripts")):
+                os.rename(dev_scripts_dir.replace("dev-scripts", "generated-scripts"), dev_scripts_dir)
             if os.path.exists(backup_dir):
-                if os.path.exists(current_generated):
-                    import shutil
-                    shutil.rmtree(current_generated)
-                os.rename(backup_dir, current_generated)
-                print(f"[CLEANUP] Restored original generated-scripts from backup")
-
-        except Exception as cleanup_error:
-            print(f"[ERROR] Cleanup failed: {cleanup_error}")
+                os.rename(backup_dir, generated_scripts_dir)
+        except:
+            pass
 
         return {
             'success': False,

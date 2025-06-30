@@ -375,6 +375,12 @@ function initializeEventListeners() {
 function initializeEventListeners() {
     console.log('🔧 Setting up event listeners...');
 
+    // ✅ PREVENT MULTIPLE INITIALIZATION
+    if (window.eventListenersInitialized) {
+        console.log('⚠️ Event listeners already initialized, skipping...');
+        return;
+    }
+
     // QA Mode File upload events
     const qaUploadArea = document.querySelector('#qaContent .upload-area');
     const qaFileInput = document.getElementById('fileInput');
@@ -436,8 +442,11 @@ function initializeEventListeners() {
     document.addEventListener('dragover', preventDefault);
     document.addEventListener('drop', preventDefault);
 
+    // ✅ MARK AS INITIALIZED
+    window.eventListenersInitialized = true;
     console.log('✅ Event listeners attached');
 }
+
 function setupNavigationListeners() {
     console.log('🧭 Setting up navigation...');
 
@@ -589,6 +598,7 @@ async function uploadCodebase() {
     }
 }
 */
+
 
 // Save codebase to localStorage
 function saveCodebaseToStorage(codebaseData) {
@@ -1900,12 +1910,13 @@ async function ingestDeveloperRequirements() {
     console.log('📥 Starting developer requirements ingestion...');
 
     const devFileInput = document.getElementById('developerFileInput');
-    const requirementText = document.getElementById('requirementText').value.trim();
-    const technicalNotes = document.getElementById('technicalNotes').value.trim();
+    const requirementTextElement = document.getElementById('requirementText');
+
+    const technicalNotes = requirementTextElement ? requirementTextElement.value.trim() : '';
 
     // Check if at least one input is provided
-    if ((!devFileInput || devFileInput.files.length === 0) && !requirementText) {
-        showToast('Please upload files or enter requirements!', 'warning');
+    if ((!devFileInput || devFileInput.files.length === 0) && !technicalNotes) {
+        showToast('Please upload files or enter technical notes!', 'warning');
         return;
     }
 
@@ -1918,21 +1929,22 @@ async function ingestDeveloperRequirements() {
     try {
         let uploadedContent = [];
 
+        showProgress('Processing Requirements', [
+            'Uploading files',
+            'Extracting content',
+            'Parsing requirements',
+            'Building AI prompt',
+            'Saving prompt data'
+        ]);
+
         // Step 1: Upload and process files if any
         if (devFileInput && devFileInput.files.length > 0) {
+            updateProgress(20, 'Uploading files', 0);
+
             const formData = new FormData();
             Array.from(devFileInput.files).forEach(file => {
                 formData.append('files', file);
             });
-
-            showProgress('Processing Requirements', [
-                'Uploading files',
-                'Extracting content',
-                'Parsing requirements',
-                'Building AI prompt'
-            ]);
-
-            updateProgress(25, 'Uploading files', 0);
 
             const uploadResponse = await fetch('/upload', {
                 method: 'POST',
@@ -1945,7 +1957,7 @@ async function ingestDeveloperRequirements() {
                 throw new Error(uploadResult.message);
             }
 
-            updateProgress(50, 'Extracting content', 1);
+            updateProgress(40, 'Extracting content', 1);
 
             // Get file contents
             for (const file of uploadResult.files) {
@@ -1968,20 +1980,20 @@ async function ingestDeveloperRequirements() {
             }
         }
 
-        updateProgress(75, 'Building AI prompt', 2);
+        updateProgress(60, 'Parsing requirements', 2);
 
         // Step 2: Build the comprehensive prompt
         const aiPrompt = buildAIPrompt({
             workflowType: window.selectedWorkflowType || 'jira',
             uploadedContent: uploadedContent,
-            requirementText: requirementText,
+            requirementText: '', // Not using separate requirement text anymore
             technicalNotes: technicalNotes,
             generationOptions: getGenerationOptions()
         });
 
-        updateProgress(90, 'Preparing for code generation', 3);
+        updateProgress(80, 'Building AI prompt', 3);
 
-        // Step 3: Send to backend for processing
+        // Step 3: Send to backend for processing and saving
         const response = await fetch('/process_developer_prompt', {
             method: 'POST',
             headers: {
@@ -1992,7 +2004,7 @@ async function ingestDeveloperRequirements() {
                 workflowType: window.selectedWorkflowType || 'jira',
                 rawInputs: {
                     files: uploadedContent,
-                    requirements: requirementText,
+                    requirements: '', // Not using separate requirements anymore
                     technicalNotes: technicalNotes
                 }
             })
@@ -2000,19 +2012,24 @@ async function ingestDeveloperRequirements() {
 
         const result = await response.json();
 
-        updateProgress(100, 'Requirements processed successfully', 3);
+        updateProgress(95, 'Saving prompt data', 4);
 
         if (result.success) {
-            // Display the processed requirements
-            displayProcessedRequirements(result);
+            updateProgress(100, 'Requirements processed successfully', 4);
 
-            // Enable generate button
+            // Show the tab editor and display prompt
+            showTabEditor();
+            displayCreatedPromptInTab(aiPrompt, result);
+
+            // Enable generate code button
             const generateBtn = document.getElementById('generateAppBtn');
             if (generateBtn) {
                 generateBtn.disabled = false;
+                generateBtn.style.opacity = '1';
+                generateBtn.style.cursor = 'pointer';
             }
 
-            showToast('Requirements ingested successfully!', 'success');
+            showToast('Requirements processed successfully! Prompt created and saved.', 'success');
         } else {
             showToast(result.message, 'error');
         }
@@ -2025,6 +2042,154 @@ async function ingestDeveloperRequirements() {
         ingestBtn.textContent = 'Ingest Requirements';
         hideProgress();
     }
+}
+
+function showGeneratedCodeContainer() {
+    console.log('📋 Showing prompt display area');
+
+    let container = document.getElementById('generatedCodeContainer');
+    if (!container) {
+        // Create container if it doesn't exist
+        container = document.createElement('div');
+        container.id = 'generatedCodeContainer';
+        container.className = 'generated-code-container';
+
+        // Insert after developer buttons
+        const buttonsContainer = document.querySelector('.developer-buttons');
+        if (buttonsContainer && buttonsContainer.parentNode) {
+            buttonsContainer.parentNode.insertBefore(container, buttonsContainer.nextSibling);
+        }
+    }
+
+    // Clear existing content
+    container.innerHTML = '';
+    container.style.display = 'block';
+
+    // Create the text area for displaying prompt
+    const promptDisplayArea = document.createElement('div');
+    promptDisplayArea.className = 'prompt-display-area';
+    promptDisplayArea.innerHTML = `
+        <div style="margin-top: 30px; background: #f8fafc; border-radius: 15px; border: 2px solid #3b82f6; padding: 20px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                <h3 style="color: #1e40af; margin: 0; font-size: 1.2rem;">🤖 Generated AI Prompt</h3>
+                <div style="display: flex; gap: 10px;">
+                    <button class="action-btn save-btn" onclick="savePromptData()" title="Save prompt">💾</button>
+                    <button class="action-btn download-btn" onclick="downloadPromptData()" title="Download prompt">📥</button>
+                </div>
+            </div>
+            <textarea 
+                id="developerPromptDisplay" 
+                readonly
+                style="
+                    width: 100%; 
+                    min-height: 400px; 
+                    padding: 15px; 
+                    border: 2px solid #e5e7eb;
+                    border-radius: 10px; 
+                    font-family: 'Courier New', monospace;
+                    font-size: 0.9rem; 
+                    resize: vertical;
+                    background: white;
+                    color: #374151;
+                "
+                placeholder="Generated prompt will appear here..."
+            ></textarea>
+            <div style="margin-top: 10px; color: #6b7280; font-size: 0.85rem; text-align: right;">
+                <span id="promptCharCount">0 characters</span>
+            </div>
+        </div>
+    `;
+
+    container.appendChild(promptDisplayArea);
+}
+
+
+// NEW: Function to display the created prompt
+function displayCreatedPrompt(aiPrompt, result) {
+    console.log('📝 Displaying created prompt');
+
+    const promptTextarea = document.getElementById('developerPromptDisplay');
+    const charCountElement = document.getElementById('promptCharCount');
+
+    if (promptTextarea) {
+        // Create display message with prompt
+        const displayMessage = `=== DEVELOPER REQUIREMENTS PROCESSED ===
+Generated on: ${new Date().toLocaleString()}
+Workflow Type: ${window.selectedWorkflowType || 'jira'}
+
+=== EXTRACTED REQUIREMENTS SUMMARY ===
+${result.extractedRequirements || 'Successfully processed requirements and built AI prompt'}
+
+=== GENERATED AI PROMPT FOR LLAMA MODEL ===
+${aiPrompt}
+
+=== STATUS ===
+✅ Prompt data saved to backend
+✅ Ready for code generation
+✅ Click "Generate Application Code" to proceed
+
+=== NEXT STEPS ===
+1. Review the generated prompt above
+2. Click "Generate Application Code" button
+3. AI will use this prompt to generate your code
+`;
+
+        promptTextarea.value = displayMessage;
+
+        // Update character count
+        if (charCountElement) {
+            charCountElement.textContent = `${displayMessage.length} characters`;
+        }
+
+        // Auto-resize textarea
+        promptTextarea.style.height = 'auto';
+        promptTextarea.style.height = Math.max(400, promptTextarea.scrollHeight) + 'px';
+    }
+}
+
+
+// NEW: Function to save prompt data
+function savePromptData() {
+    console.log('💾 Saving prompt data');
+
+    const promptTextarea = document.getElementById('developerPromptDisplay');
+    if (!promptTextarea) return;
+
+    const promptData = promptTextarea.value;
+    if (!promptData) {
+        showToast('No prompt data to save!', 'warning');
+        return;
+    }
+
+    // Save to localStorage
+    localStorage.setItem('developer_prompt_data', promptData);
+    localStorage.setItem('developer_prompt_timestamp', new Date().toISOString());
+
+    showToast('Prompt data saved successfully!', 'success');
+}
+
+// NEW: Function to download prompt data
+function downloadPromptData() {
+    console.log('📥 Downloading prompt data');
+
+    const promptTextarea = document.getElementById('developerPromptDisplay');
+    if (!promptTextarea) return;
+
+    const promptData = promptTextarea.value;
+    if (!promptData) {
+        showToast('No prompt data to download!', 'warning');
+        return;
+    }
+
+    const element = document.createElement('a');
+    const file = new Blob([promptData], { type: 'text/plain' });
+    element.href = URL.createObjectURL(file);
+    element.download = `developer_prompt_${new Date().toISOString().slice(0,10)}.txt`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+
+    showToast('Prompt data downloaded successfully!', 'success');
 }
 
 function buildAIPrompt(data) {
@@ -2096,15 +2261,6 @@ function buildAIPrompt(data) {
     if (generationOptions.performanceOpt) {
         prompt += `- Optimize for performance and efficiency\n`;
     }
-
-    // Add specific instructions
-    prompt += `\n=== INSTRUCTIONS ===\n`;
-    prompt += `1. Analyze all provided requirements carefully\n`;
-    prompt += `2. Generate clean, modular, and maintainable code\n`;
-    prompt += `3. Follow best practices and design patterns\n`;
-    prompt += `4. Ensure the code is production-ready\n`;
-    prompt += `5. Include all necessary imports and dependencies\n`;
-    prompt += `6. Make the code self-documenting where possible\n`;
 
     if (workflowType === 'jira') {
         prompt += `7. Ensure ALL acceptance criteria are met\n`;
@@ -2271,8 +2427,12 @@ function autoResizeCodeTextarea(index) {
 async function generateApplicationCode() {
     console.log('🔧 Starting application code generation...');
 
-    if (selectedUserStories.size === 0) {
-        showToast('Please select at least one user story for code generation', 'warning');
+    // FIXED: Skip user story selection check for simplified workflow
+    // Instead, check if we have processed requirements (prompt data)
+    //const promptTextarea = document.getElementById('developerPromptDisplay');
+    const promptTextarea = document.getElementById('promptTabTextarea');
+    if (!promptTextarea || !promptTextarea.value.trim()) {
+        showToast('Please ingest requirements first before generating code!', 'warning');
         return;
     }
 
@@ -2284,28 +2444,30 @@ async function generateApplicationCode() {
 
     try {
         showProgress('Generating Application Code', [
-            'Analyzing user stories',
-            'Loading codebase context',
+            'Loading processed requirements',
+            'Preparing LLaMA model context',
             'Generating Python code',
             'Optimizing implementation',
             'Finalizing code structure'
         ]);
 
-        updateProgress(20, 'Analyzing selected user stories', 0);
+        updateProgress(20, 'Loading processed requirements', 0);
         await delay(1000);
 
-        updateProgress(40, 'Loading codebase context', 1);
+        updateProgress(40, 'Preparing LLaMA model context', 1);
         await delay(1000);
 
         updateProgress(60, 'Generating application code', 2);
 
+        // FIXED: Call backend without selected_story_ids
         const response = await fetch('/generate_app_code', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                selected_story_ids: Array.from(selectedUserStories)
+                // No selected_story_ids needed - backend will use stored prompt
+                generate_from_prompt: true
             })
         });
 
@@ -2317,8 +2479,10 @@ async function generateApplicationCode() {
         updateProgress(100, 'Code generation completed', 4);
 
         if (result.success) {
+            // Display generated code in the tab editor
+            const generatedCode = result.generated_code || [];
             generatedApplicationCode = result.generated_code;
-            displayGeneratedCode(result.generated_code);
+            displayGeneratedApplicationCodeInTab(generatedCode);
 
             // Enable review button
             const reviewBtn = document.getElementById('reviewAppBtn');
@@ -2326,7 +2490,7 @@ async function generateApplicationCode() {
                 reviewBtn.disabled = false;
             }
 
-            showToast(result.message, 'success');
+            showToast(result.message || 'Code generated successfully!', 'success');
         } else {
             showToast(result.message, 'error');
         }
@@ -2337,54 +2501,159 @@ async function generateApplicationCode() {
     } finally {
         generateBtn.disabled = false;
         generateBtn.classList.remove('btn-loading');
-        generateBtn.textContent = `Generate Code (${selectedUserStories.size} Selected)`;
+        generateBtn.textContent = 'Generate Application Code';
         hideProgress();
     }
 }
 
-function displayGeneratedCode(codeResults) {
+// FIXED: New function to display generated application code
+function displayGeneratedApplicationCode(codeResults) {
+    console.log('📝 Displaying generated application code');
+
     const container = document.getElementById('generatedCodeContainer');
     if (!container) return;
 
+    // Clear existing content but keep the prompt display
+    const existingPromptArea = container.querySelector('.prompt-display-area');
     container.innerHTML = '';
+
+    // Re-add the prompt display area if it existed
+    if (existingPromptArea) {
+        container.appendChild(existingPromptArea);
+    }
+
     container.style.display = 'block';
 
-    // Create header
-    const header = document.createElement('div');
-    header.className = 'generated-code-header';
-    header.innerHTML = `
-        <h3>🚀 Generated Application Code</h3>
-        <p>Review and customize the generated implementation code</p>
+    if (!codeResults || codeResults.length === 0) {
+        const noCodeMessage = document.createElement('div');
+        noCodeMessage.innerHTML = `
+            <div style="margin-top: 20px; padding: 20px; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 10px;">
+                <h4 style="color: #92400e; margin-bottom: 10px;">⚠️ No Code Generated</h4>
+                <p style="color: #92400e; margin: 0;">The code generation completed but no code was returned. This might be a temporary issue.</p>
+            </div>
+        `;
+        container.appendChild(noCodeMessage);
+        return;
+    }
+
+    // Create header for generated code section
+    const codeHeader = document.createElement('div');
+    codeHeader.innerHTML = `
+        <div style="margin-top: 30px; margin-bottom: 20px;">
+            <h3 style="color: #1e40af; margin-bottom: 10px;">🚀 Generated Application Code</h3>
+            <p style="color: #64748b; margin: 0;">Review and customize the generated implementation code</p>
+        </div>
     `;
-    container.appendChild(header);
+    container.appendChild(codeHeader);
 
     // Create code areas for each generated file
     codeResults.forEach((codeResult, index) => {
         const codeGroup = document.createElement('div');
         codeGroup.className = 'code-group';
+        codeGroup.style.cssText = `
+            margin-bottom: 25px;
+            border: 2px solid #e5e7eb;
+            border-radius: 15px;
+            overflow: hidden;
+            background: white;
+        `;
+
         codeGroup.innerHTML = `
-            <div class="code-header">
-                <h4>${codeResult.story_title}</h4>
-                <div class="code-meta">
-                    <span class="story-id">${codeResult.story_id}</span>
-                    <span class="file-name">${codeResult.file_name}</span>
+            <div class="code-header" style="
+                background: linear-gradient(135deg, #10b981, #059669);
+                color: white;
+                padding: 15px 20px;
+                font-weight: 600;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            ">
+                <div>
+                    <h4 style="margin: 0; font-size: 1.1rem;">${codeResult.story_title || codeResult.file_name || 'Generated Code'}</h4>
+                    <div style="font-size: 0.9rem; opacity: 0.9; margin-top: 5px;">
+                        File: ${codeResult.file_name || 'application_code.py'}
+                    </div>
                 </div>
+                <div style="
+                    background: rgba(255, 255, 255, 0.2);
+                    border-radius: 50%;
+                    width: 30px;
+                    height: 30px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: bold;
+                ">${index + 1}</div>
             </div>
-            <div class="code-content">
+            <div class="code-content" style="position: relative;">
                 <textarea 
                     class="code-textarea" 
                     id="appCode${index}"
                     placeholder="Generated code will appear here..."
                     oninput="updateCodeAreaCharCount(${index}); autoResizeCodeTextarea(${index})"
-                >${codeResult.generated_code}</textarea>
-                <div class="code-char-count" id="appCodeCharCount${index}">
-                    ${codeResult.generated_code.length} characters
-                </div>
-                <div class="code-actions">
-                    <button class="action-btn save-btn" onclick="saveApplicationCode(${index})" title="Save code">
+                    style="
+                        width: 100%;
+                        min-height: 400px;
+                        padding: 20px;
+                        border: none;
+                        font-family: 'Courier New', monospace;
+                        font-size: 0.9rem;
+                        resize: vertical;
+                        background: white;
+                        color: #374151;
+                    "
+                >${codeResult.generated_code || ''}</textarea>
+                <div class="code-char-count" id="appCodeCharCount${index}" style="
+                    position: absolute;
+                    bottom: 12px;
+                    right: 18px;
+                    color: #6b7280;
+                    font-size: 0.8rem;
+                    background: rgba(255, 255, 255, 0.95);
+                    padding: 4px 8px;
+                    border-radius: 6px;
+                    border: 1px solid #e5e7eb;
+                ">${(codeResult.generated_code || '').length} characters</div>
+                <div class="code-actions" style="
+                    position: absolute;
+                    top: 12px;
+                    right: 18px;
+                    display: flex;
+                    gap: 8px;
+                    z-index: 10;
+                ">
+                    <button class="action-btn save-btn" onclick="saveApplicationCode(${index})" title="Save code" style="
+                        width: 36px;
+                        height: 36px;
+                        border: none;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 16px;
+                        background: #22c55e;
+                        color: white;
+                        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+                        transition: all 0.3s ease;
+                    ">
                         💾
                     </button>
-                    <button class="action-btn download-btn" onclick="downloadApplicationCode(${index})" title="Download code">
+                    <button class="action-btn download-btn" onclick="downloadApplicationCode(${index})" title="Download code" style="
+                        width: 36px;
+                        height: 36px;
+                        border: none;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 16px;
+                        background: #3b82f6;
+                        color: white;
+                        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+                        transition: all 0.3s ease;
+                    ">
                         📥
                     </button>
                 </div>
@@ -2396,6 +2665,9 @@ function displayGeneratedCode(codeResults) {
         // Auto-resize textarea
         setTimeout(() => autoResizeCodeTextarea(index), 100);
     });
+
+    // Store generated code globally for save/download functions
+    generatedApplicationCode = codeResults;
 }
 
 function saveApplicationCode(index) {
@@ -2441,6 +2713,469 @@ function downloadApplicationCode(index) {
     document.body.removeChild(element);
 
     showToast(`${filename} downloaded successfully!`, 'success');
+}
+
+async function reviewApplicationCode() {
+    console.log('🔍 Starting application code review using run_commands.py flow...');
+
+    // Debug logging
+    console.log('🔍 DEBUG: generatedApplicationCode:', generatedApplicationCode);
+    console.log('🔍 DEBUG: Array.isArray(generatedApplicationCode):', Array.isArray(generatedApplicationCode));
+    console.log('🔍 DEBUG: generatedApplicationCode.length:', generatedApplicationCode ? generatedApplicationCode.length : 'undefined');
+
+    // Check for generated application code (using the same variable name as QA workflow)
+    if (!generatedApplicationCode || generatedApplicationCode.length === 0) {
+        showToast('No generated application code to review. Please generate code first!', 'warning');
+        return;
+    }
+
+    const reviewBtn = document.getElementById('reviewAppBtn');
+    if (!reviewBtn) return;
+
+    reviewBtn.disabled = true;
+    reviewBtn.classList.add('btn-loading');
+
+    try {
+        // Start real progress tracking (same flow as QA workflow)
+        startRealProgress('review', 'Reviewing Application Code Quality', [
+            'Preparing application code for analysis',
+            'Running code formatting checks (black)',
+            'Analyzing coding standards and style (flake8)',
+            'Performing security analysis (bandit)',
+            'Running static code analysis (pylint)',
+            'Generating comprehensive review report'
+        ]);
+
+        console.log(`🔍 Reviewing ${generatedApplicationCode.length} application code file(s)`);
+
+        const response = await fetch('/review_app_code', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({})
+        });
+
+        const result = await response.json();
+        console.log('📋 Developer review result:', result);
+
+        if (result.success) {
+            // Handle individual reports for application code files
+            if (result.individual_reports && result.individual_reports.length > 0) {
+                console.log('📋 Processing individual review reports for application code');
+
+                // Update each code tab/area with its review report
+                result.individual_reports.forEach((report, index) => {
+                    console.log(`📄 Processing review for: ${report.script_name}`);
+
+                    // Try to find the corresponding textarea in the enhanced tab editor
+                    let textarea = null;
+
+                    // Method 1: Try enhanced tab editor format
+                    const codeTabId = `main_${index}`;
+                    textarea = document.getElementById(`${codeTabId}Textarea`);
+
+                    // Method 2: Try alternative tab naming
+                    if (!textarea) {
+                        const altTabId = `code_${report.script_id}`;
+                        textarea = document.getElementById(`${altTabId}Textarea`);
+                    }
+
+                    // Method 3: Try the main code tab
+                    if (!textarea && index === 0) {
+                        textarea = document.getElementById('codeTabTextarea');
+                    }
+
+                    // Method 4: Fallback to generated code container
+                    if (!textarea) {
+                        textarea = document.getElementById(`appCode${index}`);
+                    }
+
+                    if (textarea) {
+                        // Update textarea with review report
+                        textarea.value = report.review_report;
+
+                        // Update character count
+                        if (window.updateEnhancedTabCharCount) {
+                            updateEnhancedTabCharCount(codeTabId);
+                        } else if (window.updateCodeAreaCharCount) {
+                            updateCodeAreaCharCount(index);
+                        }
+
+                        // Auto-resize textarea
+                        if (window.autoResizeCodeTextarea) {
+                            autoResizeCodeTextarea(index);
+                        }
+
+                        // Update tab header to show review completed status
+                        const tabHeader = document.querySelector(`[data-tab="${codeTabId}"]`);
+                        if (tabHeader) {
+                            const badge = tabHeader.querySelector('.file-type-badge');
+                            if (badge) {
+                                badge.textContent = 'REVIEWED';
+                                badge.style.background = '#10b981';
+                                badge.style.color = 'white';
+                            }
+
+                            // Add reviewed icon to tab title
+                            const tabTitle = tabHeader.querySelector('.tab-title');
+                            if (tabTitle && !tabTitle.textContent.includes('✅')) {
+                                tabTitle.textContent = `✅ ${tabTitle.textContent}`;
+                            }
+                        }
+
+                        console.log(`✅ Updated review for ${report.script_name}`);
+                    } else {
+                        console.warn(`⚠️ Could not find textarea for ${report.script_name}`);
+                    }
+                });
+
+                showToast(`Application code review completed for ${result.individual_reports.length} file(s)! Check each tab for detailed results.`, 'success');
+            } else {
+                // Fallback for single code file or different format
+                console.log('📋 Processing single application code review');
+
+                const mainTextarea = document.getElementById('codeTabTextarea') ||
+                                   document.getElementById('appCode0');
+
+                if (mainTextarea) {
+                    const reviewReport = `=== APPLICATION CODE REVIEW COMPLETED ===
+Generated on: ${new Date().toLocaleString()}
+
+${result.message || 'Code review analysis completed successfully.'}
+
+=== REVIEW ACTIONS ===
+✅ 1. Code formatting analysis completed
+✅ 2. Style and lint checks completed  
+✅ 3. Security analysis completed
+✅ 4. Static code analysis completed
+
+Please check "Open Report" for comprehensive HTML results.
+
+████████████████████████████████████████████████████████████████████████████████████████████████████████████████
+██ ⚠️  IMPORTANT: APPLICATION CODE REVIEW COMPLETED. ADDRESS ISSUES BEFORE DEPLOYMENT. ⚠️  ██
+██ 🚀 CODE IS READY FOR DEPLOYMENT IF ALL STATIC ANALYSIS CHECKS PASS. 🚀 ██
+████████████████████████████████████████████████████████████████████████████████████████████████████████████████`;
+
+                    mainTextarea.value = reviewReport;
+
+                    // Update character count
+                    if (window.updateTabCharCount) {
+                        updateTabCharCount('code');
+                    }
+                }
+
+                showToast('Application code review completed successfully!', 'success');
+            }
+
+            // Update button states (same flow as QA)
+            const generateBtn = document.getElementById('generateAppBtn');
+            const deployBtn = document.getElementById('deployAppBtn');
+            const ingestBtn = document.getElementById('ingestDevBtn');
+
+            if (generateBtn) {
+                generateBtn.disabled = true;
+                generateBtn.style.opacity = '0.6';
+            }
+
+            if (ingestBtn) {
+                ingestBtn.disabled = true;
+                ingestBtn.style.opacity = '0.6';
+            }
+
+            // Review button - mark as completed
+            reviewBtn.disabled = true;
+            reviewBtn.classList.remove('btn-loading');
+            reviewBtn.textContent = 'Review Completed ✓';
+            reviewBtn.style.opacity = '0.6';
+            reviewBtn.style.cursor = 'not-allowed';
+
+            // Enable deployment button after successful review
+            if (deployBtn) {
+                deployBtn.disabled = false;
+                deployBtn.style.opacity = '1';
+                deployBtn.style.cursor = 'pointer';
+            }
+
+            // CRITICAL: Show report buttons (same as QA workflow)
+            const reportButtons = document.getElementById('developerreportButtons');
+            if (reportButtons) {
+                reportButtons.classList.add('show');
+                reportButtons.style.display = 'flex'; // Make sure it's visible
+            }
+
+            /*// Switch to code tab to show review results
+            if (window.switchEnhancedTab) {
+                // If using enhanced tab editor, switch to first code tab
+                setTimeout(() => {
+                    switchEnhancedTab('main_0');
+                }, 500);
+            } else if (window.switchTab) {
+                // If using basic tab editor, switch to code tab
+                setTimeout(() => {
+                    switchTab('code');
+                }, 500);
+            }*/
+            // Switch to review tab to show results
+            setTimeout(() => {
+                switchTab('review');
+            }, 500);
+
+        } else {
+            // Error handling - same as QA workflow
+            console.error('❌ Application code review failed:', result.message);
+            stopProgressPolling();
+            hideProgress();
+
+            // Reset button on failure
+            reviewBtn.disabled = false;
+            reviewBtn.classList.remove('btn-loading');
+            reviewBtn.textContent = 'Review Code Quality';
+            reviewBtn.style.opacity = '1';
+            reviewBtn.style.cursor = 'pointer';
+            showToast(result.message, 'error');
+        }
+
+    } catch (error) {
+        console.error('❌ Application code review error:', error);
+
+        // Stop progress polling on error
+        stopProgressPolling();
+        hideProgress();
+
+        // Reset button on error
+        reviewBtn.disabled = false;
+        reviewBtn.classList.remove('btn-loading');
+        reviewBtn.textContent = 'Review Code Quality';
+        reviewBtn.style.opacity = '1';
+        reviewBtn.style.cursor = 'pointer';
+        showToast('Application code review failed: ' + error.message, 'error');
+    }
+}
+
+// Function to update enhanced tabs with review status
+function markTabAsReviewed(tabId, success = true) {
+    console.log(`📝 Marking tab ${tabId} as reviewed (${success ? 'success' : 'with issues'})`);
+
+    const tabHeader = document.querySelector(`[data-tab="${tabId}"]`);
+    if (tabHeader) {
+        // Update badge
+        const badge = tabHeader.querySelector('.file-type-badge');
+        if (badge) {
+            badge.textContent = success ? 'REVIEWED ✅' : 'ISSUES ⚠️';
+            badge.style.background = success ? '#10b981' : '#f59e0b';
+            badge.style.color = 'white';
+        }
+
+        // Update tab title
+        const tabIcon = tabHeader.querySelector('.tab-icon');
+        if (tabIcon && success) {
+            tabIcon.textContent = '✅'; // Change icon to checkmark
+        }
+    }
+
+    // Update tab footer status
+    const tabContent = document.querySelector(`[data-tab="${tabId}"]`);
+    if (tabContent) {
+        const statusIndicator = tabContent.querySelector('.status-indicator');
+        if (statusIndicator) {
+            statusIndicator.textContent = success ? '✅ Review completed' : '⚠️ Issues found';
+            statusIndicator.className = `status-indicator ${success ? 'success' : 'warning'}`;
+        }
+    }
+}
+
+// Function to show review summary in a toast or modal
+function showReviewSummary(reports) {
+    if (!reports || reports.length === 0) return;
+
+    const totalFiles = reports.length;
+    const reviewedFiles = reports.filter(r => r.review_report.includes('✅')).length;
+    const issuesFound = totalFiles - reviewedFiles;
+
+    let summaryMessage = `Review completed for ${totalFiles} file(s). `;
+    if (issuesFound === 0) {
+        summaryMessage += 'All files passed review! 🎉';
+    } else {
+        summaryMessage += `${issuesFound} file(s) have issues that need attention. ⚠️`;
+    }
+
+    showToast(summaryMessage, issuesFound === 0 ? 'success' : 'warning');
+}
+
+function showReviewTab() {
+    console.log('📝 Showing review tab');
+
+    // Show the review tab header
+    const reviewTabHeader = document.getElementById('reviewTabHeader');
+    if (reviewTabHeader) {
+        reviewTabHeader.style.display = 'block';
+    }
+
+    // Show the review tab badge
+    const reviewTabBadge = document.getElementById('reviewTabBadge');
+    if (reviewTabBadge) {
+        reviewTabBadge.style.display = 'inline-block';
+        reviewTabBadge.textContent = 'Completed';
+    }
+}
+
+function displayReviewResultsInTab(individualReports) {
+    console.log('📝 Displaying review results in review tab');
+
+    const reviewTextarea = document.getElementById('reviewTabTextarea');
+    const reviewInfo = document.getElementById('reviewInfo');
+    const reviewStatus = document.getElementById('reviewStatus');
+
+    if (reviewTextarea) {
+        // Combine all individual reports
+        let combinedReview = `=== APPLICATION CODE REVIEW RESULTS ===
+Generated on: ${new Date().toLocaleString()}
+Total Files Reviewed: ${individualReports.length}
+
+`;
+
+        individualReports.forEach((report, index) => {
+            combinedReview += `
+════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+📄 FILE ${index + 1}: ${report.script_name}
+════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+${report.review_report}
+
+`;
+        });
+
+        combinedReview += `
+████████████████████████████████████████████████████████████████████████████████████████████████████████████████
+██ 🎉 REVIEW COMPLETED FOR ALL ${individualReports.length} FILES! CHECK REPORTS FOR DETAILED RESULTS. 🎉 ██
+████████████████████████████████████████████████████████████████████████████████████████████████████████████████`;
+
+        reviewTextarea.value = combinedReview;
+        updateTabCharCount('review');
+    }
+
+    if (reviewInfo) {
+        reviewInfo.textContent = `Review completed for ${individualReports.length} files - ${new Date().toLocaleString()}`;
+    }
+
+    if (reviewStatus) {
+        reviewStatus.textContent = '✅ Review completed successfully';
+        reviewStatus.className = 'status-indicator success';
+    }
+}
+
+function displaySingleReviewInTab(reviewReport) {
+    console.log('📝 Displaying single review in review tab');
+
+    const reviewTextarea = document.getElementById('reviewTabTextarea');
+    const reviewInfo = document.getElementById('reviewInfo');
+    const reviewStatus = document.getElementById('reviewStatus');
+
+    if (reviewTextarea) {
+        reviewTextarea.value = reviewReport;
+        updateTabCharCount('review');
+    }
+
+    if (reviewInfo) {
+        reviewInfo.textContent = `Review completed - ${new Date().toLocaleString()}`;
+    }
+
+    if (reviewStatus) {
+        reviewStatus.textContent = '✅ Review completed successfully';
+        reviewStatus.className = 'status-indicator success';
+    }
+}
+
+function initializeDeveloperStatus() {
+    console.log('📊 Initializing developer status tracking');
+
+    // Initialize status tracking variables
+    window.developerStatus = {
+        codeGenerated: false,
+        codeReviewed: false,
+        codeDeployed: false
+    };
+
+    // Update status display
+    updateDeveloperStatusDisplay();
+}
+
+function setupDeveloperButtonStates() {
+    console.log('🎛️ Setting up developer button states');
+
+    const generateBtn = document.getElementById('generateAppBtn');
+    const reviewBtn = document.getElementById('reviewAppBtn');
+    const deployBtn = document.getElementById('deployAppBtn');
+
+    // Initial button states
+    if (generateBtn) generateBtn.disabled = true;
+    if (reviewBtn) reviewBtn.disabled = true;
+    if (deployBtn) deployBtn.disabled = true;
+}
+
+function updateDeveloperStatusDisplay() {
+    const statusSection = document.getElementById('developerStatusSection');
+    if (!statusSection) return;
+
+    const codeGenStatus = document.getElementById('codeGenerationStatus');
+    const reviewStatus = document.getElementById('codeReviewStatus');
+    const deployStatus = document.getElementById('deploymentStatus');
+
+    if (window.developerStatus) {
+        // Update code generation status
+        if (codeGenStatus) {
+            updateStatusItem(codeGenStatus,
+                window.developerStatus.codeGenerated ? 'completed' : 'pending',
+                window.developerStatus.codeGenerated ? 'Completed' : 'Pending'
+            );
+        }
+
+        // Update review status
+        if (reviewStatus) {
+            updateStatusItem(reviewStatus,
+                window.developerStatus.codeReviewed ? 'completed' : 'pending',
+                window.developerStatus.codeReviewed ? 'Completed' : 'Pending'
+            );
+        }
+
+        // Update deployment status
+        if (deployStatus) {
+            updateStatusItem(deployStatus,
+                window.developerStatus.codeDeployed ? 'completed' : 'pending',
+                window.developerStatus.codeDeployed ? 'Deployed' : 'Pending'
+            );
+        }
+    }
+}
+
+function updateStatusItem(statusElement, status, text) {
+    const icon = statusElement.querySelector('.status-icon');
+    const value = statusElement.querySelector('.status-value');
+
+    if (icon && value) {
+        switch(status) {
+            case 'completed':
+                icon.textContent = '✅';
+                value.textContent = text;
+                value.style.color = '#059669';
+                break;
+            case 'in-progress':
+                icon.textContent = '🔄';
+                value.textContent = text;
+                value.style.color = '#d97706';
+                break;
+            case 'error':
+                icon.textContent = '❌';
+                value.textContent = text;
+                value.style.color = '#dc2626';
+                break;
+            default:
+                icon.textContent = '⏳';
+                value.textContent = text;
+                value.style.color = '#6b7280';
+        }
+    }
 }
 
 // ================================================================================================
@@ -2697,6 +3432,7 @@ async function handleFiles(files) {
     }
 }
 
+/*
 function displayFileInfo(files, totalSize) {
     if (!elements.fileInfo) return;
 
@@ -2721,6 +3457,36 @@ function displayFileInfo(files, totalSize) {
     `;
     elements.fileInfo.style.display = 'block';
 }
+*/
+
+function displayFileInfo(files, totalSize) {
+    // Try developer file info first, then fall back to QA file info
+    const isDeveloperMode = !document.getElementById('developerContent').classList.contains('hide');
+    const fileInfoElement = isDeveloperMode ? document.getElementById('developerFileInfo') : elements.fileInfo;
+
+    if (!fileInfoElement) return;
+
+    let fileListHtml = '<div class="file-preview">';
+    files.forEach(file => {
+        fileListHtml += `
+            <div class="file-item">
+                <span class="file-icon">${getFileIcon(file.name)}</span>
+                <div class="file-details">
+                    <div class="file-name">${file.name}</div>
+                    <div class="file-size">${formatFileSize(file.size)}</div>
+                </div>
+            </div>
+        `;
+    });
+    fileListHtml += '</div>';
+
+    fileInfoElement.innerHTML = `
+        <strong>Files Selected:</strong> ${files.length} file(s)<br>
+        <strong>Total Size:</strong> ${formatFileSize(totalSize)}
+        ${fileListHtml}
+    `;
+    fileInfoElement.style.display = 'block';
+}
 
 function resetButtonStates() {
     console.log('🔄 Resetting button states for new workflow');
@@ -2729,7 +3495,7 @@ function resetButtonStates() {
     const reviewBtn = document.getElementById('reviewBtn');
     const executeBtn = document.getElementById('executeBtn');
     const ingestBtn = document.getElementById('ingestBtn');
-    const reportButtons = document.getElementById('reportButtons');
+    const reportButtons = document.getElementById('qareportButtons');
 
     // Reset global data
     ingestedTestCases = [];
@@ -4928,7 +5694,7 @@ async function generateCode() {
 }
 
 // ================================================================================================
-// MAIN FUNCTIONALITY - REVIEW CODE (WITH REAL PROGRESS)
+// MAIN FUNCTIONALITY - QA REVIEW CODE (WITH REAL PROGRESS)
 // ================================================================================================
 
 async function reviewCode() {
@@ -5074,7 +5840,7 @@ ${result.review_report || result.main_summary || 'Review completed successfully.
             const generateBtn = document.getElementById('generateBtn');
             const executeBtn = document.getElementById('executeBtn');
             const ingestBtn = document.getElementById('ingestBtn');
-            const reportButtons = document.getElementById('reportButtons');
+            const reportButtons = document.getElementById('qareportButtons');
 
             if (generateBtn) {
                 generateBtn.disabled = true;
@@ -6364,6 +7130,680 @@ async function downloadReport() {
         showToast('Failed to download report.', 'error');
     }
 }
+// Tab Editor Functions
+
+// Show the tab editor container
+function showTabEditor() {
+    console.log('📝 Showing tab-based editor');
+
+    const container = document.getElementById('tabEditorContainer');
+    if (container) {
+        container.style.display = 'block';
+
+        // Insert into the generated code container area
+        const generatedCodeContainer = document.getElementById('generatedCodeContainer');
+        if (generatedCodeContainer) {
+            generatedCodeContainer.innerHTML = '';
+            generatedCodeContainer.appendChild(container);
+            generatedCodeContainer.style.display = 'block';
+        }
+    }
+}
+
+/*// Switch between tabs
+function switchTab(tabName) {
+    console.log(`🔄 Switching to ${tabName} tab`);
+
+    // Update tab headers
+    document.querySelectorAll('.tab-header').forEach(header => {
+        header.classList.remove('active');
+    });
+    document.querySelector(`.tab-header[data-tab="${tabName}"]`).classList.add('active');
+
+    // Update tab content
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.querySelector(`.tab-content[data-tab="${tabName}"]`).classList.add('active');
+
+    // Update character count for active tab
+    updateTabCharCount(tabName);
+}
+*/
+
+function switchTab(tabName) {
+    console.log(`🔄 Switching to ${tabName} tab`);
+
+    // Update tab headers
+    document.querySelectorAll('.tab-header').forEach(header => {
+        header.classList.remove('active');
+    });
+    const targetHeader = document.querySelector(`.tab-header[data-tab="${tabName}"]`);
+    if (targetHeader) {
+        targetHeader.classList.add('active');
+    }
+
+    // Update tab content
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    const targetContent = document.querySelector(`.tab-content[data-tab="${tabName}"]`);
+    if (targetContent) {
+        targetContent.classList.add('active');
+    }
+
+    // Update character count for active tab
+    updateTabCharCount(tabName);
+}
+
+// Update character count for a specific tab
+function updateTabCharCount(tabName) {
+    const textarea = document.getElementById(`${tabName}TabTextarea`);
+    const charCount = document.getElementById(`${tabName}CharCount`);
+
+    if (textarea && charCount) {
+        const count = textarea.value.length;
+        charCount.textContent = `${count.toLocaleString()} characters`;
+    }
+}
+
+// Display prompt in the prompt tab
+function displayPromptInTab(promptData) {
+    console.log('📝 Displaying prompt in tab editor');
+
+    const promptTextarea = document.getElementById('promptTabTextarea');
+    const promptInfo = document.getElementById('promptInfo');
+    const promptStatus = document.getElementById('promptStatus');
+
+    if (promptTextarea) {
+        promptTextarea.value = promptData;
+        updateTabCharCount('prompt');
+
+        // Auto-resize if needed
+        promptTextarea.style.height = 'auto';
+        promptTextarea.style.height = Math.min(promptTextarea.scrollHeight, 500) + 'px';
+    }
+
+    if (promptInfo) {
+        promptInfo.textContent = `Generated ${new Date().toLocaleString()} - Ready for AI processing`;
+    }
+
+    if (promptStatus) {
+        promptStatus.textContent = '✅ Ready for code generation';
+        promptStatus.className = 'status-indicator success';
+    }
+
+    // Show the tab editor
+    showTabEditor();
+
+    // Make sure prompt tab is active
+    switchTab('prompt');
+}
+
+// Display generated code in the code tab
+function displayCodeInTab(codeData) {
+    console.log('🚀 Displaying generated code in tab editor');
+
+    const codeTextarea = document.getElementById('codeTabTextarea');
+    const codeInfo = document.getElementById('codeInfo');
+    const codeStatus = document.getElementById('codeStatus');
+    const codeBadge = document.getElementById('codeTabBadge');
+
+    if (codeTextarea) {
+        // Handle multiple code files - combine them or show the first one
+        let codeToDisplay = '';
+
+        if (Array.isArray(codeData) && codeData.length > 0) {
+            if (codeData.length === 1) {
+                codeToDisplay = codeData[0].generated_code || '';
+            } else {
+                // Multiple files - combine with separators
+                codeToDisplay = codeData.map((file, index) => {
+                    return `# ============================================================
+# File ${index + 1}: ${file.file_name || `file_${index + 1}.py`}
+# Generated: ${new Date().toLocaleString()}
+# ============================================================
+
+${file.generated_code || ''}
+
+`;
+                }).join('\n\n');
+            }
+        } else if (typeof codeData === 'string') {
+            codeToDisplay = codeData;
+        }
+
+        codeTextarea.value = codeToDisplay;
+        updateTabCharCount('code');
+    }
+
+    if (codeInfo) {
+        const fileCount = Array.isArray(codeData) ? codeData.length : 1;
+        codeInfo.textContent = `Generated ${fileCount} file${fileCount > 1 ? 's' : ''} - ${new Date().toLocaleString()}`;
+    }
+
+    if (codeStatus) {
+        codeStatus.textContent = '✅ Code generated successfully';
+        codeStatus.className = 'status-indicator success';
+    }
+
+    if (codeBadge) {
+        codeBadge.style.display = 'inline-block';
+        codeBadge.textContent = 'Ready';
+    }
+
+    // Automatically switch to code tab
+    switchTab('code');
+}
+
+// Save content from a specific tab
+function saveTabContent(tabName) {
+    console.log(`💾 Saving ${tabName} content`);
+
+    const textarea = document.getElementById(`${tabName}TabTextarea`);
+    if (!textarea) return;
+
+    const content = textarea.value.trim();
+    if (!content) {
+        showToast(`No ${tabName} content to save!`, 'warning');
+        return;
+    }
+
+    // Save to localStorage
+    const storageKey = `developer_${tabName}_data`;
+    localStorage.setItem(storageKey, content);
+    localStorage.setItem(`${storageKey}_timestamp`, new Date().toISOString());
+
+    showToast(`${tabName.charAt(0).toUpperCase() + tabName.slice(1)} content saved successfully!`, 'success');
+}
+
+// Download content from a specific tab
+function downloadTabContent(tabName) {
+    console.log(`📥 Downloading ${tabName} content`);
+
+    const textarea = document.getElementById(`${tabName}TabTextarea`);
+    if (!textarea) return;
+
+    const content = textarea.value.trim();
+    if (!content) {
+        showToast(`No ${tabName} content to download!`, 'warning');
+        return;
+    }
+
+    const timestamp = new Date().toISOString().slice(0, 10);
+    let filename, mimeType;
+
+    if (tabName === 'prompt') {
+        filename = `ai_prompt_${timestamp}.txt`;
+        mimeType = 'text/plain';
+    } else if (tabName === 'code') {
+        filename = `generated_code_${timestamp}.py`;
+        mimeType = 'text/x-python';
+    } else {
+        filename = `${tabName}_${timestamp}.txt`;
+        mimeType = 'text/plain';
+    }
+
+    const element = document.createElement('a');
+    const file = new Blob([content], { type: mimeType });
+    element.href = URL.createObjectURL(file);
+    element.download = filename;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+
+    showToast(`${filename} downloaded successfully!`, 'success');
+}
+
+// Copy content to clipboard
+function copyTabContent(tabName) {
+    console.log(`📋 Copying ${tabName} content to clipboard`);
+
+    const textarea = document.getElementById(`${tabName}TabTextarea`);
+    if (!textarea) return;
+
+    const content = textarea.value.trim();
+    if (!content) {
+        showToast(`No ${tabName} content to copy!`, 'warning');
+        return;
+    }
+
+    // Copy to clipboard
+    navigator.clipboard.writeText(content).then(() => {
+        showToast(`${tabName.charAt(0).toUpperCase() + tabName.slice(1)} content copied to clipboard!`, 'success');
+    }).catch(err => {
+        console.error('Failed to copy to clipboard:', err);
+        showToast('Failed to copy to clipboard', 'error');
+    });
+}
+
+// Run/test code (placeholder for future implementation)
+function runCode() {
+    console.log('▶️ Running code...');
+    showToast('Code execution feature coming soon!', 'info');
+}
+
+// Update the existing functions to use the tab editor
+
+// Modified displayCreatedPrompt function to use tabs
+function displayCreatedPromptInTab(aiPrompt, result) {
+    console.log('📝 Displaying created prompt in tab editor');
+
+    const displayMessage = `=== DEVELOPER REQUIREMENTS PROCESSED ===
+Generated on: ${new Date().toLocaleString()}
+Workflow Type: ${window.selectedWorkflowType || 'jira'}
+
+=== EXTRACTED REQUIREMENTS SUMMARY ===
+${result.extractedRequirements || 'Successfully processed requirements and built AI prompt'}
+
+=== GENERATED AI PROMPT FOR LLAMA MODEL ===
+${aiPrompt}
+
+=== STATUS ===
+✅ Prompt data saved to backend
+✅ Ready for code generation
+✅ Click "Generate Application Code" to proceed
+
+=== NEXT STEPS ===
+1. Review the generated prompt above
+2. Click "Generate Application Code" button
+3. AI will use this prompt to generate your code
+`;
+
+    displayPromptInTab(displayMessage);
+}
+
+// Modified displayGeneratedApplicationCode to use tabs
+/*
+function displayGeneratedApplicationCodeInTab(codeResults) {
+    console.log('🚀 Displaying generated code in enhanced tab editor');
+
+    if (!codeResults || codeResults.length === 0) {
+        showToast('No code was generated. Please try again.', 'warning');
+        return;
+    }
+
+    // Parse the generated code to separate main code and unit tests
+    const parsedFiles = parseGeneratedCodeFiles(codeResults);
+
+    // Create dynamic tabs for all files
+    createDynamicCodeTabs(parsedFiles);
+
+    // Store for save/download functions
+    window.generatedApplicationCode = codeResults;
+}
+*/
+
+function displayGeneratedApplicationCodeInTab(codeResults) {
+    console.log('🚀 Displaying generated code in enhanced tab editor while preserving prompt');
+
+    if (!codeResults || codeResults.length === 0) {
+        showToast('No code was generated. Please try again.', 'warning');
+        return;
+    }
+
+    // ✅ PRESERVE the existing prompt data before creating new tabs
+    const promptTextarea = document.getElementById('promptTabTextarea');
+    const existingPromptData = promptTextarea ? promptTextarea.value : '';
+
+    console.log('💾 Preserving prompt data:', existingPromptData.length > 0 ? 'Found existing prompt' : 'No existing prompt');
+
+    // Parse the generated code to separate main code and unit tests
+    const parsedFiles = parseGeneratedCodeFiles(codeResults);
+
+    // Create dynamic tabs for all files
+    createDynamicCodeTabs(parsedFiles);
+
+    // ✅ RESTORE the prompt data after tab creation
+    if (existingPromptData) {
+        const restoredPromptTextarea = document.getElementById('promptTabTextarea');
+        if (restoredPromptTextarea) {
+            restoredPromptTextarea.value = existingPromptData;
+            updateTabCharCount('prompt');
+            console.log('✅ Restored prompt data successfully');
+        }
+    }
+
+    // Store for save/download functions
+    window.generatedApplicationCode = codeResults;
+
+    // Show success message
+    showToast(`Generated ${codeResults.length} application file(s) successfully!`, 'success');
+}
+
+
+// Parse generated code to separate main code from unit tests
+function parseGeneratedCodeFiles(codeResults) {
+    console.log('📋 Parsing generated code files');
+
+    const files = [];
+
+    codeResults.forEach((result, index) => {
+        const code = result.generated_code || '';
+        const fileName = result.file_name || `generated_code_${index + 1}.py`;
+
+        // Split the code into main code and unit tests
+        const { mainCode, unitTests } = separateMainCodeAndTests(code);
+
+        // Create main code file
+        if (mainCode.trim()) {
+            files.push({
+                id: `main_${index}`,
+                name: fileName,
+                displayName: fileName.replace('.py', ''),
+                content: mainCode,
+                type: 'main',
+                icon: '🚀',
+                language: 'python'
+            });
+        }
+
+        // Create unit test file if tests exist
+        if (unitTests.trim()) {
+            const testFileName = fileName.replace('.py', '_test.py');
+            files.push({
+                id: `test_${index}`,
+                name: testFileName,
+                displayName: testFileName.replace('.py', ''),
+                content: unitTests,
+                type: 'test',
+                icon: '🧪',
+                language: 'python'
+            });
+        }
+    });
+
+    return files;
+}
+
+// Separate main code from unit tests
+function separateMainCodeAndTests(code) {
+    console.log('🔍 Separating main code from unit tests');
+
+    // Look for unit test markers
+    const testMarkers = [
+        '# Unit Tests',
+        'import unittest',
+        'class Test',
+        'def test_',
+        'if __name__ == "__main__":\n    unittest.main()'
+    ];
+
+    let splitIndex = -1;
+
+    // Find where tests start
+    for (const marker of testMarkers) {
+        const index = code.indexOf(marker);
+        if (index !== -1) {
+            if (splitIndex === -1 || index < splitIndex) {
+                splitIndex = index;
+            }
+        }
+    }
+
+    if (splitIndex === -1) {
+        // No tests found, return all as main code
+        return {
+            mainCode: code,
+            unitTests: ''
+        };
+    }
+
+    // Split at the test marker
+    const mainCode = code.substring(0, splitIndex).trim();
+    const unitTests = code.substring(splitIndex).trim();
+
+    return { mainCode, unitTests };
+}
+
+// Create dynamic tabs in the tab editor
+function createDynamicCodeTabs(files) {
+    console.log('📝 Creating dynamic code tabs');
+
+    const container = document.getElementById('generatedCodeContainer');
+    if (!container) return;
+
+    // Clear existing content
+    container.innerHTML = '';
+    container.style.display = 'block';
+
+    // Create the enhanced tab editor
+    const tabEditor = document.createElement('div');
+    tabEditor.id = 'enhancedTabEditor';
+    tabEditor.className = 'enhanced-tab-editor';
+
+    tabEditor.innerHTML = `
+        <div class="enhanced-tab-wrapper">
+            <!-- Dynamic Tab Headers -->
+            <div class="enhanced-tab-headers" id="dynamicTabHeaders">
+                <!-- Prompt tab (always first) -->
+                <button class="enhanced-tab-header" data-tab="prompt" onclick="switchEnhancedTab('prompt')">
+                    <span class="tab-icon">🤖</span>
+                    <span class="tab-title">AI Prompt</span>
+                </button>
+                
+                <!-- Dynamic code file tabs will be inserted here -->
+            </div>
+            
+            <!-- Tab Content Wrapper -->
+            <div class="enhanced-tab-content-wrapper" id="dynamicTabContent">
+                <!-- Prompt tab content (always present) -->
+                <div class="enhanced-tab-content active" data-tab="prompt">
+                    <div class="enhanced-tab-toolbar">
+                        <div class="toolbar-left">
+                            <h3>🤖 AI Prompt for LLaMA Model</h3>
+                            <span class="content-info">Generated prompt ready for AI processing</span>
+                        </div>
+                        <div class="toolbar-right">
+                            <button class="toolbar-btn" onclick="saveTabContent('prompt')">💾 Save</button>
+                            <button class="toolbar-btn" onclick="downloadTabContent('prompt')">📥 Download</button>
+                            <button class="toolbar-btn" onclick="copyTabContent('prompt')">📋 Copy</button>
+                        </div>
+                    </div>
+                    <textarea 
+                        id="promptTabTextarea" 
+                        class="enhanced-tab-textarea"
+                        readonly
+                        placeholder="Generated AI prompt will appear here..."
+                        oninput="updateEnhancedTabCharCount('prompt')"
+                    ></textarea>
+                    <div class="enhanced-tab-footer">
+                        <span class="char-count" id="promptCharCount">0 characters</span>
+                        <span class="status-indicator success">✅ Ready for code generation</span>
+                    </div>
+                </div>
+                
+                <!-- Dynamic code file content will be inserted here -->
+            </div>
+        </div>
+    `;
+
+    container.appendChild(tabEditor);
+
+    // Add dynamic tabs for each code file
+    files.forEach((file, index) => {
+        addCodeFileTab(file, index === 0); // First code file is active
+    });
+
+    // Copy prompt content from existing tab if it exists
+    const existingPrompt = document.getElementById('promptTabTextarea');
+    const newPromptTextarea = tabEditor.querySelector('#promptTabTextarea');
+    if (existingPrompt && newPromptTextarea) {
+        newPromptTextarea.value = existingPrompt.value;
+        updateEnhancedTabCharCount('prompt');
+    }
+}
+
+// Add a code file tab
+function addCodeFileTab(file, isActive = false) {
+    console.log(`📄 Adding tab for: ${file.name}`);
+
+    const headersContainer = document.getElementById('dynamicTabHeaders');
+    const contentContainer = document.getElementById('dynamicTabContent');
+
+    if (!headersContainer || !contentContainer) return;
+
+    // Create tab header
+    const tabHeader = document.createElement('button');
+    tabHeader.className = `enhanced-tab-header ${isActive ? 'active' : ''}`;
+    tabHeader.setAttribute('data-tab', file.id);
+    tabHeader.onclick = () => switchEnhancedTab(file.id);
+
+    tabHeader.innerHTML = `
+        <span class="tab-icon">${file.icon}</span>
+        <span class="tab-title">${file.displayName}</span>
+        <span class="file-type-badge ${file.type}">${file.type === 'test' ? 'TEST' : 'MAIN'}</span>
+    `;
+
+    headersContainer.appendChild(tabHeader);
+
+    // Create tab content
+    const tabContent = document.createElement('div');
+    tabContent.className = `enhanced-tab-content ${isActive ? 'active' : ''}`;
+    tabContent.setAttribute('data-tab', file.id);
+
+    tabContent.innerHTML = `
+        <div class="enhanced-tab-toolbar">
+            <div class="toolbar-left">
+                <h3>${file.icon} ${file.name}</h3>
+                <span class="content-info">${file.type === 'test' ? 'Unit tests for validation' : 'Main application code'}</span>
+            </div>
+            <div class="toolbar-right">
+                <button class="toolbar-btn" onclick="saveFileContent('${file.id}')">💾 Save</button>
+                <button class="toolbar-btn" onclick="downloadFileContent('${file.id}')">📥 Download</button>
+                <button class="toolbar-btn" onclick="copyFileContent('${file.id}')">📋 Copy</button>
+                ${file.type === 'test' ? '<button class="toolbar-btn" onclick="runTests(\'' + file.id + '\')">🧪 Run Tests</button>' : ''}
+            </div>
+        </div>
+        <textarea 
+            id="${file.id}Textarea" 
+            class="enhanced-tab-textarea code-editor"
+            placeholder="Generated ${file.type === 'test' ? 'unit tests' : 'application code'} will appear here..."
+            oninput="updateEnhancedTabCharCount('${file.id}')"
+        >${file.content}</textarea>
+        <div class="enhanced-tab-footer">
+            <span class="char-count" id="${file.id}CharCount">${file.content.length} characters</span>
+            <span class="language-indicator">🐍 Python</span>
+            <span class="file-type-indicator ${file.type}">${file.type.toUpperCase()}</span>
+            <span class="status-indicator success">✅ Generated successfully</span>
+        </div>
+    `;
+
+    contentContainer.appendChild(tabContent);
+}
+
+// Switch between enhanced tabs
+function switchEnhancedTab(tabId) {
+    console.log(`🔄 Switching to enhanced tab: ${tabId}`);
+
+    // Update tab headers
+    document.querySelectorAll('.enhanced-tab-header').forEach(header => {
+        header.classList.remove('active');
+    });
+    document.querySelector(`.enhanced-tab-header[data-tab="${tabId}"]`)?.classList.add('active');
+
+    // Update tab content
+    document.querySelectorAll('.enhanced-tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.querySelector(`.enhanced-tab-content[data-tab="${tabId}"]`)?.classList.add('active');
+
+    // Update character count for active tab
+    updateEnhancedTabCharCount(tabId);
+}
+
+// Update character count for enhanced tabs
+function updateEnhancedTabCharCount(tabId) {
+    const textarea = document.getElementById(`${tabId}Textarea`);
+    const charCount = document.getElementById(`${tabId}CharCount`);
+
+    if (textarea && charCount) {
+        const count = textarea.value.length;
+        charCount.textContent = `${count.toLocaleString()} characters`;
+    }
+}
+
+// Save file content
+function saveFileContent(fileId) {
+    console.log(`💾 Saving file content: ${fileId}`);
+
+    const textarea = document.getElementById(`${fileId}Textarea`);
+    if (!textarea) return;
+
+    const content = textarea.value.trim();
+    if (!content) {
+        showToast('No content to save!', 'warning');
+        return;
+    }
+
+    // Save to localStorage
+    localStorage.setItem(`file_${fileId}`, content);
+    localStorage.setItem(`file_${fileId}_timestamp`, new Date().toISOString());
+
+    showToast(`File ${fileId} saved successfully!`, 'success');
+}
+
+// Download file content
+function downloadFileContent(fileId) {
+    console.log(`📥 Downloading file content: ${fileId}`);
+
+    const textarea = document.getElementById(`${fileId}Textarea`);
+    if (!textarea) return;
+
+    const content = textarea.value.trim();
+    if (!content) {
+        showToast('No content to download!', 'warning');
+        return;
+    }
+
+    // Determine filename based on file type
+    const timestamp = new Date().toISOString().slice(0, 10);
+    let filename;
+
+    if (fileId.includes('test')) {
+        filename = `test_${timestamp}.py`;
+    } else {
+        filename = `main_code_${timestamp}.py`;
+    }
+
+    const element = document.createElement('a');
+    const file = new Blob([content], { type: 'text/x-python' });
+    element.href = URL.createObjectURL(file);
+    element.download = filename;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+
+    showToast(`${filename} downloaded successfully!`, 'success');
+}
+
+// Copy file content to clipboard
+function copyFileContent(fileId) {
+    console.log(`📋 Copying file content: ${fileId}`);
+
+    const textarea = document.getElementById(`${fileId}Textarea`);
+    if (!textarea) return;
+
+    const content = textarea.value.trim();
+    if (!content) {
+        showToast('No content to copy!', 'warning');
+        return;
+    }
+
+    navigator.clipboard.writeText(content).then(() => {
+        showToast(`File content copied to clipboard!`, 'success');
+    }).catch(err => {
+        console.error('Failed to copy to clipboard:', err);
+        showToast('Failed to copy to clipboard', 'error');
+    });
+}
+
+// Run tests (placeholder)
+function runTests(fileId) {
+    console.log(`🧪 Running tests for: ${fileId}`);
+    showToast('Test runner feature coming soon!', 'info');
+}
+
 
 // ================================================================================================
 // KEYBOARD SHORTCUTS AND ACCESSIBILITY
@@ -6530,6 +7970,39 @@ window.resyncCurrentCodebase = resyncCurrentCodebase;
 window.clearCurrentCodebase = clearCurrentCodebase;
 window.saveCodebaseToStorage = saveCodebaseToStorage;
 window.displayCodebaseInSidebar = displayCodebaseInSidebar;
+
+window.savePromptData = savePromptData;
+window.downloadPromptData = downloadPromptData;
+
+window.displayGeneratedApplicationCode = displayGeneratedApplicationCode;
+
+window.switchTab = switchTab;
+window.updateTabCharCount = updateTabCharCount;
+window.displayPromptInTab = displayPromptInTab;
+window.displayCodeInTab = displayCodeInTab;
+window.saveTabContent = saveTabContent;
+window.downloadTabContent = downloadTabContent;
+window.copyTabContent = copyTabContent;
+window.runCode = runCode;
+window.showTabEditor = showTabEditor;
+window.displayCreatedPromptInTab = displayCreatedPromptInTab;
+window.displayGeneratedApplicationCodeInTab = displayGeneratedApplicationCodeInTab;
+window.displayGeneratedApplicationCodeInTab = displayGeneratedApplicationCodeInTab;
+window.switchEnhancedTab = switchEnhancedTab;
+window.updateEnhancedTabCharCount = updateEnhancedTabCharCount;
+window.saveFileContent = saveFileContent;
+window.downloadFileContent = downloadFileContent;
+window.copyFileContent = copyFileContent;
+window.runTests = runTests;
+
+window.reviewApplicationCode = reviewApplicationCode;
+window.markTabAsReviewed = markTabAsReviewed;
+window.showReviewSummary = showReviewSummary;
+
+window.updateDeveloperStatusDisplay = updateDeveloperStatusDisplay;
+window.updateStatusItem = updateStatusItem;
+window.initializeDeveloperStatus = initializeDeveloperStatus;
+window.setupDeveloperButtonStates = setupDeveloperButtonStates;
 // ================================================================================================
 // INITIALIZATION COMPLETE
 // ================================================================================================

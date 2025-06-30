@@ -49,7 +49,7 @@ def get_analyzed_scripts():
                 script_info.append({
                     'file': item['script_name'],
                     'path': script_path,
-                    'name': item['test_case_name'],
+                    'name': item.get('test_case_name', item.get('story_title', 'Unknown')),
                     'order_index': item['order_index'],
                     'source_file': item['source_file']
                 })

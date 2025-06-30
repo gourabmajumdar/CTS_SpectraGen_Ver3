@@ -158,6 +158,10 @@ body {
     display: block;
 }
 
+.auto-test-content.show {
+    display: block !important;
+}
+
 .auto-test-content.hide {
     display: none;
 }
@@ -224,6 +228,10 @@ body {
 }
 
 #fileInput {
+    display: none;
+}
+
+#developerFileInput {
     display: none;
 }
 
@@ -4766,3 +4774,530 @@ textarea:focus-visible {
         min-width: 150px;
     }
 }
+
+/* ============================================================ */
+/* TAB EDITOR COMPONENT STYLES - Add to end of style.css */
+/* ============================================================ */
+
+.tab-editor-container {
+    margin-top: 30px;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    border: 2px solid #e5e7eb;
+    overflow: hidden;
+    animation: slideInUp 0.5s ease-out;
+}
+
+.tab-editor-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 600px;
+}
+
+/* Tab Headers */
+.tab-headers {
+    display: flex;
+    background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+    border-bottom: 2px solid #e5e7eb;
+    padding: 0;
+}
+
+.tab-header {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 15px 20px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    color: #64748b;
+    position: relative;
+}
+
+.tab-header:hover {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+}
+
+.tab-header.active {
+    background: white;
+    color: #1e40af;
+    font-weight: 600;
+    border-bottom: 3px solid #3b82f6;
+}
+
+.tab-header.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: white;
+}
+
+.tab-icon {
+    font-size: 1.2rem;
+}
+
+.tab-title {
+    font-size: 0.95rem;
+}
+
+.tab-badge {
+    background: #10b981;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+/* Tab Content */
+.tab-content-wrapper {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+.tab-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    transform: translateX(20px);
+    transition: all 0.3s ease;
+    pointer-events: none;
+}
+
+.tab-content.active {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: all;
+}
+
+/* Toolbar */
+.tab-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px 20px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.toolbar-left h3 {
+    margin: 0 0 5px 0;
+    color: #1e40af;
+    font-size: 1.1rem;
+}
+
+.content-info {
+    font-size: 0.85rem;
+    color: #6b7280;
+}
+
+.toolbar-right {
+    display: flex;
+    gap: 8px;
+}
+
+.toolbar-btn {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.toolbar-btn:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+}
+
+/* Textarea */
+.tab-textarea {
+    flex: 1;
+    padding: 20px;
+    border: none;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    resize: none;
+    outline: none;
+    background: white;
+    color: #374151;
+    line-height: 1.5;
+}
+
+.tab-textarea.code-editor {
+    background: #1e1e1e;
+    color: #d4d4d4;
+}
+
+.tab-textarea:focus {
+    background: #fafafa;
+}
+
+.tab-textarea.code-editor:focus {
+    background: #252526;
+}
+
+/* Footer */
+.tab-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    background: #f8fafc;
+    border-top: 1px solid #e5e7eb;
+    font-size: 0.85rem;
+}
+
+.char-count {
+    color: #6b7280;
+}
+
+.language-indicator {
+    color: #059669;
+    font-weight: 500;
+}
+
+.status-indicator {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.status-indicator.success {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.status-indicator.warning {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-indicator.info {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+/* Animations */
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive Design for Tab Editor */
+@media (max-width: 768px) {
+    .tab-header {
+        padding: 12px 15px;
+        font-size: 0.9rem;
+    }
+
+    .tab-title {
+        display: none;
+    }
+
+    .toolbar-right {
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+
+    .toolbar-btn {
+        padding: 6px 10px;
+        font-size: 0.8rem;
+    }
+
+    .tab-editor-wrapper {
+        height: 500px;
+    }
+}
+
+@media (max-width: 480px) {
+    .tab-headers {
+        flex-direction: column;
+    }
+
+    .tab-header {
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .tab-header.active {
+        border-bottom: 3px solid #3b82f6;
+    }
+}
+
+/* ============================================================ */
+/* ENHANCED TAB EDITOR STYLES - Add to style.css */
+/* ============================================================ */
+
+.enhanced-tab-editor {
+    margin-top: 30px;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    border: 2px solid #e5e7eb;
+    overflow: hidden;
+    animation: slideInUp 0.5s ease-out;
+}
+
+.enhanced-tab-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 600px;
+}
+
+/* Enhanced Tab Headers */
+.enhanced-tab-headers {
+    display: flex;
+    background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+    border-bottom: 2px solid #e5e7eb;
+    padding: 0;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.enhanced-tab-headers::-webkit-scrollbar {
+    height: 4px;
+}
+
+.enhanced-tab-headers::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+.enhanced-tab-headers::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 2px;
+}
+
+.enhanced-tab-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    color: #64748b;
+    position: relative;
+    white-space: nowrap;
+    min-width: fit-content;
+}
+
+.enhanced-tab-header:hover {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+}
+
+.enhanced-tab-header.active {
+    background: white;
+    color: #1e40af;
+    font-weight: 600;
+    border-bottom: 3px solid #3b82f6;
+}
+
+.enhanced-tab-header.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: white;
+}
+
+/* File Type Badges */
+.file-type-badge {
+    background: #64748b;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+.file-type-badge.main {
+    background: #059669;
+}
+
+.file-type-badge.test {
+    background: #dc2626;
+}
+
+/* Enhanced Tab Content */
+.enhanced-tab-content-wrapper {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+.enhanced-tab-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    transform: translateX(20px);
+    transition: all 0.3s ease;
+    pointer-events: none;
+}
+
+.enhanced-tab-content.active {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: all;
+}
+
+/* Enhanced Toolbar */
+.enhanced-tab-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px 20px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.enhanced-tab-toolbar .toolbar-left h3 {
+    margin: 0 0 5px 0;
+    color: #1e40af;
+    font-size: 1.1rem;
+}
+
+/* Enhanced Textarea */
+.enhanced-tab-textarea {
+    flex: 1;
+    padding: 20px;
+    border: none;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    resize: none;
+    outline: none;
+    background: white;
+    color: #374151;
+    line-height: 1.5;
+}
+
+.enhanced-tab-textarea.code-editor {
+    background: #1e1e1e;
+    color: #d4d4d4;
+}
+
+.enhanced-tab-textarea:focus {
+    background: #fafafa;
+}
+
+.enhanced-tab-textarea.code-editor:focus {
+    background: #252526;
+}
+
+/* Enhanced Footer */
+.enhanced-tab-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    background: #f8fafc;
+    border-top: 1px solid #e5e7eb;
+    font-size: 0.85rem;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.file-type-indicator {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.file-type-indicator.main {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.file-type-indicator.test {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* Responsive Design for Enhanced Tab Editor */
+@media (max-width: 768px) {
+    .enhanced-tab-header {
+        padding: 10px 12px;
+        font-size: 0.85rem;
+    }
+
+    .enhanced-tab-header .tab-title {
+        display: none;
+    }
+
+    .enhanced-tab-toolbar {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+    }
+
+    .enhanced-tab-toolbar .toolbar-right {
+        width: 100%;
+        justify-content: space-around;
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+
+    .enhanced-tab-footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+
+    .enhanced-tab-wrapper {
+        height: 500px;
+    }
+}
+
+@media (max-width: 480px) {
+    .enhanced-tab-headers {
+        overflow-x: auto;
+    }
+
+    .toolbar-btn {
+        padding: 6px 8px;
+        font-size: 0.8rem;
+    }
+
+    .file-type-badge {
+        display: none;
+    }
+}
+
+
