@@ -1205,7 +1205,7 @@ function displayCodebaseDetails(contextInfo) {
                         <div class="class-item">
                             <strong>${name}</strong>
                             ${info.file ? `<span class="file-path">${info.file}</span>` : ''}
-                            ${info.methods && info.methods.length > 0 ? 
+                            ${info.methods && info.methods.length > 0 ?
                                 `<div class="methods">Methods: ${info.methods.join(', ')}</div>` : ''}
                         </div>
                     `).join('')}
@@ -2288,6 +2288,7 @@ function detectContentType(filename, content) {
     return 'Requirement Document';
 }
 
+/*
 function getGenerationOptions() {
     return {
         includeTests: document.getElementById('includeTests')?.checked || false,
@@ -2298,7 +2299,21 @@ function getGenerationOptions() {
         performanceOpt: document.getElementById('performanceOpt')?.checked || false
     };
 }
+*/
+// 5. UPDATE getGenerationOptions to ensure it's working correctly:
+function getGenerationOptions() {
+    const options = {
+        includeTests: document.getElementById('includeTests')?.checked || false,
+        generateDocs: document.getElementById('generateDocs')?.checked || false,
+        useLibraries: document.getElementById('useLibraries')?.checked || false,
+        followPatterns: document.getElementById('followPatterns')?.checked || false,
+        includeErrors: document.getElementById('includeErrors')?.checked || false,
+        performanceOpt: document.getElementById('performanceOpt')?.checked || false
+    };
 
+    console.log('⚙️ Generation options:', options);
+    return options;
+}
 function displayProcessedRequirements(result) {
     // Create or update a section to show processed requirements
     let container = document.getElementById('processedRequirementsContainer');
@@ -2336,6 +2351,30 @@ function displayProcessedRequirements(result) {
             </details>
         ` : ''}
     `;
+}
+
+// 6. ADD function to test if unit test generation is working:
+function testUnitTestGeneration() {
+    console.log('🧪 Testing unit test generation...');
+
+    // Check if the generation options are available
+    const includeTestsCheckbox = document.getElementById('includeTests');
+    if (!includeTestsCheckbox) {
+        console.log('❌ Include Tests checkbox not found');
+        return false;
+    }
+
+    console.log(`✅ Include Tests checkbox found, checked: ${includeTestsCheckbox.checked}`);
+
+    // Check if the buildAIPrompt function includes test requirements
+    const testOptions = getGenerationOptions();
+    if (testOptions.includeTests) {
+        console.log('✅ Include Tests is enabled in generation options');
+    } else {
+        console.log('❌ Include Tests is disabled in generation options');
+    }
+
+    return true;
 }
 
 function displayUserStories(stories) {
@@ -7413,27 +7452,7 @@ ${aiPrompt}
     displayPromptInTab(displayMessage);
 }
 
-// Modified displayGeneratedApplicationCode to use tabs
 /*
-function displayGeneratedApplicationCodeInTab(codeResults) {
-    console.log('🚀 Displaying generated code in enhanced tab editor');
-
-    if (!codeResults || codeResults.length === 0) {
-        showToast('No code was generated. Please try again.', 'warning');
-        return;
-    }
-
-    // Parse the generated code to separate main code and unit tests
-    const parsedFiles = parseGeneratedCodeFiles(codeResults);
-
-    // Create dynamic tabs for all files
-    createDynamicCodeTabs(parsedFiles);
-
-    // Store for save/download functions
-    window.generatedApplicationCode = codeResults;
-}
-*/
-
 function displayGeneratedApplicationCodeInTab(codeResults) {
     console.log('🚀 Displaying generated code in enhanced tab editor while preserving prompt');
 
@@ -7470,9 +7489,159 @@ function displayGeneratedApplicationCodeInTab(codeResults) {
     // Show success message
     showToast(`Generated ${codeResults.length} application file(s) successfully!`, 'success');
 }
+*/
+
+function displayGeneratedApplicationCodeInTab(codeResults) {
+    console.log('🚀 Displaying generated code in existing tab interface');
+
+    if (!codeResults || codeResults.length === 0) {
+        showToast('No code was generated. Please try again.', 'warning');
+        return;
+    }
+
+    // Parse the generated code to separate main code and unit tests
+    const parsedFiles = parseGeneratedCodeFiles(codeResults);
+
+    // Check if "include unit tests" checkbox was checked
+    const includeTestsCheckbox = document.getElementById('includeTests');
+    const shouldShowTests = includeTestsCheckbox && includeTestsCheckbox.checked;
+
+    // Get the existing tab editor container
+    const tabEditorContainer = document.getElementById('tabEditorContainer');
+    if (!tabEditorContainer) {
+        console.error('❌ Tab editor container not found');
+        return;
+    }
+
+    // Ensure the tab editor is visible but don't replace it
+    tabEditorContainer.style.display = 'block';
+
+    // CRITICAL FIX: Use the existing basic tab interface instead of creating dynamic tabs
+    if (parsedFiles.length > 0) {
+        const mainFile = parsedFiles.find(f => f.type === 'main') || parsedFiles[0];
+        const testFile = parsedFiles.find(f => f.type === 'test');
+
+        // Display main code in the existing code tab
+        if (mainFile && mainFile.content.trim()) {
+            displayCodeInTab([{
+                generated_code: mainFile.content,
+                file_name: mainFile.name || 'main_code.py'
+            }]);
+        }
+
+        // If unit tests checkbox was checked and tests exist, create a separate test tab
+        if (shouldShowTests && testFile && testFile.content.trim()) {
+            addUnitTestTab(testFile);
+        }
+    }
+
+    // Store for save/download functions
+    window.generatedApplicationCode = codeResults;
+
+    // Show success message
+    const fileCount = parsedFiles.length;
+    const testMessage = shouldShowTests && parsedFiles.some(f => f.type === 'test') ? ' with unit tests' : '';
+    showToast(`Generated ${fileCount} application file(s)${testMessage} successfully!`, 'success');
+}
+
+// FIXED: Add unit test tab functionality when checkbox is checked
+function addUnitTestTab(testFile) {
+    console.log('🧪 Adding unit test tab');
+
+    // Find the tab headers container
+    const tabHeaders = document.querySelector('.tab-headers');
+    if (!tabHeaders) return;
+
+    // Check if unit test tab already exists
+    let testTabHeader = document.querySelector('.tab-header[data-tab="unittest"]');
+    if (!testTabHeader) {
+        // Create unit test tab header
+        testTabHeader = document.createElement('button');
+        testTabHeader.className = 'tab-header';
+        testTabHeader.setAttribute('data-tab', 'unittest');
+        testTabHeader.onclick = () => switchTab('unittest');
+        testTabHeader.innerHTML = `
+            <span class="tab-icon">🧪</span>
+            <span class="tab-title">Unit Tests</span>
+            <span class="tab-badge" id="unittestTabBadge">Ready</span>
+        `;
+        tabHeaders.appendChild(testTabHeader);
+    }
+
+    // Find the tab content wrapper
+    const tabContentWrapper = document.querySelector('.tab-content-wrapper');
+    if (!tabContentWrapper) return;
+
+    // Check if unit test tab content already exists
+    let testTabContent = document.querySelector('.tab-content[data-tab="unittest"]');
+    if (!testTabContent) {
+        // Create unit test tab content
+        testTabContent = document.createElement('div');
+        testTabContent.className = 'tab-content';
+        testTabContent.setAttribute('data-tab', 'unittest');
+        testTabContent.innerHTML = `
+            <div class="tab-toolbar">
+                <div class="toolbar-left">
+                    <h3>🧪 Generated Unit Tests</h3>
+                    <span class="content-info" id="unittestInfo">Comprehensive unit tests for validation</span>
+                </div>
+                <div class="toolbar-right">
+                    <button class="toolbar-btn" onclick="saveTabContent('unittest')" title="Save tests">
+                        💾 Save
+                    </button>
+                    <button class="toolbar-btn" onclick="downloadTabContent('unittest')" title="Download tests">
+                        📥 Download
+                    </button>
+                    <button class="toolbar-btn" onclick="copyTabContent('unittest')" title="Copy to clipboard">
+                        📋 Copy
+                    </button>
+                    <button class="toolbar-btn" onclick="runTests()" title="Run tests">
+                        ▶️ Run Tests
+                    </button>
+                </div>
+            </div>
+            <textarea
+                id="unittestTabTextarea"
+                class="tab-textarea code-editor"
+                placeholder="Generated unit tests will appear here..."
+                oninput="updateTabCharCount('unittest')"
+            ></textarea>
+            <div class="tab-footer">
+                <span class="char-count" id="unittestCharCount">0 characters</span>
+                <span class="language-indicator">🐍 Python</span>
+                <span class="status-indicator" id="unittestStatus">✅ Tests generated successfully</span>
+            </div>
+        `;
+        tabContentWrapper.appendChild(testTabContent);
+    }
+
+    // Populate the unit test content
+    const testTextarea = document.getElementById('unittestTabTextarea');
+    if (testTextarea) {
+        testTextarea.value = testFile.content;
+        updateTabCharCount('unittest');
+    }
+
+    // Update info
+    const testInfo = document.getElementById('unittestInfo');
+    if (testInfo) {
+        testInfo.textContent = `Generated ${new Date().toLocaleString()} - Ready for testing`;
+    }
+
+    // Show the unit test tab badge
+    const testBadge = document.getElementById('unittestTabBadge');
+    if (testBadge) {
+        testBadge.style.display = 'inline-block';
+    }
+
+    console.log('✅ Unit test tab added successfully');
+}
+
+
 
 
 // Parse generated code to separate main code from unit tests
+/*
 function parseGeneratedCodeFiles(codeResults) {
     console.log('📋 Parsing generated code files');
 
@@ -7515,8 +7684,69 @@ function parseGeneratedCodeFiles(codeResults) {
 
     return files;
 }
+*/
+// FIXED: Enhanced parseGeneratedCodeFiles to handle unit test checkbox properly
+function parseGeneratedCodeFiles(codeResults) {
+    console.log('📋 Parsing generated code files for main code and unit tests');
+
+    const files = [];
+    const includeTestsCheckbox = document.getElementById('includeTests');
+    const shouldIncludeTests = includeTestsCheckbox && includeTestsCheckbox.checked;
+
+    codeResults.forEach((result, index) => {
+        const code = result.generated_code || '';
+        const fileName = result.file_name || `generated_code_${index + 1}.py`;
+
+        if (shouldIncludeTests) {
+            // Split the code into main code and unit tests only if checkbox is checked
+            const { mainCode, unitTests } = separateMainCodeAndTests(code);
+
+            // Create main code file
+            if (mainCode.trim()) {
+                files.push({
+                    id: `main_${index}`,
+                    name: fileName,
+                    displayName: fileName.replace('.py', ''),
+                    content: mainCode,
+                    type: 'main',
+                    icon: '🚀',
+                    language: 'python'
+                });
+            }
+
+            // Create unit test file if tests exist
+            if (unitTests.trim()) {
+                const testFileName = fileName.replace('.py', '_test.py');
+                files.push({
+                    id: `test_${index}`,
+                    name: testFileName,
+                    displayName: testFileName.replace('.py', ''),
+                    content: unitTests,
+                    type: 'test',
+                    icon: '🧪',
+                    language: 'python'
+                });
+            }
+        } else {
+            // If tests not requested, treat everything as main code
+            files.push({
+                id: `main_${index}`,
+                name: fileName,
+                displayName: fileName.replace('.py', ''),
+                content: code,
+                type: 'main',
+                icon: '🚀',
+                language: 'python'
+            });
+        }
+    });
+
+    console.log(`✅ Parsed ${files.length} files (${files.filter(f => f.type === 'main').length} main, ${files.filter(f => f.type === 'test').length} test)`);
+    return files;
+}
 
 // Separate main code from unit tests
+/*
 function separateMainCodeAndTests(code) {
     console.log('🔍 Separating main code from unit tests');
 
@@ -7555,8 +7785,61 @@ function separateMainCodeAndTests(code) {
 
     return { mainCode, unitTests };
 }
+*/
+
+function separateMainCodeAndTests(code) {
+    console.log('🔍 Separating main code from unit tests');
+
+    // Enhanced test markers for better detection
+    const testMarkers = [
+        '# Unit Tests',
+        '# =' + '='.repeat(60), // Separator line from backend
+        'import unittest',
+        'class Test',
+        'def test_',
+        'if __name__ == "__main__":\n    unittest.main()',
+        'unittest.main(verbosity=2)',
+        'unittest.main()',
+        '# Comprehensive unit tests',
+        '# Unit test'
+    ];
+
+    let splitIndex = -1;
+    let foundMarker = '';
+
+    // Find where tests start - look for the earliest marker
+    for (const marker of testMarkers) {
+        const index = code.indexOf(marker);
+        if (index !== -1) {
+            if (splitIndex === -1 || index < splitIndex) {
+                splitIndex = index;
+                foundMarker = marker;
+            }
+        }
+    }
+
+    console.log(`🔍 Test detection: Found marker "${foundMarker}" at index ${splitIndex}`);
+
+    if (splitIndex === -1) {
+        // No tests found, return all as main code
+        console.log('❌ No unit tests detected in generated code');
+        return {
+            mainCode: code,
+            unitTests: ''
+        };
+    }
+
+    // Split at the test marker
+    const mainCode = code.substring(0, splitIndex).trim();
+    const unitTests = code.substring(splitIndex).trim();
+
+    console.log(`✅ Successfully separated: Main code (${mainCode.length} chars), Unit tests (${unitTests.length} chars)`);
+
+    return { mainCode, unitTests };
+}
 
 // Create dynamic tabs in the tab editor
+/*
 function createDynamicCodeTabs(files) {
     console.log('📝 Creating dynamic code tabs');
 
@@ -7581,10 +7864,10 @@ function createDynamicCodeTabs(files) {
                     <span class="tab-icon">🤖</span>
                     <span class="tab-title">AI Prompt</span>
                 </button>
-                
+
                 <!-- Dynamic code file tabs will be inserted here -->
             </div>
-            
+
             <!-- Tab Content Wrapper -->
             <div class="enhanced-tab-content-wrapper" id="dynamicTabContent">
                 <!-- Prompt tab content (always present) -->
@@ -7600,8 +7883,8 @@ function createDynamicCodeTabs(files) {
                             <button class="toolbar-btn" onclick="copyTabContent('prompt')">📋 Copy</button>
                         </div>
                     </div>
-                    <textarea 
-                        id="promptTabTextarea" 
+                    <textarea
+                        id="promptTabTextarea"
                         class="enhanced-tab-textarea"
                         readonly
                         placeholder="Generated AI prompt will appear here..."
@@ -7612,7 +7895,7 @@ function createDynamicCodeTabs(files) {
                         <span class="status-indicator success">✅ Ready for code generation</span>
                     </div>
                 </div>
-                
+
                 <!-- Dynamic code file content will be inserted here -->
             </div>
         </div>
@@ -7633,64 +7916,118 @@ function createDynamicCodeTabs(files) {
         updateEnhancedTabCharCount('prompt');
     }
 }
+*/
 
-// Add a code file tab
-function addCodeFileTab(file, isActive = false) {
-    console.log(`📄 Adding tab for: ${file.name}`);
+function createDynamicCodeTabs(files) {
+    console.log('📝 Creating dynamic code tabs');
 
-    const headersContainer = document.getElementById('dynamicTabHeaders');
-    const contentContainer = document.getElementById('dynamicTabContent');
+    const container = document.getElementById('generatedCodeContainer');
+    if (!container) {
+        console.error('❌ Generated code container not found');
+        return;
+    }
 
-    if (!headersContainer || !contentContainer) return;
+    // CRITICAL FIX: Don't clear the entire container - preserve existing content
+    // Find existing tab editor or create one
+    let tabEditor = container.querySelector('.enhanced-tab-editor');
 
-    // Create tab header
-    const tabHeader = document.createElement('button');
-    tabHeader.className = `enhanced-tab-header ${isActive ? 'active' : ''}`;
-    tabHeader.setAttribute('data-tab', file.id);
-    tabHeader.onclick = () => switchEnhancedTab(file.id);
+    if (!tabEditor) {
+        // Create new tab editor while preserving existing content
+        tabEditor = document.createElement('div');
+        tabEditor.className = 'enhanced-tab-editor';
+        tabEditor.innerHTML = `
+            <div class="enhanced-tab-headers" id="enhancedTabHeaders"></div>
+            <div class="enhanced-tab-content-container" id="enhancedTabContentContainer"></div>
+        `;
+        container.appendChild(tabEditor);
+    } else {
+        // Clear only the tab content, not the whole container
+        const headersContainer = tabEditor.querySelector('#enhancedTabHeaders');
+        const contentContainer = tabEditor.querySelector('#enhancedTabContentContainer');
+        if (headersContainer) headersContainer.innerHTML = '';
+        if (contentContainer) contentContainer.innerHTML = '';
+    }
 
-    tabHeader.innerHTML = `
-        <span class="tab-icon">${file.icon}</span>
-        <span class="tab-title">${file.displayName}</span>
-        <span class="file-type-badge ${file.type}">${file.type === 'test' ? 'TEST' : 'MAIN'}</span>
-    `;
+    const headersContainer = document.getElementById('enhancedTabHeaders');
+    const contentContainer = document.getElementById('enhancedTabContentContainer');
 
-    headersContainer.appendChild(tabHeader);
+    if (!headersContainer || !contentContainer) {
+        console.error('❌ Tab containers not found');
+        return;
+    }
 
-    // Create tab content
-    const tabContent = document.createElement('div');
-    tabContent.className = `enhanced-tab-content ${isActive ? 'active' : ''}`;
-    tabContent.setAttribute('data-tab', file.id);
+    files.forEach((file, index) => {
+        const isActive = index === 0;
 
-    tabContent.innerHTML = `
-        <div class="enhanced-tab-toolbar">
-            <div class="toolbar-left">
-                <h3>${file.icon} ${file.name}</h3>
-                <span class="content-info">${file.type === 'test' ? 'Unit tests for validation' : 'Main application code'}</span>
-            </div>
-            <div class="toolbar-right">
+        // Create tab header with enhanced styling for test files
+        const tabHeader = document.createElement('div');
+        tabHeader.className = `enhanced-tab-header ${isActive ? 'active' : ''}`;
+        tabHeader.setAttribute('data-tab', file.id);
+        tabHeader.onclick = () => switchEnhancedTab(file.id);
+
+        const badgeClass = file.type === 'test' ? 'test-badge' : 'main-badge';
+        const badgeText = file.type === 'test' ? 'UNIT TESTS' : 'MAIN CODE';
+
+        tabHeader.innerHTML = `
+            <span class="tab-icon">${file.icon}</span>
+            <span class="tab-name">${file.displayName}</span>
+            <span class="file-type-badge ${badgeClass}">${badgeText}</span>
+        `;
+
+        headersContainer.appendChild(tabHeader);
+
+        // Create tab content with enhanced toolbar for test files
+        const tabContent = document.createElement('div');
+        tabContent.className = `enhanced-tab-content ${isActive ? 'active' : ''}`;
+        tabContent.setAttribute('data-tab', file.id);
+
+        const toolbarButtons = file.type === 'test'
+            ? `
                 <button class="toolbar-btn" onclick="saveFileContent('${file.id}')">💾 Save</button>
                 <button class="toolbar-btn" onclick="downloadFileContent('${file.id}')">📥 Download</button>
                 <button class="toolbar-btn" onclick="copyFileContent('${file.id}')">📋 Copy</button>
-                ${file.type === 'test' ? '<button class="toolbar-btn" onclick="runTests(\'' + file.id + '\')">🧪 Run Tests</button>' : ''}
-            </div>
-        </div>
-        <textarea 
-            id="${file.id}Textarea" 
-            class="enhanced-tab-textarea code-editor"
-            placeholder="Generated ${file.type === 'test' ? 'unit tests' : 'application code'} will appear here..."
-            oninput="updateEnhancedTabCharCount('${file.id}')"
-        >${file.content}</textarea>
-        <div class="enhanced-tab-footer">
-            <span class="char-count" id="${file.id}CharCount">${file.content.length} characters</span>
-            <span class="language-indicator">🐍 Python</span>
-            <span class="file-type-indicator ${file.type}">${file.type.toUpperCase()}</span>
-            <span class="status-indicator success">✅ Generated successfully</span>
-        </div>
-    `;
+                <button class="toolbar-btn test-run-btn" onclick="runTests('${file.id}')">🧪 Run Tests</button>
+            `
+            : `
+                <button class="toolbar-btn" onclick="saveFileContent('${file.id}')">💾 Save</button>
+                <button class="toolbar-btn" onclick="downloadFileContent('${file.id}')">📥 Download</button>
+                <button class="toolbar-btn" onclick="copyFileContent('${file.id}')">📋 Copy</button>
+            `;
 
-    contentContainer.appendChild(tabContent);
+        tabContent.innerHTML = `
+            <div class="enhanced-tab-toolbar">
+                <div class="toolbar-left">
+                    <h3>${file.icon} ${file.name}</h3>
+                    <span class="content-info">${file.type === 'test' ? 'Unit tests for validation and quality assurance' : 'Main application code implementation'}</span>
+                </div>
+                <div class="toolbar-right">
+                    ${toolbarButtons}
+                </div>
+            </div>
+            <textarea 
+                id="${file.id}Textarea" 
+                class="enhanced-tab-textarea code-editor"
+                placeholder="Generated ${file.type === 'test' ? 'unit tests' : 'application code'} will appear here..."
+                oninput="updateEnhancedTabCharCount('${file.id}')"
+            >${file.content}</textarea>
+            <div class="enhanced-tab-footer">
+                <span class="char-count" id="${file.id}CharCount">${file.content.length} characters</span>
+                <span class="language-indicator">🐍 Python</span>
+                <span class="file-type-indicator ${file.type}">${file.type.toUpperCase()}</span>
+                <span class="status-indicator success">✅ Generated successfully</span>
+            </div>
+        `;
+
+        contentContainer.appendChild(tabContent);
+    });
+
+    // Show the container but don't hide other elements
+    container.style.display = 'block';
+
+    console.log(`✅ Created ${files.length} dynamic tabs without destroying existing UI`);
 }
+
+
 
 // Switch between enhanced tabs
 function switchEnhancedTab(tabId) {
@@ -7798,10 +8135,10 @@ function copyFileContent(fileId) {
     });
 }
 
-// Run tests (placeholder)
-function runTests(fileId) {
-    console.log(`🧪 Running tests for: ${fileId}`);
-    showToast('Test runner feature coming soon!', 'info');
+// Helper function to run unit tests (placeholder)
+function runTests() {
+    console.log('▶️ Running unit tests...');
+    showToast('Unit test execution feature coming soon!', 'info');
 }
 
 
@@ -7986,7 +8323,6 @@ window.copyTabContent = copyTabContent;
 window.runCode = runCode;
 window.showTabEditor = showTabEditor;
 window.displayCreatedPromptInTab = displayCreatedPromptInTab;
-window.displayGeneratedApplicationCodeInTab = displayGeneratedApplicationCodeInTab;
 window.displayGeneratedApplicationCodeInTab = displayGeneratedApplicationCodeInTab;
 window.switchEnhancedTab = switchEnhancedTab;
 window.updateEnhancedTabCharCount = updateEnhancedTabCharCount;

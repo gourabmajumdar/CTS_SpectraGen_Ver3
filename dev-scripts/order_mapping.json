@@ -1,8 +1,14 @@
 [
   {
     "order_index": 1,
-    "script_name": "jira_implementation.py",
-    "story_title": "Jira Implementation",
+    "script_name": "main_implementation.py",
+    "story_title": "Main Implementation",
     "source_file": "generated_application_code_1"
+  },
+  {
+    "order_index": 2,
+    "script_name": "unit_tests.py",
+    "story_title": "Unit Tests",
+    "source_file": "generated_application_code_2"
   }
 ]

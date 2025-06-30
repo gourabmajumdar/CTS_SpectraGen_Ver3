@@ -40,6 +40,22 @@ app.config['GENERATED_SCRIPTS_FOLDER'] = os.path.join(os.getcwd(), '..', 'genera
 app.config['REPORT_FOLDER'] = os.path.join(os.getcwd(), '..', 'reports')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
+# Try to import the enhanced generator - fallback gracefully if not available
+try:
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'Backend'))
+    from Auto_test_gen import EnhancedCodeGenerator
+    AI_GENERATOR_AVAILABLE = True
+    print("✅ Enhanced Code Generator imported successfully")
+except ImportError as e:
+    AI_GENERATOR_AVAILABLE = False
+    print(f"⚠️ Enhanced Code Generator not available: {e}")
+
+# 2. ADD AI CONFIGURATION (near other config variables)
+AI_CONFIG = {
+    'backend': 'auto',  # 'auto', 'ollama', 'llama2'
+    'ollama_url': 'http://localhost:11434',
+    'ollama_model': 'codellama:7b'
+}
 # Ensure upload directory exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
@@ -62,159 +78,192 @@ devices_config = None
 device_status_cache = {}
 device_status_lock = threading.Lock()
 
-'''
-class CodebaseContextManager:
-    """Manage existing codebase knowledge for GenAI"""
+
+class EnhancedCodebaseAnalyzer:
+    """Analyze and extract full code context from uploaded codebases"""
 
     def __init__(self):
-        self.libraries = {}
-        self.utils = {}
-        self.patterns = {}
-        self.apis = {}
-        self.project_structure = {}
+        self.supported_extensions = {'.py', '.js', '.java', '.cpp', '.c', '.h'}
 
-    def analyze_codebase(self, codebase_path):
-        """Analyze uploaded codebase for context"""
-        try:
-            analysis = {
-                'imports': self.extract_imports(codebase_path),
-                'functions': self.extract_functions(codebase_path),
-                'classes': self.extract_classes(codebase_path),
-                'patterns': self.identify_patterns(codebase_path),
-                'dependencies': self.extract_dependencies(codebase_path)
-            }
-            return analysis
-        except Exception as e:
-            print(f"[ERROR] Codebase analysis failed: {e}")
-            return {}
-
-    def extract_classes(self, codebase_path):
-        """Extract class definitions and their methods"""
-        classes = {}
-        for py_file in Path(codebase_path).rglob("*.py"):
-            # Skip macOS metadata files
-            if '__MACOSX' in str(py_file) or py_file.name.startswith('._'):
-                continue
-
-            try:
-                with open(py_file, 'r', encoding='utf-8') as f:
-                    tree = ast.parse(f.read())
-                    for node in ast.walk(tree):
-                        if isinstance(node, ast.ClassDef):
-                            class_info = {
-                                'file': str(py_file),
-                                'methods': [m.name for m in node.body if isinstance(m, ast.FunctionDef)],
-                                'docstring': ast.get_docstring(node),
-                                'line_number': node.lineno,
-                                'base_classes': [base.id if hasattr(base, 'id') else str(base) for base in node.bases]
-                            }
-                            classes[node.name] = class_info
-            except Exception as e:
-                print(f"[WARNING] Could not analyze classes in {py_file}: {e}")
-        return classes
-
-    def extract_dependencies(self, codebase_path):
-        """Extract project dependencies from requirements files"""
-        dependencies = []
-
-        # Check for requirements.txt
-        req_files = ['requirements.txt', 'requirements.pip', 'Pipfile', 'setup.py']
-        for req_file in req_files:
-            req_path = Path(codebase_path) / req_file
-            if req_path.exists():
-                try:
-                    with open(req_path, 'r', encoding='utf-8') as f:
-                        content = f.read()
-                        # Simple extraction - you might want to make this more sophisticated
-                        if req_file == 'requirements.txt':
-                            dependencies.extend([line.strip() for line in content.split('\n') if
-                                                 line.strip() and not line.startswith('#')])
-                except Exception as e:
-                    print(f"[WARNING] Could not read {req_file}: {e}")
-
-        return list(set(dependencies))  # Remove duplicates
-
-    def extract_imports(self, codebase_path):
-        """Extract all import statements from Python files"""
-        imports = set()
-        for py_file in Path(codebase_path).rglob("*.py"):
-            # Skip macOS metadata files
-            if '__MACOSX' in str(py_file) or py_file.name.startswith('._'):
-                continue
-            try:
-                with open(py_file, 'r', encoding='utf-8') as f:
-                    tree = ast.parse(f.read())
-                    for node in ast.walk(tree):
-                        if isinstance(node, ast.Import):
-                            for alias in node.names:
-                                imports.add(alias.name)
-                        elif isinstance(node, ast.ImportFrom):
-                            if node.module:
-                                imports.add(node.module)
-            except Exception as e:
-                print(f"[WARNING] Could not parse {py_file}: {e}")
-        return list(imports)
-
-    def extract_functions(self, codebase_path):
-        """Extract function signatures and docstrings"""
-        functions = {}
-        for py_file in Path(codebase_path).rglob("*.py"):
-            # Skip macOS metadata files
-            if '__MACOSX' in str(py_file) or py_file.name.startswith('._'):
-                continue
-            try:
-                with open(py_file, 'r', encoding='utf-8') as f:
-                    tree = ast.parse(f.read())
-                    for node in ast.walk(tree):
-                        if isinstance(node, ast.FunctionDef):
-                            func_info = {
-                                'file': str(py_file),
-                                'args': [arg.arg for arg in node.args.args],
-                                'docstring': ast.get_docstring(node),
-                                'line_number': node.lineno
-                            }
-                            functions[node.name] = func_info
-            except Exception as e:
-                print(f"[WARNING] Could not analyze functions in {py_file}: {e}")
-        return functions
-
-    def identify_patterns(self, codebase_path):
-        """Identify common coding patterns"""
-        patterns = {
-            'error_handling': [],
-            'logging': [],
-            'database_access': [],
-            'api_calls': [],
-            'testing_patterns': []
+    def analyze_with_full_context(self, extracted_path):
+        """Analyze codebase and extract full code context"""
+        result = {
+            'files': {},
+            'functions': {},
+            'classes': {},
+            'imports': set(),
+            'patterns': {},
+            'full_context': ""
         }
 
-        # This is a simplified pattern detection
-        # In practice, you'd want more sophisticated AST analysis
-        for py_file in Path(codebase_path).rglob("*.py"):
-            # Skip macOS metadata files
-            if '__MACOSX' in str(py_file) or py_file.name.startswith('._'):
-                continue
+        # Walk through all files
+        for file_path in Path(extracted_path).rglob('*'):
+            if file_path.is_file() and file_path.suffix in self.supported_extensions:
+                self._analyze_file(file_path, extracted_path, result)
 
-            try:
-                with open(py_file, 'r', encoding='utf-8') as f:
-                    content = f.read()
+        # Convert sets to lists for JSON serialization
+        result['imports'] = list(result['imports'])
 
-                    if 'try:' in content and 'except' in content:
-                        patterns['error_handling'].append(str(py_file))
-                    if 'logging.' in content or 'logger.' in content:
-                        patterns['logging'].append(str(py_file))
-                    if 'requests.' in content or 'urllib' in content:
-                        patterns['api_calls'].append(str(py_file))
+        return result
 
-            except Exception as e:
-                print(f"[WARNING] Pattern analysis failed for {py_file}: {e}")
+    def _analyze_file(self, file_path, base_path, result):
+        """Analyze individual file and extract code elements"""
+        try:
+            relative_path = str(file_path.relative_to(base_path))
 
-        return patterns
-'''
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+
+            # Store full file content
+            result['files'][relative_path] = {
+                'content': content,
+                'size': len(content),
+                'lines': content.count('\n') + 1
+            }
+
+            # Analyze Python files with AST
+            if file_path.suffix == '.py':
+                self._analyze_python_file(content, relative_path, result)
+
+        except Exception as e:
+            print(f"Error analyzing {file_path}: {e}")
+
+    def _analyze_python_file(self, content, file_path, result):
+        """Analyze Python file using AST for detailed extraction"""
+        try:
+            tree = ast.parse(content)
+
+            for node in ast.walk(tree):
+                # Extract imports
+                if isinstance(node, (ast.Import, ast.ImportFrom)):
+                    self._extract_imports(node, result)
+
+                # Extract functions with full code
+                elif isinstance(node, ast.FunctionDef):
+                    self._extract_function_with_code(node, content, file_path, result)
+
+                # Extract classes with methods
+                elif isinstance(node, ast.ClassDef):
+                    self._extract_class_with_code(node, content, file_path, result)
+
+        except SyntaxError as e:
+            print(f"Syntax error in {file_path}: {e}")
+
+    def _extract_function_with_code(self, node, file_content, file_path, result):
+        """Extract function with its complete source code"""
+        try:
+            # Get function source code
+            lines = file_content.splitlines()
+            start_line = node.lineno - 1
+
+            # Find function end (simple heuristic - could be improved)
+            end_line = start_line
+            indent_level = len(lines[start_line]) - len(lines[start_line].lstrip())
+
+            for i in range(start_line + 1, len(lines)):
+                line = lines[i].strip()
+                if not line:  # Skip empty lines
+                    continue
+                current_indent = len(lines[i]) - len(lines[i].lstrip())
+                if current_indent <= indent_level and line:
+                    break
+                end_line = i
+
+            # Extract function code
+            function_code = '\n'.join(lines[start_line:end_line + 1])
+
+            # Extract docstring
+            docstring = ast.get_docstring(node) or "No documentation"
+
+            # Extract parameters
+            params = [arg.arg for arg in node.args.args]
+
+            # Store function with full context
+            result['functions'][node.name] = {
+                'file': file_path,
+                'line': node.lineno,
+                'code': function_code,
+                'docstring': docstring,
+                'parameters': params,
+                'returns': self._analyze_return_type(node),
+                'dependencies': self._find_function_dependencies(function_code)
+            }
+
+        except Exception as e:
+            print(f"Error extracting function {node.name}: {e}")
+
+    def _extract_class_with_code(self, node, file_content, file_path, result):
+        """Extract class with all its methods"""
+        try:
+            lines = file_content.splitlines()
+            start_line = node.lineno - 1
+
+            # Find class end
+            end_line = len(lines) - 1
+            indent_level = len(lines[start_line]) - len(lines[start_line].lstrip())
+
+            for i in range(start_line + 1, len(lines)):
+                line = lines[i].strip()
+                if not line:
+                    continue
+                current_indent = len(lines[i]) - len(lines[i].lstrip())
+                if current_indent <= indent_level and line:
+                    end_line = i - 1
+                    break
+
+            class_code = '\n'.join(lines[start_line:end_line + 1])
+
+            # Extract methods
+            methods = {}
+            for item in node.body:
+                if isinstance(item, ast.FunctionDef):
+                    methods[item.name] = {
+                        'line': item.lineno,
+                        'parameters': [arg.arg for arg in item.args.args],
+                        'docstring': ast.get_docstring(item) or "No documentation"
+                    }
+
+            result['classes'][node.name] = {
+                'file': file_path,
+                'line': node.lineno,
+                'code': class_code,
+                'docstring': ast.get_docstring(node) or "No documentation",
+                'methods': methods,
+                'base_classes': [base.id for base in node.bases if isinstance(base, ast.Name)]
+            }
+
+        except Exception as e:
+            print(f"Error extracting class {node.name}: {e}")
+
+    def _find_function_dependencies(self, code):
+        """Find functions/classes this code depends on"""
+        dependencies = []
+        lines = code.split('\n')
+
+        for line in lines:
+            # Simple pattern matching for function calls
+            import re
+            func_calls = re.findall(r'(\w+)\s*\(', line)
+            dependencies.extend(func_calls)
+
+        return list(set(dependencies))
+
+    def _extract_imports(self, node, result):
+        """Extract import statements"""
+        if isinstance(node, ast.Import):
+            for name in node.names:
+                result['imports'].add(name.name)
+        elif isinstance(node, ast.ImportFrom):
+            if node.module:
+                result['imports'].add(node.module)
+
+    def _analyze_return_type(self, node):
+        """Analyze function return type (basic implementation)"""
+        # This could be enhanced with more sophisticated analysis
+        return "Unknown"
 
 
 # REPLACE your existing CodebaseContextManager class with this fixed version:
-
 class CodebaseContextManager:
     """Manage existing codebase knowledge for GenAI"""
 
@@ -3575,50 +3624,6 @@ def process_qa_workflow(files, parse_multiple):
     pass
 
 '''
-# Update your existing generate_app_code route in app.py
-@app.route('/generate_app_code', methods=['POST'])
-def generate_application_code():
-    """Generate application code using the prepared prompt"""
-    try:
-        # Get the stored prompt from session
-        prompt = session.get('developer_prompt', '')
-        workflow_type = session.get('workflow_type', 'jira')
-        extracted_requirements = session.get('extracted_requirements', '')
-
-        if not prompt:
-            return jsonify({
-                'success': False,
-                'message': 'No prompt found. Please ingest requirements first.'
-            })
-
-        print(f"[GENERATE] Using stored prompt of length: {len(prompt)}")
-        print(f"[GENERATE] Workflow type: {workflow_type}")
-
-        # Here you would integrate with your LLaMA model
-        # For now, we'll create a sample response based on the prompt
-        generated_code = generate_code_from_prompt(prompt, workflow_type)
-
-        # Log the generation
-        print(f"[GENERATE] Generated {len(generated_code)} code files")
-
-        return jsonify({
-            'success': True,
-            'generated_code': generated_code,
-            'workflow_type': workflow_type,
-            'prompt_used': len(prompt),
-            'extracted_requirements': extracted_requirements,
-            'message': f'Successfully generated code for {workflow_type} workflow using stored prompt'
-        })
-
-    except Exception as e:
-        print(f"[ERROR] Code generation failed: {e}")
-        return jsonify({
-            'success': False,
-            'message': f'Code generation error: {str(e)}'
-        })
-'''
-
-
 @app.route('/generate_app_code', methods=['POST'])
 def generate_application_code():
     """Generate application code using the prepared prompt"""
@@ -3665,6 +3670,23 @@ def generate_application_code():
             'success': False,
             'message': f'Code generation error: {str(e)}'
         })
+'''
+
+
+def build_basic_prompt_structure(data):
+    """Build basic prompt structure before adding codebase context"""
+    original_prompt = data.get('originalPrompt', '')
+    workflow_type = data.get('workflowType', 'jira')
+
+    if original_prompt:
+        return original_prompt
+
+    # Fallback basic prompt
+    return f"""You are an expert software developer working on a {workflow_type} workflow.
+
+Generate production-ready code that implements the requirements.
+Include proper error handling, documentation, and follows best practices.
+"""
 
 
 def generate_code_from_prompt(prompt, workflow_type):
@@ -3680,7 +3702,8 @@ def generate_code_from_prompt(prompt, workflow_type):
 
     # For now, generate sample code based on workflow type and prompt content
     if workflow_type == 'jira':
-        code = f'''"""
+        # Generate main application code
+        main_code = f'''"""
 Generated Code for JIRA User Story
 Auto-generated on: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 Based on processed requirements and LLaMA prompt
@@ -3709,26 +3732,21 @@ class FeatureManager:
 
     def implement_feature(self, requirement_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Main implementation method based on the processed prompt
-
-        Args:
-            requirement_data: Processed requirement information
-
-        Returns:
-            Dict containing implementation results
+        Main implementation method based on user story requirements
         """
         try:
-            self.logger.info("Starting feature implementation based on LLaMA prompt")
+            self.logger.info("Starting feature implementation")
 
-            # Implementation logic based on your requirements
+            # Validate requirements
+            if not self.validate_requirements(requirement_data):
+                return {{"status": "error", "message": "Invalid requirements"}}
+
+            # Process implementation
             result = {{
                 "status": "success",
-                "message": "Feature implemented successfully",
-                "implementation_details": {{
-                    "prompt_based": True,
-                    "workflow_type": "{workflow_type}",
-                    "generated_on": "{datetime.now().isoformat()}"
-                }}
+                "feature_id": requirement_data.get("id", "unknown"),
+                "implementation_complete": True,
+                "context_aware": True if 'context' in requirement_data else False
             }}
 
             self.logger.info("Feature implementation completed successfully")
@@ -3736,33 +3754,31 @@ class FeatureManager:
 
         except Exception as e:
             self.logger.error(f"Implementation failed: {{e}}")
-            {"return {'status': 'error', 'message': str(e)}" if has_error_handling else "raise"}
+            return {{"status": "error", "message": str(e)}}
 
     def validate_requirements(self, requirements: Dict[str, Any]) -> bool:
-        """Validate input requirements"""
-        # TODO: Add validation logic based on your prompt
-        return True
+        """Validate requirement data structure"""
+        required_fields = ["id", "title"]
+        return all(field in requirements for field in required_fields)
 
 def main():
-    """Main function demonstrating the implementation"""
+    """Main execution function"""
     try:
-        feature_manager = FeatureManager()
-
-        # Sample requirement data (would come from your prompt processing)
-        requirement_data = {{
-            "source": "llama_prompt",
-            "workflow": "{workflow_type}",
-            "processed_at": "{datetime.now().isoformat()}"
+        manager = FeatureManager()
+        sample_requirement = {{
+            "id": "REQ-001",
+            "title": "Sample Feature",
+            "context": "User story implementation"
         }}
 
-        result = feature_manager.implement_feature(requirement_data)
-
-        print(f"Implementation result: {{result}}")
+        result = manager.implement_feature(sample_requirement)
 
         if result["status"] == "success":
-            print("[PASS] Implementation completed successfully")
+            print("[PASS] ✅ Feature implementation completed successfully")
+            print(f"🎯 Feature ID: {{sample_requirement['id']}}")
+            print(f"🔗 Context aware: {{result.get('context_aware', False)}}")
         else:
-            print("[FAIL] Implementation failed")
+            print(f"[FAIL] ❌ Implementation failed: {{result['message']}}")
 
     except Exception as e:
         print(f"[ERROR] Main execution failed: {{e}}")
@@ -3771,35 +3787,141 @@ if __name__ == "__main__":
     main()
 '''
 
+        # Generate unit tests separately if requested
+        unit_tests = ""
         if has_tests:
-            code += '''
-
-# Unit Tests (Generated based on prompt requirements)
+            unit_tests = f'''# Unit Tests
 import unittest
+from unittest.mock import patch, MagicMock
+import sys
+import os
+
+# Add the main module to path for testing
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+try:
+    from main_code import FeatureManager, RequirementImplementation
+except ImportError:
+    # Fallback if import fails
+    class FeatureManager:
+        def __init__(self):
+            pass
+        def implement_feature(self, data):
+            return {{"status": "success"}}
+        def validate_requirements(self, data):
+            return True
 
 class TestFeatureImplementation(unittest.TestCase):
+    """Comprehensive unit tests for FeatureManager"""
+
     def setUp(self):
+        """Set up test fixtures before each test method"""
         self.feature_manager = FeatureManager()
+        self.sample_requirement = {{
+            "id": "TEST-001",
+            "title": "Test Feature",
+            "description": "Test description"
+        }}
 
-    def test_feature_implementation(self):
-        """Test the main feature implementation"""
-        requirement_data = {"test": True}
-        result = self.feature_manager.implement_feature(requirement_data)
+    def test_feature_implementation_success(self):
+        """Test successful feature implementation"""
+        result = self.feature_manager.implement_feature(self.sample_requirement)
+
         self.assertEqual(result["status"], "success")
+        self.assertIn("feature_id", result)
+        self.assertTrue(result["implementation_complete"])
 
-    def test_requirement_validation(self):
-        """Test requirement validation"""
-        requirements = {"valid": True}
-        is_valid = self.feature_manager.validate_requirements(requirements)
+    def test_feature_implementation_with_invalid_data(self):
+        """Test feature implementation with invalid data"""
+        invalid_requirement = {{"invalid": "data"}}
+        result = self.feature_manager.implement_feature(invalid_requirement)
+
+        self.assertEqual(result["status"], "error")
+        self.assertIn("message", result)
+
+    def test_requirement_validation_valid(self):
+        """Test requirement validation with valid data"""
+        is_valid = self.feature_manager.validate_requirements(self.sample_requirement)
         self.assertTrue(is_valid)
 
+    def test_requirement_validation_invalid(self):
+        """Test requirement validation with invalid data"""
+        invalid_requirement = {{"missing": "required_fields"}}
+        is_valid = self.feature_manager.validate_requirements(invalid_requirement)
+        self.assertFalse(is_valid)
+
+    def test_requirement_validation_empty(self):
+        """Test requirement validation with empty data"""
+        empty_requirement = {{}}
+        is_valid = self.feature_manager.validate_requirements(empty_requirement)
+        self.assertFalse(is_valid)
+
+    @patch('logging.Logger.info')
+    def test_logging_behavior(self, mock_logger):
+        """Test that logging works correctly"""
+        self.feature_manager.implement_feature(self.sample_requirement)
+        mock_logger.assert_called()
+
+    def test_context_awareness(self):
+        """Test context-aware implementation"""
+        context_requirement = {{
+            "id": "CONTEXT-001",
+            "title": "Context Feature",
+            "context": "Additional context data"
+        }}
+
+        result = self.feature_manager.implement_feature(context_requirement)
+        self.assertTrue(result.get("context_aware", False))
+
+    def tearDown(self):
+        """Clean up after each test method"""
+        self.feature_manager = None
+
+class TestRequirementImplementation(unittest.TestCase):
+    """Unit tests for RequirementImplementation dataclass"""
+
+    def test_requirement_creation(self):
+        """Test creation of RequirementImplementation"""
+        req = RequirementImplementation(
+            requirement_id="REQ-TEST-001",
+            implementation_status="testing"
+        )
+
+        self.assertEqual(req.requirement_id, "REQ-TEST-001")
+        self.assertEqual(req.implementation_status, "testing")
+
+    def test_requirement_default_status(self):
+        """Test default implementation status"""
+        req = RequirementImplementation(requirement_id="REQ-DEFAULT")
+        self.assertEqual(req.implementation_status, "ready")
+
 if __name__ == "__main__":
-    unittest.main()
+    # Configure test runner
+    unittest.main(verbosity=2, exit=False)
+
+    # Additional test summary
+    print("\\n" + "="*50)
+    print("Unit Test Execution Complete")
+    print("="*50)
 '''
+
+        # CRITICAL FIX: Return the code with proper separation markers
+        if has_tests:
+            # Combine main code and tests with clear separation
+            combined_code = main_code + "\n\n" + "# " + "=" * 60 + "\n" + unit_tests
+        else:
+            combined_code = main_code
+
+        return [{
+            'file_name': 'feature_implementation.py',
+            'generated_code': combined_code,
+            'story_id': 'JIRA-001',
+            'story_title': 'Feature Implementation'
+        }]
 
     else:
         # Generic code for other workflow types
-        code = f'''"""
+        main_code = f'''"""
 Generated Code for {workflow_type.title()} Workflow
 Auto-generated on: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 Based on LLaMA processed prompt
@@ -3833,31 +3955,868 @@ class {workflow_type.title()}Implementation:
             return result
 
         except Exception as e:
-            self.logger.error(f"Execution failed: {{e}}")
-            {"return {'status': 'error', 'message': str(e)}" if has_error_handling else "raise"}
+            self.logger.error(f"Implementation failed: {{e}}")
+            return {{
+                "status": "error",
+                "message": str(e)
+            }}
 
 def main():
-    """Main entry point"""
+    """Main execution function"""
     implementation = {workflow_type.title()}Implementation()
     result = implementation.execute()
 
-    print(f"Result: {{result}}")
-
     if result["status"] == "success":
-        print("[PASS] Execution successful")
+        print(f"[PASS] ✅ {{result['message']}}")
     else:
-        print("[FAIL] Execution failed")
+        print(f"[FAIL] ❌ {{result['message']}}")
 
 if __name__ == "__main__":
     main()
 '''
 
-    return [{
-        'file_name': f'{workflow_type}_implementation.py',
-        'generated_code': code,
-        'story_id': f'{workflow_type}_001',
-        'story_title': f'{workflow_type.title()} Implementation'
-    }]
+        # Generate unit tests separately if requested
+        unit_tests = ""
+        if has_tests:
+            unit_tests = f'''# Unit Tests
+import unittest
+from unittest.mock import patch
+import sys
+import os
+
+# Add the main module to path for testing
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+try:
+    from main_code import {workflow_type.title()}Implementation
+except ImportError:
+    # Fallback if import fails
+    class {workflow_type.title()}Implementation:
+        def execute(self):
+            return {{"status": "success"}}
+
+class Test{workflow_type.title()}Implementation(unittest.TestCase):
+    """Unit tests for {workflow_type.title()}Implementation"""
+
+    def setUp(self):
+        """Set up test fixtures"""
+        self.implementation = {workflow_type.title()}Implementation()
+
+    def test_execution_success(self):
+        """Test successful execution"""
+        result = self.implementation.execute()
+        self.assertEqual(result["status"], "success")
+        self.assertIn("workflow_type", result)
+
+    def test_execution_workflow_type(self):
+        """Test correct workflow type"""
+        result = self.implementation.execute()
+        self.assertEqual(result["workflow_type"], "{workflow_type}")
+
+    @patch('logging.Logger.info')
+    def test_logging_occurs(self, mock_logger):
+        """Test that logging occurs during execution"""
+        self.implementation.execute()
+        mock_logger.assert_called()
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
+'''
+
+        # CRITICAL FIX: Return the code with proper separation markers
+        if has_tests:
+            # Combine main code and tests with clear separation
+            combined_code = main_code + "\n\n" + "# " + "=" * 60 + "\n" + unit_tests
+        else:
+            combined_code = main_code
+
+        return [{
+            'file_name': f'{workflow_type}_implementation.py',
+            'generated_code': combined_code,
+            'story_id': f'{workflow_type.upper()}-001',
+            'story_title': f'{workflow_type.title()} Implementation'
+        }]
+
+@app.route('/generate_app_code', methods=['POST'])
+def generate_application_code_enhanced():
+    """Enhanced application code generation - PRESERVES FALLBACK TO EXISTING MOCK CODE"""
+    global generatedApplicationCode
+
+    try:
+        print("[GENERATE_APP] Starting enhanced code generation")
+
+        # Get stored prompt and options (existing logic)
+        stored_prompt = session.get('stored_ai_prompt', '') or session.get('developer_prompt', '')
+        extracted_requirements = session.get('extracted_requirements', '')
+        workflow_type = session.get('workflow_type', 'jira')
+
+        if not stored_prompt:
+            return jsonify({
+                'success': False,
+                'message': 'No stored prompt found. Please ingest requirements first.'
+            })
+
+        print(f"[GENERATE_APP] Using stored prompt of length: {len(stored_prompt)}")
+        print(f"[GENERATE_APP] Workflow type: {workflow_type}")
+
+        # TRY ENHANCED AI GENERATION FIRST, FALLBACK TO EXISTING MOCK CODE
+        if AI_GENERATOR_AVAILABLE:
+            try:
+                generated_code = generate_code_with_enhanced_ai(stored_prompt, workflow_type)
+                ai_backend_used = AI_CONFIG['backend']
+                print(f"[GENERATE_APP] ✅ Used enhanced AI generation with {ai_backend_used}")
+            except Exception as e:
+                print(f"[GENERATE_APP] ⚠️ Enhanced AI failed, falling back to existing mock: {e}")
+                generated_code = generate_code_from_prompt(stored_prompt, workflow_type)  # EXISTING FUNCTION
+                ai_backend_used = 'fallback'
+        else:
+            print("[GENERATE_APP] ⚠️ Enhanced AI not available, using existing mock generation")
+            generated_code = generate_code_from_prompt(stored_prompt, workflow_type)  # EXISTING FUNCTION
+            ai_backend_used = 'mock'
+
+        # Store generated code globally for review function (existing logic)
+        generatedApplicationCode = generated_code
+
+        print(f"[GENERATE_APP] Generated {len(generated_code)} code files")
+
+        return jsonify({
+            'success': True,
+            'generated_code': generated_code,
+            'workflow_type': workflow_type,
+            'prompt_used': len(stored_prompt),
+            'extracted_requirements': extracted_requirements,
+            'ai_backend': ai_backend_used,
+            'message': f'Successfully generated code for {workflow_type} workflow'
+        })
+
+    except Exception as e:
+        print(f"[ERROR] Code generation failed: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Code generation error: {str(e)}'
+        })
+
+
+# 4. ADD NEW HELPER FUNCTIONS (don't replace existing ones)
+def generate_code_with_enhanced_ai(prompt, workflow_type):
+    """Generate code using enhanced AI - NEW FUNCTION"""
+    try:
+        print(f"[AI_GEN] Starting enhanced AI code generation for {workflow_type}")
+
+        # Get generation options from the stored prompt
+        generation_options = extract_generation_options_from_prompt(prompt)
+
+        # Get codebase context if available and requested
+        codebase_context = None
+        if generation_options.get('use_libraries') or generation_options.get('follow_patterns'):
+            codebase_context = get_current_codebase_context()
+
+        # Enhance prompt with codebase context if available
+        enhanced_prompt = enhance_prompt_with_context(prompt, codebase_context, generation_options)
+
+        # Initialize the AI generator
+        generator = EnhancedCodeGenerator(mode='developer', ai_backend=AI_CONFIG['backend'])
+
+        # Prepare generation data
+        generation_data = {
+            'prompt': enhanced_prompt,
+            'include_tests': generation_options.get('include_tests', True),
+            'workflow_type': workflow_type
+        }
+
+        # Generate code
+        result = generator.generate_application_code(generation_data, codebase_context, generation_options)
+
+        print(f"[AI_GEN] ✅ Successfully generated {len(result)} files using enhanced AI")
+        return result
+
+    except Exception as e:
+        print(f"[AI_GEN] ❌ Enhanced AI generation failed: {e}")
+        raise  # Re-raise to trigger fallback
+
+'''
+def enhance_prompt_with_context(prompt, codebase_context, generation_options):
+    """Enhance the prompt with codebase context - NEW FUNCTION"""
+    enhanced_prompt = prompt
+
+    # Add codebase context if available and requested
+    if codebase_context and (generation_options.get('use_libraries') or generation_options.get('follow_patterns')):
+        context_info = f"""
+
+=== CODEBASE CONTEXT ===
+The following information is from the synced codebase:
+
+Available Libraries:
+{', '.join(codebase_context.get('imports', [])[:20])}
+
+Common Patterns:
+{json.dumps(codebase_context.get('patterns', {}), indent=2)[:500]}...
+
+Utility Functions Available:
+{len(codebase_context.get('functions', {}))} functions found in codebase
+
+"""
+        enhanced_prompt += context_info
+        print(f"[CONTEXT] Added {len(context_info)} characters of codebase context")
+
+    # Add specific instructions based on generation options
+    instructions = []
+    if generation_options.get('use_libraries'):
+        instructions.append("- IMPORTANT: Use existing libraries from the codebase context above")
+    if generation_options.get('follow_patterns'):
+        instructions.append("- IMPORTANT: Follow the patterns found in the codebase context")
+    if generation_options.get('include_errors'):
+        instructions.append("- IMPORTANT: Include comprehensive error handling and validation")
+    if generation_options.get('generate_docs'):
+        instructions.append("- IMPORTANT: Generate detailed documentation and docstrings")
+
+    if instructions:
+        enhanced_prompt += f"\n\n=== SPECIAL INSTRUCTIONS ===\n" + "\n".join(instructions)
+
+    return enhanced_prompt
+'''
+
+
+# CRITICAL FIX: Update enhance_prompt_with_context in app.py to properly structure prompts
+
+def enhance_prompt_with_context(prompt, codebase_context, generation_options):
+    """Enhance the prompt with codebase context - FIXED FOR UNIT TEST GENERATION"""
+
+    # CRITICAL FIX: Start with clear AI instructions BEFORE adding context
+    enhanced_prompt = f"""You are an expert Python developer. Your task is to generate production-ready code.
+
+=== PRIMARY REQUIREMENTS ===
+{prompt}
+
+"""
+
+    # CRITICAL: Add unit test requirement PROMINENTLY if checkbox is checked
+    if generation_options.get('includeTests'):
+        enhanced_prompt += """
+=== MANDATORY UNIT TEST REQUIREMENT ===
+🚨 CRITICAL: You MUST generate comprehensive unit tests in addition to the main code.
+
+Structure your response as follows:
+1. First, write the main implementation code
+2. Then add this EXACT separator: # ============================================================
+3. Then add this EXACT header: # Unit Tests
+4. Then write comprehensive unit tests using unittest framework
+
+This is MANDATORY - do not skip the unit tests even if you have codebase context to analyze.
+
+"""
+
+    # Add other generation requirements
+    if generation_options.get('generateDocs'):
+        enhanced_prompt += "- Generate detailed documentation with docstrings and comments\n"
+    if generation_options.get('includeErrors'):
+        enhanced_prompt += "- Include comprehensive error handling and validation\n"
+    if generation_options.get('performanceOpt'):
+        enhanced_prompt += "- Optimize for performance and efficiency\n"
+
+    # NOW add codebase context (but make it secondary to unit test requirement)
+    if codebase_context and (generation_options.get('useLibraries') or generation_options.get('followPatterns')):
+
+        # CRITICAL: Make codebase context more concise to not overwhelm the AI
+        enhanced_prompt += f"""
+
+=== EXISTING CODEBASE REFERENCE ===
+Use the following existing code as reference, but remember to generate unit tests as required above.
+
+Available Libraries:
+{', '.join(codebase_context.get('imports', [])[:10])}
+
+Key Functions to Reference:
+"""
+
+        # REDUCED: Only show top 5 most relevant functions (not 15)
+        functions_items = list(codebase_context.get('functions', {}).items())[:5]
+        for func_name, func_info in functions_items:
+            enhanced_prompt += f"\n- {func_name}() in {func_info['file']}: {func_info['docstring'][:100]}...\n"
+
+        # REDUCED: Only show top 3 classes (not 8)
+        if codebase_context.get('classes'):
+            enhanced_prompt += f"\nKey Classes to Reference:\n"
+            classes_items = list(codebase_context.get('classes', {}).items())[:3]
+            for class_name, class_info in classes_items:
+                enhanced_prompt += f"- {class_name} in {class_info['file']}: {class_info['docstring'][:100]}...\n"
+
+        enhanced_prompt += f"""
+Instructions for using codebase:
+- Follow the same coding patterns and style as existing code
+- Use existing functions when appropriate - don't reinvent the wheel
+- Maintain consistency with existing architecture
+"""
+
+    # CRITICAL: Reinforce unit test requirement at the end
+    if generation_options.get('includeTests'):
+        enhanced_prompt += f"""
+
+=== FINAL REMINDER ===
+🚨 DO NOT FORGET: After implementing the main code, you MUST add:
+# ============================================================
+# Unit Tests
+
+Then write comprehensive unit tests using unittest framework. This is mandatory regardless of codebase complexity.
+"""
+
+    # Add specific instructions for codebase options
+    if generation_options.get('useLibraries'):
+        enhanced_prompt += "\n- IMPORTANT: Use existing libraries from the codebase context above"
+    if generation_options.get('followPatterns'):
+        enhanced_prompt += "\n- IMPORTANT: Follow the patterns found in the codebase context"
+
+    print(f"[CONTEXT] Enhanced prompt length: {len(enhanced_prompt)} characters")
+    if generation_options.get('includeTests'):
+        print(f"[CONTEXT] ✅ Unit test instructions added prominently")
+
+    return enhanced_prompt
+
+
+def extract_generation_options_from_prompt(prompt):
+    """Extract generation options from the prompt content - NEW FUNCTION"""
+    options = {
+        'include_tests': 'Include comprehensive unit tests' in prompt or 'unit tests' in prompt.lower(),
+        'generate_docs': 'Generate detailed documentation' in prompt or 'documentation' in prompt.lower(),
+        'use_libraries': 'Use existing libraries' in prompt or 'existing libraries' in prompt.lower(),
+        'follow_patterns': 'Follow established project patterns' in prompt or 'project patterns' in prompt.lower(),
+        'include_errors': 'Include robust error handling' in prompt or 'error handling' in prompt.lower(),
+        'performance_opt': 'performance' in prompt.lower() or 'optimize' in prompt.lower()
+    }
+
+    print(f"[OPTIONS] Extracted generation options: {options}")
+    return options
+
+
+def get_current_codebase_context():
+    """Get the current codebase context - NEW FUNCTION (reuses existing logic)"""
+    try:
+        codebase_id = session.get('current_codebase_id')
+        if not codebase_id:
+            print("[CONTEXT] No codebase context available")
+            return None
+
+        # Load from persistent storage (reuses existing function)
+        context = get_relevant_codebase_context(codebase_id, 'developer')
+        if context:
+            # Parse the context string back to dict if needed
+            try:
+                import json
+                # If context is a string, try to parse relevant parts
+                if isinstance(context, str):
+                    # Extract structured data from context string
+                    context_dict = {
+                        'imports': [],
+                        'patterns': {},
+                        'functions': {}
+                    }
+                    # This is a simplified parser - enhance as needed
+                    return context_dict
+                else:
+                    return context
+            except:
+                return None
+
+        print(f"[CONTEXT] Loaded codebase context for {codebase_id}")
+        return context
+
+    except Exception as e:
+        print(f"[CONTEXT] Failed to load codebase context: {e}")
+        return None
+
+@app.route('/debug_codebase_context', methods=['GET'])
+def debug_codebase_context():
+    """Debug route to check current codebase context"""
+    try:
+        codebase_id = session.get('current_codebase_id')
+        has_context = session.get('codebase_context') is not None
+
+        if codebase_id:
+            context = get_relevant_codebase_context(codebase_id, 'debug')
+            context_length = len(context)
+        else:
+            context = "No codebase context available"
+            context_length = 0
+
+        return jsonify({
+            'success': True,
+            'codebase_id': codebase_id,
+            'has_session_context': has_context,
+            'context_preview': context[:500] + "..." if len(context) > 500 else context,
+            'context_length': context_length,
+            'session_keys': list(session.keys())
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
+
+# 5. ADD AI BACKEND STATUS ENDPOINT (completely new)
+@app.route('/ai_backend_status', methods=['GET'])
+def ai_backend_status():
+    """Check the status of available AI backends - NEW ENDPOINT"""
+    try:
+        status = {
+            'ai_generator_available': AI_GENERATOR_AVAILABLE,
+            'backend_config': AI_CONFIG,
+            'backends': {}
+        }
+
+        if AI_GENERATOR_AVAILABLE:
+            # Test Ollama connection
+            try:
+                import requests
+                response = requests.get(f"{AI_CONFIG['ollama_url']}/api/tags", timeout=5)
+                if response.status_code == 200:
+                    models = response.json().get('models', [])
+                    status['backends']['ollama'] = {
+                        'available': True,
+                        'models': [model['name'] for model in models],
+                        'url': AI_CONFIG['ollama_url']
+                    }
+                else:
+                    status['backends']['ollama'] = {'available': False, 'error': 'Not responding'}
+            except Exception as e:
+                status['backends']['ollama'] = {'available': False, 'error': str(e)}
+
+            # Llama2 status (basic check)
+            status['backends']['llama2'] = {
+                'available': True,  # Assume available if generator is imported
+                'note': 'Requires significant memory and setup time'
+            }
+
+        return jsonify({
+            'success': True,
+            'status': status
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
+
+# 6. ADD CONFIGURATION ENDPOINT (completely new)
+@app.route('/configure_ai_backend', methods=['POST'])
+def configure_ai_backend():
+    """Configure AI backend settings - NEW ENDPOINT"""
+    try:
+        data = request.get_json()
+
+        if 'backend' in data and data['backend'] in ['auto', 'ollama', 'llama2']:
+            AI_CONFIG['backend'] = data['backend']
+
+        if 'ollama_url' in data:
+            AI_CONFIG['ollama_url'] = data['ollama_url']
+
+        if 'ollama_model' in data:
+            AI_CONFIG['ollama_model'] = data['ollama_model']
+
+        return jsonify({
+            'success': True,
+            'message': 'AI backend configuration updated',
+            'config': AI_CONFIG
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
+def build_enhanced_ai_prompt_with_options(data):
+    """Enhanced version of build_enhanced_ai_prompt with generation options support"""
+    # Get your existing prompt building logic
+    original_prompt = data.get('originalPrompt', '')
+    workflow_type = data.get('workflowType', 'jira')
+    generation_options = data.get('generationOptions', {})
+
+    # Start with basic prompt (preserve existing logic)
+    if original_prompt:
+        prompt = original_prompt
+    else:
+        prompt = f"""You are an expert software developer working on a {workflow_type} workflow.
+
+Generate production-ready code that implements the requirements.
+Include proper error handling, documentation, and follows best practices.
+"""
+
+    # Add generation options to prompt
+    if generation_options.get('includeTests'):
+        prompt += "\n- Include comprehensive unit tests with good coverage"
+    if generation_options.get('generateDocs'):
+        prompt += "\n- Generate detailed documentation with docstrings and comments"
+    if generation_options.get('useLibraries'):
+        prompt += "\n- Utilize existing libraries and frameworks when appropriate"
+    if generation_options.get('followPatterns'):
+        prompt += "\n- Follow established project patterns and coding standards"
+    if generation_options.get('includeErrors'):
+        prompt += "\n- Include robust error handling and validation"
+    if generation_options.get('performanceOpt'):
+        prompt += "\n- Optimize for performance and efficiency"
+
+    # Add enhanced codebase context if available (preserve existing logic)
+    codebase_id = session.get('current_codebase_id')
+    if codebase_id and (generation_options.get('useLibraries') or generation_options.get('followPatterns')):
+        print(f"[PROMPT] Building enhanced prompt with codebase context: {codebase_id}")
+        context = get_relevant_codebase_context(codebase_id, workflow_type)
+        if context:
+            prompt += context
+            print(f"[PROMPT] Added {len(context)} characters of codebase context")
+
+    return prompt
+
+def generate_code_from_prompt(prompt, workflow_type):
+    """
+    Generate code using the LLaMA model with the provided prompt
+    This is where you'll integrate with your actual LLaMA model
+    """
+
+    # Extract some context from the prompt for the sample
+    has_tests = 'Include comprehensive unit tests' in prompt
+    has_docs = 'Generate detailed documentation' in prompt
+    has_error_handling = 'Include robust error handling' in prompt
+
+    # For now, generate sample code based on workflow type and prompt content
+    if workflow_type == 'jira':
+        # Generate main application code
+        main_code = f'''"""
+Generated Code for JIRA User Story
+Auto-generated on: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+Based on processed requirements and LLaMA prompt
+"""
+
+import logging
+from typing import Dict, Any, Optional
+from dataclasses import dataclass
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+@dataclass
+class RequirementImplementation:
+    """Implementation based on processed user requirements"""
+    requirement_id: str
+    implementation_status: str = "ready"
+
+class FeatureManager:
+    """Manages feature implementation based on user story requirements"""
+
+    def __init__(self):
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.requirements: Dict[str, RequirementImplementation] = {{}}
+
+    def implement_feature(self, requirement_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Main implementation method based on user story requirements
+        """
+        try:
+            self.logger.info("Starting feature implementation")
+
+            # Validate requirements
+            if not self.validate_requirements(requirement_data):
+                return {{"status": "error", "message": "Invalid requirements"}}
+
+            # Process implementation
+            result = {{
+                "status": "success",
+                "feature_id": requirement_data.get("id", "unknown"),
+                "implementation_complete": True,
+                "context_aware": True if 'context' in requirement_data else False
+            }}
+
+            self.logger.info("Feature implementation completed successfully")
+            return result
+
+        except Exception as e:
+            self.logger.error(f"Implementation failed: {{e}}")
+            return {{"status": "error", "message": str(e)}}
+
+    def validate_requirements(self, requirements: Dict[str, Any]) -> bool:
+        """Validate requirement data structure"""
+        required_fields = ["id", "title"]
+        return all(field in requirements for field in required_fields)
+
+def main():
+    """Main execution function"""
+    try:
+        manager = FeatureManager()
+        sample_requirement = {{
+            "id": "REQ-001",
+            "title": "Sample Feature",
+            "context": "User story implementation"
+        }}
+
+        result = manager.implement_feature(sample_requirement)
+
+        if result["status"] == "success":
+            print("[PASS] ✅ Feature implementation completed successfully")
+            print(f"🎯 Feature ID: {{sample_requirement['id']}}")
+            print(f"🔗 Context aware: {{result.get('context_aware', False)}}")
+        else:
+            print(f"[FAIL] ❌ Implementation failed: {{result['message']}}")
+
+    except Exception as e:
+        print(f"[ERROR] Main execution failed: {{e}}")
+
+if __name__ == "__main__":
+    main()
+'''
+
+        # Generate unit tests separately if requested
+        unit_tests = ""
+        if has_tests:
+            unit_tests = f'''# Unit Tests
+import unittest
+from unittest.mock import patch, MagicMock
+import sys
+import os
+
+# Add the main module to path for testing
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+try:
+    from main_code import FeatureManager, RequirementImplementation
+except ImportError:
+    # Fallback if import fails
+    class FeatureManager:
+        def __init__(self):
+            pass
+        def implement_feature(self, data):
+            return {{"status": "success"}}
+        def validate_requirements(self, data):
+            return True
+
+class TestFeatureImplementation(unittest.TestCase):
+    """Comprehensive unit tests for FeatureManager"""
+
+    def setUp(self):
+        """Set up test fixtures before each test method"""
+        self.feature_manager = FeatureManager()
+        self.sample_requirement = {{
+            "id": "TEST-001",
+            "title": "Test Feature",
+            "description": "Test description"
+        }}
+
+    def test_feature_implementation_success(self):
+        """Test successful feature implementation"""
+        result = self.feature_manager.implement_feature(self.sample_requirement)
+
+        self.assertEqual(result["status"], "success")
+        self.assertIn("feature_id", result)
+        self.assertTrue(result["implementation_complete"])
+
+    def test_feature_implementation_with_invalid_data(self):
+        """Test feature implementation with invalid data"""
+        invalid_requirement = {{"invalid": "data"}}
+        result = self.feature_manager.implement_feature(invalid_requirement)
+
+        self.assertEqual(result["status"], "error")
+        self.assertIn("message", result)
+
+    def test_requirement_validation_valid(self):
+        """Test requirement validation with valid data"""
+        is_valid = self.feature_manager.validate_requirements(self.sample_requirement)
+        self.assertTrue(is_valid)
+
+    def test_requirement_validation_invalid(self):
+        """Test requirement validation with invalid data"""
+        invalid_requirement = {{"missing": "required_fields"}}
+        is_valid = self.feature_manager.validate_requirements(invalid_requirement)
+        self.assertFalse(is_valid)
+
+    def test_requirement_validation_empty(self):
+        """Test requirement validation with empty data"""
+        empty_requirement = {{}}
+        is_valid = self.feature_manager.validate_requirements(empty_requirement)
+        self.assertFalse(is_valid)
+
+    @patch('logging.Logger.info')
+    def test_logging_behavior(self, mock_logger):
+        """Test that logging works correctly"""
+        self.feature_manager.implement_feature(self.sample_requirement)
+        mock_logger.assert_called()
+
+    def test_context_awareness(self):
+        """Test context-aware implementation"""
+        context_requirement = {{
+            "id": "CONTEXT-001",
+            "title": "Context Feature",
+            "context": "Additional context data"
+        }}
+
+        result = self.feature_manager.implement_feature(context_requirement)
+        self.assertTrue(result.get("context_aware", False))
+
+    def tearDown(self):
+        """Clean up after each test method"""
+        self.feature_manager = None
+
+class TestRequirementImplementation(unittest.TestCase):
+    """Unit tests for RequirementImplementation dataclass"""
+
+    def test_requirement_creation(self):
+        """Test creation of RequirementImplementation"""
+        req = RequirementImplementation(
+            requirement_id="REQ-TEST-001",
+            implementation_status="testing"
+        )
+
+        self.assertEqual(req.requirement_id, "REQ-TEST-001")
+        self.assertEqual(req.implementation_status, "testing")
+
+    def test_requirement_default_status(self):
+        """Test default implementation status"""
+        req = RequirementImplementation(requirement_id="REQ-DEFAULT")
+        self.assertEqual(req.implementation_status, "ready")
+
+if __name__ == "__main__":
+    # Configure test runner
+    unittest.main(verbosity=2, exit=False)
+
+    # Additional test summary
+    print("\\n" + "="*50)
+    print("Unit Test Execution Complete")
+    print("="*50)
+'''
+
+        # CRITICAL FIX: Return the code with proper separation markers
+        if has_tests:
+            # Combine main code and tests with clear separation
+            combined_code = main_code + "\n\n" + "# " + "=" * 60 + "\n" + unit_tests
+        else:
+            combined_code = main_code
+
+        return [{
+            'file_name': 'feature_implementation.py',
+            'generated_code': combined_code,
+            'story_id': 'JIRA-001',
+            'story_title': 'Feature Implementation'
+        }]
+
+    else:
+        # Generic code for other workflow types
+        main_code = f'''"""
+Generated Code for {workflow_type.title()} Workflow
+Auto-generated on: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+Based on LLaMA processed prompt
+"""
+
+import logging
+from typing import Dict, Any
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class {workflow_type.title()}Implementation:
+    """Implementation based on {workflow_type} workflow requirements"""
+
+    def __init__(self):
+        self.logger = logging.getLogger(self.__class__.__name__)
+
+    def execute(self) -> Dict[str, Any]:
+        """Execute the implementation based on processed prompt"""
+        try:
+            self.logger.info("Executing {workflow_type} implementation")
+
+            # Implementation logic based on your specific prompt
+            result = {{
+                "status": "success",
+                "workflow_type": "{workflow_type}",
+                "message": "Implementation completed based on LLaMA prompt"
+            }}
+
+            return result
+
+        except Exception as e:
+            self.logger.error(f"Implementation failed: {{e}}")
+            return {{
+                "status": "error",
+                "message": str(e)
+            }}
+
+def main():
+    """Main execution function"""
+    implementation = {workflow_type.title()}Implementation()
+    result = implementation.execute()
+
+    if result["status"] == "success":
+        print(f"[PASS] ✅ {{result['message']}}")
+    else:
+        print(f"[FAIL] ❌ {{result['message']}}")
+
+if __name__ == "__main__":
+    main()
+'''
+
+        # Generate unit tests separately if requested
+        unit_tests = ""
+        if has_tests:
+            unit_tests = f'''# Unit Tests
+import unittest
+from unittest.mock import patch
+import sys
+import os
+
+# Add the main module to path for testing
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+try:
+    from main_code import {workflow_type.title()}Implementation
+except ImportError:
+    # Fallback if import fails
+    class {workflow_type.title()}Implementation:
+        def execute(self):
+            return {{"status": "success"}}
+
+class Test{workflow_type.title()}Implementation(unittest.TestCase):
+    """Unit tests for {workflow_type.title()}Implementation"""
+
+    def setUp(self):
+        """Set up test fixtures"""
+        self.implementation = {workflow_type.title()}Implementation()
+
+    def test_execution_success(self):
+        """Test successful execution"""
+        result = self.implementation.execute()
+        self.assertEqual(result["status"], "success")
+        self.assertIn("workflow_type", result)
+
+    def test_execution_workflow_type(self):
+        """Test correct workflow type"""
+        result = self.implementation.execute()
+        self.assertEqual(result["workflow_type"], "{workflow_type}")
+
+    @patch('logging.Logger.info')
+    def test_logging_occurs(self, mock_logger):
+        """Test that logging occurs during execution"""
+        self.implementation.execute()
+        mock_logger.assert_called()
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
+'''
+
+        # CRITICAL FIX: Return the code with proper separation markers
+        if has_tests:
+            # Combine main code and tests with clear separation
+            combined_code = main_code + "\n\n" + "# " + "=" * 60 + "\n" + unit_tests
+        else:
+            combined_code = main_code
+
+        return [{
+            'file_name': f'{workflow_type}_implementation.py',
+            'generated_code': combined_code,
+            'story_id': f'{workflow_type.upper()}-001',
+            'story_title': f'{workflow_type.title()} Implementation'
+        }]
 
 def generate_code_for_story(story, context):
     """Generate code for a single user story using enhanced LLaMA"""
@@ -4128,6 +5087,7 @@ def get_current_context():
 
 
 # FIND your upload_codebase route in app.py and REPLACE it with this:
+'''
 @app.route('/upload_codebase', methods=['POST'])
 def upload_codebase():
     """Handle separate codebase upload"""
@@ -4195,6 +5155,255 @@ def upload_codebase():
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'message': f'Codebase upload error: {str(e)}'})
+'''
+
+
+@app.route('/upload_codebase', methods=['POST'])
+def upload_codebase_enhanced():
+    """Enhanced codebase upload with full code context storage - FIXED cookie issue"""
+    try:
+        if 'codebase' not in request.files:
+            return jsonify({'success': False, 'message': 'No codebase file provided'})
+
+        file = request.files['codebase']
+        if file.filename == '':
+            return jsonify({'success': False, 'message': 'No file selected'})
+
+        if file and file.filename.endswith('.zip'):
+            filename = secure_filename(file.filename)
+            codebase_name = filename.replace('.zip', '')
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
+
+            # Extract and analyze with full context
+            with tempfile.TemporaryDirectory() as temp_dir:
+                try:
+                    with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                        zip_ref.extractall(temp_dir)
+
+                    print(f"[INFO] Extracted ZIP to: {temp_dir}")
+
+                    # Use enhanced analyzer
+                    analyzer = EnhancedCodebaseAnalyzer()
+                    full_analysis = analyzer.analyze_with_full_context(temp_dir)
+
+                    # Store the full analysis persistently
+                    codebase_id = f"{codebase_name}_{int(time.time())}"
+                    storage_path = store_codebase_permanently(codebase_id, full_analysis)
+
+                    # FIXED: Only store essential data in session, not the full analysis
+                    session['current_codebase_id'] = codebase_id
+                    session['codebase_name'] = codebase_name
+                    session['codebase_storage_path'] = storage_path
+                    # DON'T store the full analysis in session - it's too big!
+                    # session['codebase_context'] = full_analysis  # REMOVE THIS LINE
+
+                    print(f"[INFO] Stored codebase permanently at: {storage_path}")
+                    print(f"[INFO] Analysis: {len(full_analysis['functions'])} functions, {len(full_analysis['classes'])} classes")
+
+                    # Create a summary for the response (not stored in session)
+                    context_summary = {
+                        'libraries_count': len(full_analysis['imports']),
+                        'functions_count': len(full_analysis['functions']),
+                        'classes_count': len(full_analysis['classes']),
+                        'files_count': len(full_analysis['files']),
+                        'patterns': list(full_analysis['patterns'].keys())
+                    }
+
+                    # Return lightweight response data
+                    return jsonify({
+                        'success': True,
+                        'message': 'Codebase uploaded and analyzed with full context',
+                        'codebase_id': codebase_id,
+                        'context_info': context_summary,
+                        # Return just the counts and names, not the full data
+                        'libraries': full_analysis['imports'][:50],  # Limit to first 50
+                        'functions': {name: {'file': info['file'], 'line': info['line'], 'docstring': info['docstring'][:100]}
+                                    for name, info in list(full_analysis['functions'].items())[:20]},  # Limit and truncate
+                        'classes': {name: {'file': info['file'], 'line': info['line'], 'methods': list(info['methods'].keys())}
+                                  for name, info in list(full_analysis['classes'].items())[:10]}  # Limit
+                    })
+
+                except Exception as e:
+                    return jsonify({
+                        'success': False,
+                        'message': f'Failed to process codebase: {str(e)}'
+                    })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Upload failed: {str(e)}'
+        })
+
+
+def store_codebase_permanently(codebase_id, analysis_data):
+    """Store codebase analysis permanently"""
+    storage_dir = os.path.join(os.getcwd(), '..', 'codebases', codebase_id)
+    os.makedirs(storage_dir, exist_ok=True)
+
+    # Store full analysis
+    analysis_file = os.path.join(storage_dir, 'full_analysis.json')
+    with open(analysis_file, 'w') as f:
+        json.dump(analysis_data, f, indent=2)
+
+    return storage_dir
+
+
+# UPDATED: Modified build_enhanced_ai_prompt to work with file-based storage
+def build_enhanced_ai_prompt(data):
+    """Build AI prompt with full codebase context - FIXED to use file storage"""
+    # Build basic prompt first
+    original_prompt = data.get('originalPrompt', '')
+    workflow_type = data.get('workflowType', 'jira')
+
+    prompt = original_prompt if original_prompt else f"""You are an expert software developer working on a {workflow_type} workflow.
+
+Generate production-ready code that implements the requirements.
+Include proper error handling, documentation, and follows best practices.
+"""
+
+    # Add enhanced codebase context if available
+    codebase_id = session.get('current_codebase_id')
+    if codebase_id:
+        print(f"[PROMPT] Building enhanced prompt with codebase context: {codebase_id}")
+        context = get_relevant_codebase_context(codebase_id, workflow_type)
+        if context:
+            prompt += context
+            print(f"[PROMPT] Added {len(context)} characters of codebase context")
+        else:
+            print(f"[PROMPT] No context loaded for codebase: {codebase_id}")
+    else:
+        print(f"[PROMPT] No codebase context available in session")
+
+    return prompt
+
+'''
+def get_relevant_codebase_context(codebase_id, workflow_type):
+    """Get relevant code context for the specific workflow - FIXED to load from file"""
+    try:
+        # Load from persistent storage instead of session
+        storage_dir = os.path.join(os.getcwd(), '..', 'codebases', codebase_id)
+        analysis_file = os.path.join(storage_dir, 'full_analysis.json')
+
+        if not os.path.exists(analysis_file):
+            print(f"[WARNING] Analysis file not found: {analysis_file}")
+            return ""
+
+        print(f"[CONTEXT] Loading codebase context from: {analysis_file}")
+
+        with open(analysis_file, 'r') as f:
+            analysis = json.load(f)
+
+        context = "\n\n=== EXISTING CODEBASE CONTEXT ===\n"
+        context += f"Available for reuse and pattern matching:\n\n"
+
+        # Add relevant functions (limit to top 15 most relevant)
+        functions_items = list(analysis['functions'].items())
+        context += "EXISTING FUNCTIONS:\n"
+        for func_name, func_info in functions_items[:15]:  # Increased from 10 to 15
+            context += f"\nFunction: {func_name}\n"
+            context += f"File: {func_info['file']}\n"
+            context += f"Purpose: {func_info['docstring'][:150]}...\n"  # Increased from 100 to 150
+            context += f"Parameters: {', '.join(func_info['parameters'])}\n"
+            # Include more of the actual code for better context
+            func_code = func_info['code'][:800] + "..." if len(func_info['code']) > 800 else func_info['code']
+            context += f"Code:\n{func_code}\n"
+            context += "-" * 60 + "\n"
+
+        # Add relevant classes (limit to top 8)
+        if analysis['classes']:
+            classes_items = list(analysis['classes'].items())
+            context += "\nEXISTING CLASSES:\n"
+            for class_name, class_info in classes_items[:8]:  # Increased from 5 to 8
+                context += f"\nClass: {class_name}\n"
+                context += f"File: {class_info['file']}\n"
+                context += f"Purpose: {class_info['docstring'][:150]}...\n"  # Increased from 100 to 150
+                context += f"Methods: {', '.join(list(class_info['methods'].keys())[:10])}\n"  # Show up to 10 methods
+                # Include more class code
+                class_code = class_info['code'][:1000] + "..." if len(class_info['code']) > 1000 else class_info['code']
+                context += f"Code:\n{class_code}\n"
+                context += "-" * 60 + "\n"
+
+        # Add available libraries section
+        if analysis.get('imports'):
+            context += f"\nAVAILABLE LIBRARIES:\n"
+            context += f"Commonly used: {', '.join(analysis['imports'][:20])}\n\n"
+
+        context += "\nCONTEXT-AWARE INSTRUCTIONS:\n"
+        context += "1. Use existing functions when appropriate - don't reinvent the wheel\n"
+        context += "2. Follow the same coding patterns and style as existing code\n"
+        context += "3. Use the same error handling patterns shown above\n"
+        context += "4. Maintain consistency with existing architecture\n"
+        context += "5. Import and use existing classes when relevant\n"
+        context += "6. Follow the same naming conventions and docstring styles\n"
+        context += "7. Use the same logging and exception handling patterns\n\n"
+
+        print(
+            f"[CONTEXT] Generated context with {len(functions_items)} functions and {len(analysis.get('classes', {}))} classes")
+        print(f"[CONTEXT] Context length: {len(context)} characters")
+
+        return context
+
+    except Exception as e:
+        print(f"Error loading codebase context: {e}")
+        import traceback
+        traceback.print_exc()
+        return ""
+'''
+
+def get_relevant_codebase_context(codebase_id, workflow_type):
+    """Get relevant code context - REDUCED SIZE to not overwhelm AI"""
+    try:
+        # Load from persistent storage instead of session
+        storage_dir = os.path.join(os.getcwd(), '..', 'codebases', codebase_id)
+        analysis_file = os.path.join(storage_dir, 'full_analysis.json')
+
+        if not os.path.exists(analysis_file):
+            print(f"[WARNING] Analysis file not found: {analysis_file}")
+            return {}
+
+        print(f"[CONTEXT] Loading codebase context from: {analysis_file}")
+
+        with open(analysis_file, 'r') as f:
+            analysis = json.load(f)
+
+        # CRITICAL: Return structured data instead of massive text block
+        # This prevents overwhelming the AI with too much context
+        context = {
+            'imports': list(analysis.get('imports', []))[:20],  # Top 20 imports
+            'functions': {},
+            'classes': {},
+            'patterns': analysis.get('patterns', {})
+        }
+
+        # Add top 10 most relevant functions (reduced from 15)
+        functions_items = list(analysis.get('functions', {}).items())[:10]
+        for func_name, func_info in functions_items:
+            context['functions'][func_name] = {
+                'file': func_info['file'],
+                'docstring': func_info['docstring'][:200],  # Reduced size
+                'parameters': func_info['parameters']
+            }
+
+        # Add top 5 most relevant classes (reduced from 8)
+        if analysis.get('classes'):
+            classes_items = list(analysis.get('classes', {}).items())[:5]
+            for class_name, class_info in classes_items:
+                context['classes'][class_name] = {
+                    'file': class_info['file'],
+                    'docstring': class_info['docstring'][:200],  # Reduced size
+                    'methods': list(class_info.get('methods', {}).keys())[:5]  # Top 5 methods
+                }
+
+        print(
+            f"[CONTEXT] Loaded concise context: {len(context['functions'])} functions, {len(context['classes'])} classes")
+        return context
+
+    except Exception as e:
+        print(f"[ERROR] Failed to load codebase context: {e}")
+        return {}
+
 
 # Enhanced route for reviewing developer code
 @app.route('/review_app_code', methods=['POST'])
