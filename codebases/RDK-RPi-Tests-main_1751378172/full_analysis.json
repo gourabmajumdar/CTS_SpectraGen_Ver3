@@ -1,0 +1,1138 @@
+{
+  "files": {
+    "RDK-RPi-Tests-main/__init__.py": {
+      "content": "",
+      "size": 0,
+      "lines": 1
+    },
+    "RDK-RPi-Tests-main/Launcher.py": {
+      "content": "import subprocess\nimport os\n\ndef run_script(script_path):\n    \"\"\"Runs a Python script within the virtual environment.\"\"\"\n    try:\n        # Set environment variables for the virtual environment\n        venv_path = os.path.abspath(\"venv\")\n        python_path = os.path.join(venv_path, \"Lib\", \"site-packages\")\n        os.environ[\"PYTHONPATH\"] = python_path\n        os.environ[\"PATH\"] = os.pathsep.join([\n            os.path.join(venv_path, \"Scripts\"),\n            os.environ[\"PATH\"],\n        ])\n\n        subprocess.run([\"python3\", \"-m\", script_path], check=True)\n    except subprocess.CalledProcessError as e:\n        print(f\"Error running script {script_path}: {e}\")\n        exit(1)\n\ndef main():\n    # Construct the path RELATIVE to Laucher.py\n    main_script_path = \"scripts.Main\"  # No path needed, just the module name\n    run_script(main_script_path)\n\nif __name__ == \"__main__\":\n    main()\n",
+      "size": 893,
+      "lines": 28
+    },
+    "RDK-RPi-Tests-main/triggers/Laucher.py": {
+      "content": "import subprocess\nimport os\n\ndef run_script(script_path):\n    \"\"\"Runs a Python script.\"\"\"\n    try:\n        subprocess.run([\"python3\", \"-m\", script_path], check=True)  # Use -m for packages\n    except subprocess.CalledProcessError as e:\n        print(f\"Error running script {script_path}: {e}\")\n        exit(1)\n\ndef main():\n    # Construct the path RELATIVE to Laucher.py\n    main_script_path = \"scripts.Main\" # No path needed, just the module name\n    run_script(main_script_path)\n\nif __name__ == \"__main__\":\n    main()\n",
+      "size": 520,
+      "lines": 19
+    },
+    "RDK-RPi-Tests-main/tests/quick_test.py": {
+      "content": "def test_print_message():\n    message = \"Message from Quick Test - Integration of GitHub and Bamboo is successful!\"\n    print(message)\n    assert message == \"Message from Quick Test - Integration of GitHub and Bamboo is successful!\"\n\nif __name__ == \"__main__\":\n    test_print_message()",
+      "size": 285,
+      "lines": 7
+    },
+    "RDK-RPi-Tests-main/tests/qt.py": {
+      "content": "import pytest\n\ndef test_print_message():\n    message = \"Message from Quick Test - Integration of GitHub and Bamboo is successful!\"\n    print(message)\n    assert message == \"Message from Quick Test - Integration of GitHub and Bamboo is successful!\"\n\nif __name__ == \"__main__\":\n    pytest.main([\"-v\", \"--html=report.html\"])",
+      "size": 321,
+      "lines": 9
+    },
+    "RDK-RPi-Tests-main/tests/__init__.py": {
+      "content": "",
+      "size": 0,
+      "lines": 1
+    },
+    "RDK-RPi-Tests-main/tests/TC_Speedtest.py": {
+      "content": "import sys\nimport os\nimport inspect\nimport re\nimport utils\nfrom datetime import datetime\n\n# Add project root to Python path\nproject_root = os.path.abspath(os.path.join(os.path.dirname(__file__), \"..\"))\nif project_root not in sys.path:\n    sys.path.insert(0, project_root)\n\n# from utils import common_utils\n# from utils import constants\n\nfrom utils.common_utils import (\n    run_speedtest, format_speedtest_output, ssh_connect,\n    ssh_connection_check, parse_test_step, update_html_report\n)\nfrom utils.constants import HOSTNAME, USERNAME, PASSWORD\nimport unittest\n\n# Define the test class\nclass TestSpeedtest(unittest.TestCase):\n    \"\"\"<TEST_ID>TC_XB_SPEEDTEST_1001<TEST_ID>\n    <TEST_CASE_NAME> Test case for speedtest from cli <TEST_CASE_NAME>\n    <TEST_CASE_DESCRIPTION> To verify the speedtest from cli <TEST_CASE_DESCRIPTION>\"\"\"\n    \n    def __init__(self, *args, **kwargs):\n        super().__init__(*args, **kwargs)\n        self.test_steps = []\n        self.step_statuses = {}\n        self.report_path = None\n        \n    def collect_test_steps(self):\n        \"\"\"Collect all test steps from docstrings in the test class.\"\"\"\n        # Clear existing steps to prevent duplicates\n        self.test_steps = []\n        \n        # Process each method's docstring for test steps\n        for name, method in inspect.getmembers(self, predicate=inspect.ismethod):\n            if name in ['setUp', 'tearDown', 'test_remote_speedtest']:\n                print(f\"\\nProcessing {name} method...\")\n                doc = method.__doc__\n                if doc:\n                    # Get all test steps from the docstring\n                    step_list = parse_test_step(doc)\n                    if step_list:\n                        for step_info in step_list:\n                            step_info['method'] = name  # Tag with source method\n                            print(f\"Found test step {step_info['step']} in {name}\")\n                            self.test_steps.append(step_info)\n                        print(f\"Added all steps from {name}: {[s['step'] for s in step_list]}\")\n        \n        # Sort test steps by step number\n        self.test_steps.sort(key=lambda x: int(x['step']))\n        \n        # Initialize status for all steps\n        for step in self.test_steps:\n            step_num = str(step['step'])\n            if step_num not in self.step_statuses:\n                self.step_statuses[step_num] = \"Not Started\"\n                        \n    def update_step_status(self, step_num, status):\n        \"\"\"Update the status of a test step and refresh the report.\"\"\"\n        print(f\"Updating status for step {step_num} to {status}\")\n        print(f\"Current test steps: {[step['step'] for step in self.test_steps]}\")\n        print(f\"Current statuses before update: {self.step_statuses}\")\n        self.step_statuses[str(step_num)] = status\n        if self.report_path:\n            update_html_report(self.report_path, self.test_steps, self.step_statuses)\n        print(f\"Statuses after update: {self.step_statuses}\")\n\n    def setUp(self):\n        \"\"\"<TEST_STEP>1</TEST_STEP>\n        <TEST_STEP_DESCRIPTION>Verify SSH connection to the RDK-B device is successful\n        - Connect to device using provided credentials\n        - Verify SSH connection is active and responsive\n        Expected: Successful SSH connection to the RDK-B device<TEST_STEP_DESCRIPTION>\"\"\"\n        # Initialize test steps and report path\n        self.report_path = \"reports/test_report_\" + datetime.now().strftime(\"%Y%m%d_%H%M%S\") + \".html\"\n        self.collect_test_steps()\n        # Update initial status of the test step\n        status = \"failed\"\n        self.client = ssh_connect(HOSTNAME, USERNAME, PASSWORD)\n        if self.client:\n            ssh_connection_check(self.client)\n            status = \"passed\"\n        \n        self.update_step_status(1, status)\n\n    def tearDown(self):\n        \"\"\"<TEST_STEP>5</TEST_STEP>\n        <TEST_STEP_DESCRIPTION>Verify successfully closure of SSH connection to DUT \n        - Close SSH connection to RDK-B device\n        - Verify connection is properly terminated\n        Expected: SSH connection successfully closed<TEST_STEP_DESCRIPTION>\"\"\"\n        status = \"failed\"\n        if self.client:\n            self.client.close()\n            status = \"passed\"\n            # Reset client to None\n        self.update_step_status(5, status)\n        sys.stdout.flush()\n\n    def test_remote_speedtest(self):\n        \"\"\"Test Steps for Remote Speedtest\n\n        <TEST_STEP>2</TEST_STEP>\n        <TEST_STEP_DESCRIPTION>Verify whether speedtest command worked successfully\n        - Run speedtest via CLI\n        - Verify command execution successful\n        - Validate response format is correct\n        Expected: Speedtest results returned in valid dictionary format<TEST_STEP_DESCRIPTION>\n\n        <TEST_STEP>3</TEST_STEP>\n        <TEST_STEP_DESCRIPTION>Validate speedtest command populated all required metrics\n        - Verify all required metrics present (download, upload, host, ping)\n        - Confirm all values are in correct format\n        - Parse numerical values for performance validation\n        Expected: All metrics present and properly formatted</TEST_STEP_DESCRIPTION>\n\n        <TEST_STEP>4</TEST_STEP>\n        <TEST_STEP_DESCRIPTION>Verify performance metrics meets the requirements\n        - Download speed >= 150 Mbps\n        - Upload speed >= 25 Mbps\n        - Ping <= 50 ms\n        Expected: All performance metrics within acceptable thresholds</TEST_STEP_DESCRIPTION>\n        \"\"\"\n        # Step 2: Execute speedtest\n        status = \"failed\"\n        if not self.client:\n            self.skipTest(\"SSH connection failed, skipping remote speedtest.\")\n        results = run_speedtest(ssh_connection=self.client)\n        if self.assertIsInstance(results, dict):\n            status = \"passed\"\n        self.update_step_status(2, status)\n        \n        download_speed = None  # Initialize to None\n        upload_speed = None\n        ping = None\n\n        # Step 3: Validate results structure\n        status = \"failed\"\n        if not results:\n            print(\"No results to validate\")\n            self.fail(\"No speedtest results available\")\n        else:\n            try:\n                for key in [\"download\", \"upload\", \"host\", \"ping\"]:\n                    print(f\"Validating {key} metric...\")\n                    with self.subTest(key=key):\n                        print(f\"Checking if {key} exists in results\")\n                        self.assertIn(key, results)\n                        print(f\"Checking if {key} value is string type\")\n                        self.assertIsInstance(results[key], str)\n                        if key != \"host\":  # Skip host name\n                            try:\n                                print(f\"Attempting to parse {key} value: {results[key]}\")\n                                value = float(results[key].split()[0]) # Extract numerical part\n                                print(f\"Successfully parsed {key} value: {value}\")\n                                if key == \"download\":\n                                    download_speed = value\n                                elif key == \"upload\":\n                                    upload_speed = value\n                                elif key == \"ping\":\n                                    ping = value\n                            except (ValueError, IndexError) as e:\n                                print(f\"Error converting {key} value to float: {e}\")\n                                self.fail(f\"Could not convert {key} value to float: {e}\")\n                status = \"passed\"\n            except AssertionError as e:\n                print(f\"Validation failed: {e}\")\n                self.fail(f\"Speedtest result validation failed: {e}\")\n        self.update_step_status(3, status)\n\n        formatted_output = format_speedtest_output(results)\n        print(formatted_output)\n\n        \"\"\"<TEST_STEP>4</TEST_STEP>\n        <TEST_STEP_DESCRIPTION>Verify performance metrics meet requirements:\n        - Download speed >= 150 Mbps\n        - Upload speed >= 25 Mbps\n        - Ping <= 50 ms\n        Expected: All performance metrics within acceptable thresholds</TEST_STEP_DESCRIPTION>\"\"\"\n        status = \"failed\"  # Start with failed, change to passed only if all checks pass\n        \n        # Check if all required values are present\n        if any(v is None for v in [download_speed, upload_speed, ping]):\n            print(\"Missing required speed test metrics\")\n            self.fail(\"One or more speed test metrics are missing\")\n        else:\n            print(\"Starting performance threshold validation...\")\n            print(f\"Current values - Download: {download_speed} Mbps, Upload: {upload_speed} Mbps, Ping: {ping} ms\")\n            # All values present, check thresholds\n            all_passed = True\n            \n            print(f\"Checking download speed threshold (>= 150 Mbps)\")\n            if download_speed < 150:\n                print(f\"FAIL: Download speed {download_speed} Mbps is below minimum threshold of 150 Mbps\")\n                all_passed = False\n            else:\n                print(f\"PASS: Download speed {download_speed} Mbps meets minimum threshold of 150 Mbps\")\n\n            print(f\"Checking upload speed threshold (>= 25 Mbps)\")\n            if upload_speed < 25:\n                print(f\"FAIL: Upload speed {upload_speed} Mbps is below minimum threshold of 25 Mbps\")\n                all_passed = False\n            else:\n                print(f\"PASS: Upload speed {upload_speed} Mbps meets minimum threshold of 25 Mbps\")\n\n            print(f\"Checking ping threshold (<= 50 ms)\")\n            if ping > 50:\n                print(f\"FAIL: Ping {ping} ms exceeds maximum threshold of 50 ms\")\n                all_passed = False\n            else:\n                print(f\"PASS: Ping {ping} ms is within maximum threshold of 50 ms\")\n\n            if all_passed:\n                status = \"passed\"\n\n        self.update_step_status(4, status)\n        self.assertIsInstance(formatted_output, str)\n\nif __name__ == \"__main__\":\n    unittest.main()",
+      "size": 10071,
+      "lines": 226
+    },
+    "RDK-RPi-Tests-main/utils/constants.py": {
+      "content": "\"\"\"Constants used throughout the project\"\"\"\n\n# SSH connection details\nHOSTNAME = \"99.243.176.238\"  # From the test report environment details\nUSERNAME = \"root\"        # Default username for RDK-B devices\nPASSWORD = \"\"    # Default password, should be updated for actual deployment\n\n\"\"\" Constants for DMCLI commands \"\"\"\nDM_MD = \"Device.X_Comcast_com_ParentalControl.ManagedDevices\"\nDM_PC = \"Device.X_Comcast_com_ParentalControl.ManagedDevices.Device\"\nDM_HOST_NUMBER_OF_ENTRIES = \"Device.Hosts.HostNumberOfEntries\"\nDM_HOST = \"Device.Hosts.Host\"\n\nDM_SETV = \"dmcli eRT setv\"\nDM_GETV = \"dmcli eRT getv\"\nDM_RETV = \"dmcli eRT retv\"\n\n\"\"\" Constants\"\"\"\nHOST_TABLE_HOST_NAME = \"HostName\"\nHOST_TABLE_MAC_ADDRESS = \"PhysAddress\"\nPC_TABLE_HOST_NAME = \"Description\"\nPC_TABLE_MAC_ADDRESS = \"MACAddress\"\nPC_TABLE_ENABLE = \"Enable\"\nPC_TABLE_BLOCK = \"Block\"\nPC_TABLE_ALWAYS_BLOCK = \"AlwaysBlock\"\nPC_TABLE_START_TIME = \"StartTime\"\nPC_TABLE_END_TIME = \"EndTime\"\nPC_TABLE_BLOCK_DAYS = \"BlockDays\"\nPC_TABLE_BLOCK_DAYS_DEFAULT = \"Mon,Tue,Wed,Thu,Fri,Sat,Sun\"\nXb_UPTIME = \"uptime\"\nXb_VERSION = \"cat /version.txt\"\nXb_UPTIME_VERSION = \"uptime && cat /version.txt\"\n\n# Command timeout in seconds\nTIMEOUT = 10\n\n# RDK-B specific commands\nDUT_IP_COMMAND = \"dmcli eRT retv Device.IP.Interface.1.IPv4Address.1.IPAddress\"\nDUT_MAC_COMMAND = \"dmcli eRT retv Device.Ethernet.Interface.1.MACAddress\"\nDUT_IMAGE_COMMAND = \"dmcli eRT retv Device.DeviceInfo.X_RDK_FirmwareName\"\nDM_SUCCESS = \"Execution succeed\"\n\nEMPTY_STRING = \"\"\nTRUE_STRING = \"true\"\nFALSE_STRING = \"false\"\n\n\"\"\" Constants for Spoken responses \"\"\"\n",
+      "size": 1571,
+      "lines": 48
+    },
+    "RDK-RPi-Tests-main/utils/__init__.py": {
+      "content": "",
+      "size": 0,
+      "lines": 1
+    },
+    "RDK-RPi-Tests-main/utils/common_utils.py": {
+      "content": "\"\"\" Common utility functions for the project \"\"\"\nimport os\nimport re\nimport subprocess\nimport paramiko\nfrom datetime import datetime\nfrom constants import *\n\ndef ssh_connection_check(client):\n    # Check if the SSH connection is active\n    if client.get_transport() is not None:\n        print(\"SSH connection is active.\")\n        stdin, stdout, stderr = client.exec_command(Xb_UPTIME_VERSION)\n        output = stdout.read().decode('utf-8')\n        print(f\"Uptime : {output}\")\n    else:\n        print(\"SSH connection is not active. Exiting...\")\n        exit()\n\ndef ssh_connect(host, user, password):\n    # Establish SSH connection to the RDK-B device\n    client = paramiko.SSHClient()\n    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())\n    client.connect(host, username=user, password=password)\n    return client\n\ndef parse_dmcli_output(output):\n    \"\"\" Parse the dmcli output and extract the value \"\"\"\n    match = re.search(r'value:\\s*(\\S+)', output)\n    if match:\n        return match.group(1)\n    return None\n\ndef run_dmcli_command(command, timeout=TIMEOUT):\n    \"\"\" Run a dmcli command and return the output\"\"\"\n    result = subprocess.run(\n        command,\n        shell=True,\n        check=False,\n        capture_output=True,\n        text=True,\n        timeout=timeout\n    )\n    return result.stdout.strip()\n\ndef extract_rownum(text, delimiter):\n    \"\"\" Extract the row numbers from the text based on the delimiter \"\"\"\n    rows = text.split(delimiter)\n    row_numbers = []\n    for row in rows:\n        match = re.search(r'(\\d+)', row)\n        if match:\n            row_numbers.append(int(match.group(1)))\n    return row_numbers\n\ndef parse_test_step(docstring):\n    \"\"\"Parse test step information from docstring.\n    Returns a list of all test steps found in the docstring.\"\"\"\n    # Remove leading/trailing whitespace from each line and join\n    cleaned_docstring = '\\n'.join(line.strip() for line in docstring.split('\\n'))\n    \n    # Find all test step sections\n    step_pattern = r'<TEST_STEP>\\s*(\\d+)\\s*</TEST_STEP>\\s*<TEST_STEP_DESCRIPTION>\\s*(.*?)\\s*</TEST_STEP_DESCRIPTION>'\n    step_matches = list(re.finditer(step_pattern, cleaned_docstring, re.DOTALL))\n    \n    if not step_matches:\n        return None\n    \n    # Extract all test steps\n    test_steps = []\n    for match in step_matches:\n        step_info = {\n            'step': match.group(1),\n            'details': match.group(2).strip()\n        }\n        test_steps.append(step_info)\n    \n    print(f\"Found {len(test_steps)} test steps in docstring: {[s['step'] for s in test_steps]}\")\n    return test_steps\n\ndef update_html_report(report_path, test_steps, statuses):\n    \"\"\"Update HTML report with test steps and their status.\"\"\"\n    # Create initial report if it doesn't exist\n    if not os.path.exists(report_path):\n        os.makedirs(os.path.dirname(report_path), exist_ok=True)\n        timestamp = datetime.now().strftime(\"%Y%m%d_%H%M%S\")\n        initial_content = f\"\"\"<!DOCTYPE html>\n<html>\n<head>\n    <title>Test Report</title>\n    <style>\n        body {{\n            font-family: sans-serif;\n        }}\n        .header {{\n            text-align: center;\n            margin-bottom: 20px;\n        }}\n        table {{\n            width: 80%;\n            margin: 20px auto;\n            border-collapse: collapse;\n        }}\n        th, td {{\n            border: 1px solid #ddd;\n            padding: 8px;\n            text-align: left;\n        }}\n        th {{\n            background-color: #f2f2f2;\n            font-weight: bold;\n        }}\n        tr:nth-child(even) {{background-color: #f9f9f9;}}\n        .pass {{ color: green; }}\n        .fail {{ color: red; }}\n        .error {{ color: orange; }}\n    </style>\n</head>\n<body>\n    <div class='header'>\n        <h1>Test Report - {timestamp}</h1>\n        <h2>Test ID: TC_XB_SPEEDTEST_1001</h2>\n        <h2>Test Case Name: - Test case for speedtest from cli</h2>\n        <h2>Test Case Description: - To verify the speedtest from cli</h2>\n    </div>\n    <table>\n        <tr><th>Test Step</th><th>Details</th><th>Status</th></tr>\n    </table>\n</body>\n</html>\"\"\"\n        with open(report_path, 'w') as f:\n            f.write(initial_content)\n    \n    # Read current content\n    with open(report_path, 'r') as f:\n        content = f.read()\n    \n    # Find the table in the HTML\n    table_match = re.search(r'<table>.*?</table>', content, re.DOTALL)\n    if not table_match:\n        return\n    \n    # Create new table rows, sorting by step number\n    new_rows = ['<tr><th>Test Step</th><th>Details</th><th>Status</th></tr>']\n    sorted_steps = sorted(test_steps, key=lambda x: int(x['step']))\n    \n    for step in sorted_steps:\n        status = statuses.get(str(step['step']), 'Not Executed')\n        status_class = 'pass' if status.lower() == 'passed' else 'fail' if status.lower() == 'failed' else 'error'\n        # Format step details to preserve newlines\n        details = step['details'].replace('\\n', '<br/>')\n        row = f'<tr><td>{step[\"step\"]}</td><td>{details}</td><td class=\"{status_class}\">{status}</td></tr>'\n        new_rows.append(row)\n    \n    # Replace old table with new one\n    new_table = '<table>\\n' + '\\n'.join(new_rows) + '\\n</table>'\n    updated_content = re.sub(r'<table>.*?</table>', new_table, content, flags=re.DOTALL)\n    \n    with open(report_path, 'w') as f:\n        f.write(updated_content)\n\ndef run_speedtest(ssh_connection=None):\n    \"\"\"Runs speedtest, optionally over SSH.\n\n    Args:\n        ssh_connection: A paramiko SSHClient object, or None for local execution.\n\n    Returns:\n        A dictionary containing speedtest results, or None on error.\n    \"\"\"\n    try:\n        if ssh_connection:  # Run over SSH\n            command = \"speedtest\"\n            stdin, stdout, stderr = ssh_connection.exec_command(command)\n            output = stdout.read().decode('utf-8')  # Decode the output\n            error = stderr.read().decode('utf-8')\n            print (f\"Output : {output}\")\n            print (f\"Error : {error}\")\n            if error: #check for errors from the remote\n                print(f\"Error on remote: {error}\")\n                return None\n        else:  # Run locally\n            result = subprocess.run([\"speedtest\"], capture_output=True, text=True, check=True)\n            output = result.stdout\n\n        # Parse the output (same parsing logic as before)\n        download_match = re.search(r\"Download: (\\d+\\.\\d+) Mbit/s\", output)\n        upload_match = re.search(r\"Upload: (\\d+\\.\\d+) Mbit/s\", output)\n        host_match = re.search(r\"Hosted by (.+) \\[(.+?) km\\]\", output)\n        ping_match = re.search(r\"(\\d+\\.\\d+) ms\", output)\n\n        if download_match and upload_match and host_match and ping_match:\n            download_speed = download_match.group(1)\n            upload_speed = upload_match.group(1)\n            host = host_match.group(1)\n            ping = ping_match.group(1)\n\n            return {\n                \"download\": download_speed,\n                \"upload\": upload_speed,\n                \"host\": host,\n                \"ping\": ping\n            }\n        else:\n            print(\"Error: Could not parse speedtest output.\")\n            print(output)  # Print for debugging\n            return None\n\n    except subprocess.CalledProcessError as e:\n        print(f\"Error: speedtest command failed locally: {e}\")\n        return None\n    except FileNotFoundError:\n        print(\"Error: speedtest command not found locally. Make sure it's installed and in your PATH.\")\n        return None\n    except Exception as e:\n        print(f\"An unexpected error occurred: {e}\")\n        return None\n\ndef format_speedtest_output(speedtest_data):\n  \"\"\"Formats the speedtest data into a user-friendly string.\n\n  Args:\n    speedtest_data: A dictionary containing speedtest results, as returned by run_speedtest().\n\n  Returns:\n    A formatted string with the speedtest results, or None if the input is invalid.\n  \"\"\"\n  if not speedtest_data:\n    return None\n\n  return (\n      f\"Testing download speed - {speedtest_data['download']} Mbit/s\\n\"\n      f\"Testing upload speed -  {speedtest_data['upload']} Mbit/s\\n\"\n      f\"Host : {speedtest_data['host']}\\n\"\n      f\"Ping : {speedtest_data['ping']} ms\"\n  )\n",
+      "size": 8175,
+      "lines": 237
+    },
+    "RDK-RPi-Tests-main/scripts/parental_control_setting.py": {
+      "content": "#!/usr/bin/python3\n\nimport argparse\nimport subprocess\nimport json\nimport re\nimport signal\nimport sys\nfrom constants import *\nfrom common_utils import *\n\ndef create_response():\n    return {\n        \"status\": \"failure\",\n        \"error_message\": \"\",\n        \"response_code\": 1,\n        \"spoken_response\": \"\",\n        \"output\": \"\"\n    }\n\ndef get_mac_address_by_hostname(hostname):\n    \"\"\" Get the MAC address of a connected client by hostname \"\"\"\n    try:\n        num = run_dmcli_command(f\"{DM_RETV} {DM_HOST_NUMBER_OF_ENTRIES}\")\n        \n        if num is None:\n            raise ValueError(\"Failed to get the number of host entries\")\n\n        num = int(num)\n\n        for i in range(1, num + 1):\n            command = f\"dmcli eRT retv Device.Hosts.Host.{i}.HostName\"\n            current_hostname = run_dmcli_command(command)\n            if current_hostname == hostname:\n                command = f\"dmcli eRT retv Device.Hosts.Host.{i}.PhysAddress\"\n                mac_address = run_dmcli_command(command)\n                return mac_address\n\n        raise ValueError(f\"Hostname {hostname} not found\")\n    except (subprocess.CalledProcessError, ValueError) as e:\n        print(f\"Error: {e}\")\n        return 1\n    \ndef get_pc_row_numbers():\n    \"\"\" Get the specific row numbers of managed devices. Returns a list of row numbers \"\"\"\n    try:\n        command = f\"dmcli eRT getv {DM_PC}. | grep -i Description\"\n        output = run_dmcli_command(command)\n        row_numbers = extract_rownum(output, DM_PC)\n        return row_numbers\n    except subprocess.CalledProcessError as e:\n        print(f\"Error executing dmcli command: {e.stderr.decode()}\")\n        return None\n    \ndef get_row_number_by_hostname(hostname):\n    \"\"\" Get the row number of a managed device based on the hostname \"\"\"\n    try:\n        row_numbers = get_pc_row_numbers()\n\n        for i in row_numbers:\n            command = f\"dmcli eRT retv {DM_PC}.{i}.Description\"\n            current_hostname = run_dmcli_command(command)\n            if current_hostname == hostname:\n                return i\n\n        raise ValueError(f\"Hostname {hostname} not found in ManagedDevices.Device table\")\n    except (subprocess.CalledProcessError, ValueError) as e:\n        print(f\"Error: {e}\")\n        return None\n\ndef enable_disable_pc(enable):\n    \"\"\" Enable or Disable Parental Control Managed Devices Feature \"\"\"\n    response = create_response()\n    command = f\"dmcli eRT setv {DM_MD}.Enable bool {enable}\"\n    try:\n        output = run_dmcli_command(command)\n        response = {\n            \"status\": \"success\" if DM_SUCCESS in output else \"failure\",\n            \"error_message\": \"\" if DM_SUCCESS in output else \"Failed to set Enable value\",\n            \"response_code\": 0 if DM_SUCCESS in output else 1,\n            \"spoken_response\": \"\",\n            \"output\": \"\",\n        }\n        return response\n    except subprocess.CalledProcessError as e:\n        response = {\n            \"status\": \"failure\",\n            \"error_message\": e.stderr.decode(),\n            \"response_code\": 1,\n            \"spoken_response\": \"\",\n            \"output\": \"\",\n        }\n        return response\n\ndef block_device(hostname, start_time, end_time, block_days, always_block):\n    \"\"\" Block a new device \"\"\"\n    response = create_response()\n    try:\n        mac_address = get_mac_address_by_hostname(hostname)\n        if mac_address is None:\n            raise ValueError(f\"MAC address for hostname {hostname} not found\")\n    except ValueError as e:\n        response[\"error_message\"] = str(e)\n        return response\n\n    try:\n        # Add a new row to the ManagedDevices table\n        command = f\"dmcli eRT addtable {DM_PC}.\"\n        output = run_dmcli_command(command)\n        print(output)\n        if DM_SUCCESS not in output:\n            raise ValueError(\"Failed to add a new row to the ManagedDevices table\")\n\n        row_numbers = extract_rownum(output, DM_PC)\n        print(row_numbers)\n        if not row_numbers:\n            raise ValueError(\"Failed to extract row number\")\n        row_number = row_numbers[-1]\n        print(row_number)\n    except (subprocess.CalledProcessError, ValueError) as e:\n        response[\"error_message\"] = str(e)\n        return response\n\n    try:\n        # Set the common parameters for the blocked device\n        common_commands = [\n            f\"dmcli eRT setv {DM_MD}.Enable bool true\",\n            f\"dmcli eRT setv {DM_PC}.{row_number}.Description string {hostname}\",\n            f\"dmcli eRT setv {DM_PC}.{row_number}.MACAddress string {mac_address}\"\n        ]\n\n        for cmd in common_commands:\n            output = run_dmcli_command(cmd)\n            if DM_SUCCESS not in output:\n                raise ValueError(f\"Failed to execute command: {cmd}\")\n\n        # Set the specific parameters based on always_block\n        if always_block:\n            specific_commands = [\n                f\"dmcli eRT setv {DM_PC}.{row_number}.AlwaysBlock bool true\"\n            ]\n        else:\n            if block_days:\n                block_days = block_days.strip() or \"Mon,Tue,Wed,Thu,Fri,Sat,Sun\" # Default is all days\n\n            specific_commands = [\n                f\"dmcli eRT setv {DM_PC}.{row_number}.Type string Block\",\n                f\"dmcli eRT setv {DM_PC}.{row_number}.StartTime string {start_time}\",\n                f\"dmcli eRT setv {DM_PC}.{row_number}.EndTime string {end_time}\",\n                f\"dmcli eRT setv {DM_PC}.{row_number}.BlockDays string {block_days}\"\n            ]\n\n        for cmd in specific_commands:\n            output = run_dmcli_command(cmd)\n            if DM_SUCCESS not in output:\n                raise ValueError(f\"Failed to execute command: {cmd}\")\n\n        response[\"status\"] = \"success\"\n        response[\"response_code\"] = 0\n        response[\"spoken_response\"] = \"Device blocked successfully\"\n        return response\n    except (subprocess.CalledProcessError, ValueError) as e:\n        response[\"error_message\"] = str(e)\n        return response\n\ndef unblock_device(hostname):\n    \"\"\" Unblock a device from block list \"\"\"\n    response = create_response()\n    try:\n        row_number = get_row_number_by_hostname(hostname)\n        if row_number is None:\n            raise ValueError(f\"Hostname {hostname} not found in ManagedDevices.Device table\")\n    except ValueError as e:\n        response[\"error_message\"] = str(e)\n        return response\n\n    # Unblock the device by setting the Type to Allow\n    command = f\"dmcli eRT setv {DM_PC}.{row_number}.Type string Allow\" \n    output = run_dmcli_command(command)\n    if DM_SUCCESS in output:\n        response[\"status\"] = \"success\"\n        response[\"response_code\"] = 0\n        response[\"spoken_response\"] = f\"Device {hostname} unblocked successfully\"\n    else:\n        response[\"error_message\"] = f\"Failed to unblock the device {hostname}\"\n\n    return response\n\ndef delete_device(hostname):\n    \"\"\" Delete a blocked device from the ManagedDevices table \"\"\"\n    response = create_response()\n    try:\n        row_number = get_row_number_by_hostname(hostname)\n        if row_number is None:\n            raise ValueError(f\"Hostname {hostname} not found in ManagedDevices.Device table\")\n    except ValueError as e:\n        response[\"error_message\"] = str(e)\n        return response\n\n    # Delete the row from the ManagedDevices table\n    command = f\"dmcli eRT deltable {DM_PC}.{row_number}.\"\n    output = run_dmcli_command(command)\n    if DM_SUCCESS in output:\n        response[\"status\"] = \"success\"\n        response[\"response_code\"] = 0\n        response[\"spoken_response\"] = f\"Device {hostname} deleted successfully from the block list\"\n    else:\n        response[\"error_message\"] = f\"Failed to delete the device {hostname} from the block list\"\n\n    return response\n\ndef list_blocked_devices():\n    \"\"\" List all the devices that are blocked \"\"\"\n    response = create_response()\n    try:\n        row_numbers = get_pc_row_numbers()\n        if row_numbers is None:\n            raise ValueError(\"Failed to get Parental control rows\")\n\n        blocked_devices = []\n        for i in row_numbers:\n            command = f\"dmcli eRT retv {DM_PC}.{i}.Type\"\n            output = run_dmcli_command(command)\n\n            if \"Block\" in output:\n                command = f\"dmcli eRT retv {DM_PC}.{i}.Description\"\n                hostname = run_dmcli_command(command)\n                blocked_devices.append(hostname)\n\n        response[\"status\"] = \"success\"\n        response[\"response_code\"] = 0\n        response[\"spoken_response\"] = \"Blocked devices listed successfully\"\n        response[\"output\"] = blocked_devices\n        return response\n    except (subprocess.CalledProcessError, ValueError) as e:\n        response[\"error_message\"] = str(e)\n        return response\n\ndef update_device(hostname, start_time, end_time, block_days, always_block):\n    \"\"\" Update the block time/day for a device \"\"\"\n    response = create_response()\n    try:\n        row_number = get_row_number_by_hostname(hostname)\n        if row_number is None:\n            raise ValueError(f\"Hostname {hostname} not found in ManagedDevices.Device table\")\n    except ValueError as e:\n        response[\"error_message\"] = str(e)\n        return response\n\n    try:\n        if always_block:\n            command = f\"dmcli eRT setv {DM_PC}.{row_number}.AlwaysBlock bool true\"\n            output = run_dmcli_command(command)\n            if DM_SUCCESS not in output:\n                raise ValueError(f\"Failed to set AlwaysBlock for {hostname}\")\n        else:\n            command = command = f\"dmcli eRT setv {DM_PC}.{row_number}.AlwaysBlock bool false\"\n            output = run_dmcli_command(command)\n            if DM_SUCCESS not in output:\n                raise ValueError(f\"Failed to set BlockDays for {hostname}\")\n            \n            if start_time:\n                command = f\"dmcli eRT setv {DM_PC}.{row_number}.StartTime string {start_time}\"\n                output = run_dmcli_command(command)\n                if DM_SUCCESS not in output:\n                    raise ValueError(f\"Failed to set StartTime for {hostname}\")\n\n            if end_time:\n                command = f\"dmcli eRT setv {DM_PC}.{row_number}.EndTime string {end_time}\"\n                output = run_dmcli_command(command)\n                if DM_SUCCESS not in output:\n                    raise ValueError(f\"Failed to set EndTime for {hostname}\")\n\n            if block_days:\n                command = f\"dmcli eRT setv {DM_PC}.{row_number}.BlockDays string {block_days}\"\n                output = run_dmcli_command(command)\n                if DM_SUCCESS not in output:\n                    raise ValueError(f\"Failed to set BlockDays for {hostname}\")\n\n        response[\"status\"] = \"success\"\n        response[\"response_code\"] = 0\n        response[\"spoken_response\"] = \"Device block time updated successfully.\"\n        return response\n    except (subprocess.CalledProcessError, ValueError) as e:\n        response[\"error_message\"] = str(e)\n        return response\n\ndef handle_sigterm(signum, frame):\n    print(\"Received SIGTERM, exiting gracefully...\")\n    sys.exit(0)\n\ndef validate_time_format(time_str):\n    \"\"\" Validate time format to be between 00:00 and 23:59 \"\"\"\n    if re.match(r\"^([01]\\d|2[0-3]):([0-5]\\d)$\", time_str):\n        return True\n    return False\n\ndef parental_control_settings():\n    \"\"\"\n    TODO: Update as per the JIRA ticket\n    1. Enable or Disable Parental Control Managed Devices Feature --Enable true or false\n    2. Block a device\n    3. Unblock/Delete a device from block list - Find row number and delete\n    4. List all the devices that are blocked - Get from Hosts table and loop over PC table\n    5. Update the block time/day for a device - Find row number and update\n    \"\"\"\n    # TODO: Declare Spoken response and dmcli constants\n    response = create_response()\n\n    signal.signal(signal.SIGTERM, handle_sigterm)\n    parser = argparse.ArgumentParser(description=\"Parental Control Managed Devices\")\n    parser.add_argument('--Enable', type=bool, help='Enable or Disable the Managed Devices Feature: true or false')\n    parser.add_argument('--Hostname', type=str, help='Enter the Hostname for the managed device: Test_iPhone')\n    parser.add_argument('--StartTime', type=str, help='Enter the Start Time (UTC Format) to block the managed device: 22:15')\n    parser.add_argument('--EndTime', type=str, help='Enter the End Time (UTC Format) to unblock the managed device: 23:00')\n    parser.add_argument('--BlockDays', type=str, help='Block days for parental control') # Mon,Tue,Wed,Thu,Fri,Sat,Sun If not specified, default is all days\n    parser.add_argument('--AlwaysBlock', type=bool, help='Block the device completely: true or false')\n    parser.add_argument('--a', type=str, required=True, choices=['enable', 'disable', 'list', 'block', 'unblock', 'delete', 'update'], help='Action to perform')\n\n    args = parser.parse_args()\n    if args.a == 'enable':\n        response = enable_disable_pc(True)\n    elif args.a == 'disable':\n        response = enable_disable_pc(False)\n    elif args.a == 'list':\n        response = list_blocked_devices()\n    elif args.a == 'block':\n        if args.Hostname and (args.AlwaysBlock or (args.StartTime and args.EndTime and \n                                                   validate_time_format(args.StartTime) and validate_time_format(args.EndTime))):\n            response = block_device(args.Hostname, args.StartTime, args.EndTime, args.BlockDays, args.AlwaysBlock)\n        else:\n            response[\"response_code\"] = 1\n            response[\"error_message\"] = (\n                \"Hostname is mandatory, either AlwaysBlock should be present or \"\n                \"StartTime and EndTime should be specified.\"\n                \"Format for StartTime and EndTime should be in 24-hour format (HH:MM)\"\n            )\n    elif args.a == 'unblock':\n        if args.Hostname:\n            response = unblock_device(args.Hostname)\n        else:\n            response[\"response_code\"] = 1\n            response[\"error_message\"] = \"Hostname is required for unblocking a device\"\n    elif args.a == 'delete': \n        if args.Hostname:\n            response = delete_device(args.Hostname) #Delete from ManagedDevices table\n        else:\n            response[\"response_code\"] = 1\n            response[\"error_message\"] = \"Hostname is required for deleting a device from Blocked list\"\n    elif args.a == 'update':\n        if args.Hostname and (args.AlwaysBlock or ((args.StartTime or args.EndTime) and \n                                                   (validate_time_format(args.StartTime) or validate_time_format(args.EndTime)))):\n            response = update_device(args.Hostname, args.StartTime, args.EndTime, args.BlockDays, args.AlwaysBlock)\n        else:\n            response[\"response_code\"] = 1\n            response[\"error_message\"] = (\n                \"Hostname is mandatory, either AlwaysBlock should be present or \"\n                \"StartTime and EndTime should be specified.\"\n                \"Format for StartTime and EndTime should be in 24-hour format (HH:MM)\"\n            )\n    else:\n        response[\"response_code\"] = 1\n        response[\"error_message\"] = \"Invalid arguments provided. Please check the usage.\"\n    \n    print(json.dumps(response))\n\n    sys.exit(response[\"response_code\"])\n\nif __name__ == \"__main__\":\n    parental_control_settings()\n",
+      "size": 15262,
+      "lines": 371
+    },
+    "RDK-RPi-Tests-main/scripts/__init__.py": {
+      "content": "",
+      "size": 0,
+      "lines": 1
+    },
+    "RDK-RPi-Tests-main/scripts/Main.py": {
+      "content": "import unittest\nimport sys\nimport os\n\n# Add utils directory to path\nutils_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), \"..\", \"utils\"))\nsys.path.insert(0, utils_dir)\n\n# Add tests directory to path\ntests_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), \"..\", \"tests\"))\nsys.path.insert(0, tests_dir)\n\nimport yaml\nfrom datetime import datetime\nimport html\nimport paramiko\nimport subprocess\nimport utils\n\n# Explicitly specify the absolute path for the utils module\ncommon_utils_path = os.path.join(utils_dir, \"common_utils.py\")\nconstants_path = os.path.join(utils_dir, \"constants.py\")\n\nif os.path.exists(common_utils_path) and os.path.exists(constants_path):\n    from utils.common_utils import *  # Direct, top-level import\n    from utils.constants import *\n    # from utils import common_utils  # Import for function calls\n    # from utils import constants\nelse:\n    print(\"common_utils.py or constants.py not found in utils directory\")\n\ndef run_tests(tests_to_run):\n    \"\"\"Runs the specified tests.\"\"\"\n    suite = unittest.TestSuite()\n\n    for test_module_name in tests_to_run:\n        print(f\"Trying to import: {test_module_name}\")\n        try:\n            test_module = __import__(test_module_name, fromlist=[\"*\"])  # Import everything\n\n            print(f\"Imported: {test_module_name}\")\n\n            # Dynamically find all test classes\n            for name in dir(test_module):\n                obj = getattr(test_module, name)\n                if isinstance(obj, type) and issubclass(obj, unittest.TestCase):\n                    print(f\"Adding tests from: {obj.__name__}\")  # Use obj.__name__\n                    suite.addTest(unittest.TestLoader().loadTestsFromModule(test_module)) # Load from module\n\n        except ImportError as e:\n            print(f\"ImportError: {e}\")\n            print(f\"sys.path: {sys.path}\")\n            return None\n        except Exception as e:\n            print(f\"Error running tests from '{test_module_name}': {e}\")\n            return None\n\n    # Create a custom test runner to capture step statuses\n    class StepStatusRunner(unittest.TextTestRunner):\n        def __init__(self, *args, **kwargs):\n            super().__init__(*args, **kwargs)\n            self.step_statuses = {}\n            self._current_test = None\n            self._output_buffer = []\n\n        def _makeResult(self):\n            class OutputCaptureResult(unittest.TextTestResult):\n                def __init__(self, *args, **kwargs):\n                    super().__init__(*args, **kwargs)\n                    self.step_statuses = {}\n                    self._output_buffer = []\n                    self._current_test = None\n\n                def startTest(self, test):\n                    self._output_buffer = []\n                    self._current_test = test\n                    super().startTest(test)\n\n                def addSuccess(self, test):\n                    self._processOutput()\n                    super().addSuccess(test)\n\n                def addError(self, test, err):\n                    self._processOutput()\n                    super().addError(test, err)\n\n                def addFailure(self, test, err):\n                    self._processOutput()\n                    super().addFailure(test, err)\n\n                def _processOutput(self):\n                    if not self._current_test:\n                        return\n                    output = ''.join(self._output_buffer)\n                    for line in output.splitlines():\n                        if \"Test step\" in line and \"status:\" in line:\n                            try:\n                                step_num = line.split(\"Test step\")[1].split(\":\")[0].strip()\n                                step_status = line.split(\"status:\")[1].strip().lower()\n                                self.step_statuses[f\"{self._current_test._testMethodName}_{step_num}\"] = step_status\n                            except:\n                                continue\n                    self._output_buffer = []\n\n                def addOutput(self, output):\n                    if self._current_test:\n                        self._output_buffer.append(output)\n                        self._processOutput()\n\n            result = OutputCaptureResult(self.stream, self.descriptions, self.verbosity)\n            result.step_statuses = self.step_statuses\n            return result\n\n        def _processOutput(self, test):\n            for line in self._output_buffer:\n                if \"Test step\" in line and \"status:\" in line:\n                    try:\n                        step_num = line.split(\"Test step\")[1].split(\":\")[0].strip()\n                        step_status = line.split(\"status:\")[1].strip().lower()\n                        self.step_statuses[f\"{test._testMethodName}_{step_num}\"] = step_status\n                    except:\n                        continue\n            self._output_buffer = []\n\n        def _addError(self, test, err):\n            self._processOutput(test)\n            unittest.TextTestResult.addError(self, test, err)\n\n        def _addFailure(self, test, err):\n            self._processOutput(test)\n            unittest.TextTestResult.addFailure(self, test, err)\n\n        def _addSuccess(self, test):\n            self._processOutput(test)\n            unittest.TextTestResult.addSuccess(self, test)\n\n    runner = StepStatusRunner(stream=sys.stdout)\n    result = runner.run(suite)\n    return result\n\ndef generate_report(result, report_path, test_start_time):\n    \"\"\"Generates a text report.\"\"\"\n    timestamp = test_start_time.strftime(\"%Y%m%d_%H%M%S\")\n    report_file = os.path.join(report_path, f\"test_report_{timestamp}.txt\")\n\n    with open(report_file, \"w\") as f:\n        f.write(f\"Test Report - {timestamp}\\n\\n\")\n        f.write(f\"Total Tests Run: {result.testsRun}\\n\")\n        f.write(f\"Tests Passed: {result.testsRun - len(result.failures) - len(result.errors)}\\n\")\n        f.write(f\"Tests Failed: {len(result.failures)}\\n\")\n        f.write(f\"Tests in Error: {len(result.errors)}\\n\\n\")\n\n        if result.failures:\n            f.write(\"Failures:\\n\")\n            for failure in result.failures:\n                f.write(f\"{failure[0]}\\n{failure[1]}\\n\\n\")\n\n        if result.errors:\n            f.write(\"Errors:\\n\")\n            for error in result.errors:\n                f.write(f\"{error[0]}\\n{error[1]}\\n\\n\")\n\n    print(f\"Test report generated: {report_file}\")\n\ndef generate_html_report(result, report_path, tests_to_run, test_start_time, test_execution_time):\n    \"\"\"Generates an HTML report with detailed test step information.\"\"\"\n    timestamp = test_start_time.strftime(\"%Y%m%d_%H%M%S\")\n    report_file = os.path.join(report_path, f\"test_report_{timestamp}.html\")\n\n    # SSH connection details\n    hostname = HOSTNAME\n    username = USERNAME\n    password = PASSWORD\n\n    # DMCLI commands\n    ip_command = DUT_IP_COMMAND\n    mac_command = DUT_MAC_COMMAND\n    image_command = DUT_IMAGE_COMMAND\n\n    test_end_time = test_start_time + test_execution_time\n    try:\n        # Establish SSH connection\n        client = ssh_connect(hostname, username, password)\n\n        # Get RDK-B image name\n        stdin, stdout, stderr = client.exec_command(image_command)\n        image_name = stdout.read().decode(\"utf-8\").strip()\n\n        # Get DUT IP address\n        stdin, stdout, stderr = client.exec_command(ip_command)\n        ip_address = stdout.read().decode(\"utf-8\").strip()\n\n        # Get DUT MAC address\n        stdin, stdout, stderr = client.exec_command(mac_command)\n        mac_address = stdout.read().decode(\"utf-8\").strip()\n\n        # Get test start and end timestamps from uptime\n        stdin, stdout, stderr = client.exec_command(\"uptime\")\n        uptime_output = stdout.read().decode(\"utf-8\").strip()\n        # Parse uptime output to extract start and end times (example:  09:30:00 up 1 day,  1:22,  load average: 0.00, 0.01, 0.00)\n        client.close()\n\n    except Exception as e:\n        image_name = \"N/A\"\n        ip_address = \"N/A\"\n        mac_address = \"N/A\"\n        print(f\"Error getting environment details: {e}\")\n\n    with open(report_file, \"w\") as f:\n        f.write(\"<!DOCTYPE html>\\n\")\n        f.write(\"<html>\\n\")\n        f.write(\"<head>\\n\")\n        f.write(\"<title>Test Report</title>\\n\")\n        f.write(\"<style>\\n\")\n        f.write(\"body {\\n\")\n        f.write(\"  font-family: sans-serif;\\n\")\n        f.write(\"}\\n\")\n        f.write(\".header {\\n\")\n        f.write(\"  text-align: center;\\n\")\n        f.write(\"  margin-bottom: 20px;\\n\")\n        f.write(\"}\\n\")\n        f.write(\"table {\\n\")\n        f.write(\"  width: 80%;\\n\")\n        f.write(\"  margin: 20px auto;\\n\")\n        f.write(\"  border-collapse: collapse;\\n\")\n        f.write(\"}\\n\")\n        f.write(\"th, td {\\n\")\n        f.write(\"  border: 1px solid #ddd;\\n\")\n        f.write(\"  padding: 8px;\\n\")\n        f.write(\"  text-align: left;\\n\")\n        f.write(\"}\\n\")\n        f.write(\"th {\\n\")\n        f.write(\"  background-color: #f2f2f2;\\n\")\n        f.write(\"  font-weight: bold;\\n\")\n        f.write(\"}\\n\")\n        f.write(\"tr:nth-child(even) {background-color: #f9f9f9;}\\n\")\n        f.write(\".pass { color: green; }\\n\")\n        f.write(\".fail { color: red; }\\n\")\n        f.write(\".error { color: orange; }\\n\")\n        f.write(\"</style>\\n\")\n        f.write(\"</head>\\n\")\n        f.write(\"<body>\\n\")\n\n        f.write(\"<div class='header'>\\n\")\n        f.write(f\"<h1>Test Report - {timestamp}</h1>\\n\")\n\n        # Add environment details\n        f.write(\"<h2>Environment Details</h2>\\n\")\n        f.write(\"<ul>\\n\")\n        f.write(f\"<li>RDK-B Image Name: {image_name}</li>\\n\")\n        f.write(f\"<li>DUT IP Address: {ip_address}</li>\\n\")\n        f.write(f\"<li>DUT MAC Address: {mac_address}</li>\\n\")\n        f.write(f\"<li>Test Start Timestamp: Date: {test_start_time.strftime('%m/%d/%Y')} Time: {test_start_time.strftime('%I:%M:%S %p')}</li>\\n\")\n        f.write(f\"<li>Test End Timestamp: Date: {test_end_time.strftime('%m/%d/%Y')} Time: {test_end_time.strftime('%I:%M:%S %p')}</li>\\n\")\n        f.write(\"<li>Device Under Test (DUT): Raspberry Pi (RPi)</li>\\n\")\n        f.write(f\"<li>Total Tests Run: {result.testsRun}</li>\\n\")\n        f.write(f\"<li>Tests Passed: {result.testsRun - len(result.failures) - len(result.errors)}</li>\\n\")\n        f.write(f\"<li>Tests Failed: {len(result.failures)}</li>\\n\")\n        f.write(f\"<li>Tests in Error: {len(result.errors)}</li>\\n\")\n        f.write(\"</ul>\\n\")\n\n        test_id = \"\"\n        test_name = \"\"\n        test_description = \"\"\n\n        if tests_to_run:\n            try:\n                test_module = __import__(tests_to_run[0], fromlist=[\"*\"])\n                for name in dir(test_module):\n                    obj = getattr(test_module, name)\n                    if isinstance(obj, type) and issubclass(obj, unittest.TestCase):\n                        docstring = obj.__doc__\n                        if docstring:\n                            lines = docstring.splitlines()\n                            for line in lines:\n                                if \"<TEST_ID>\" in line:\n                                    test_id = line.replace(\"<TEST_ID>\", \"\").replace(\"</TEST_ID>\", \"\").strip()\n                                if \"<TEST_CASE_NAME>\" in line:\n                                    test_name = line.replace(\"<TEST_CASE_NAME>\", \"\").replace(\"</TEST_CASE_NAME>\", \"\").strip()\n                                if \"<TEST_CASE_DESCRIPTION>\" in line:\n                                    test_description = line.replace(\"<TEST_CASE_DESCRIPTION>\", \"\").replace(\"</TEST_CASE_DESCRIPTION>\", \"\").strip()\n\n                        break\n            except Exception as e:\n                print(f\"Error extracting test details: {e}\")\n\n        f.write(f\"<h2>Test ID: {test_id}</h2>\\n\")\n        f.write(f\"<h2>Test Case Name: {test_name}</h2>\\n\")\n        f.write(f\"<h2>Test Case Description: {test_description}</h2>\\n\")\n        f.write(\"</div>\\n\")\n\n        f.write(\"<table>\\n\")\n        f.write(\"<tr><th>Test Step</th><th>Details</th><th>Status</th></tr>\\n\")\n\n        test_step = 1\n\n        for test_module_name in tests_to_run:\n            try:\n                test_module = __import__(test_module_name, fromlist=[\"*\"])\n                for name in dir(test_module):\n                    obj = getattr(test_module, name)\n                    if isinstance(obj, type) and issubclass(obj, unittest.TestCase):\n                        test_class = obj\n                        break\n\n                test_suite = unittest.TestLoader().loadTestsFromModule(test_module)\n                for test_case in test_suite:\n                    for test in test_case:\n                        # Get the step statuses from test output\n                        step_statuses = getattr(result, 'step_statuses', {})\n                        test_name = test._testMethodName\n                        \n                        # Default status for overall test\n                        status_class = \"pass\"\n                        status = \"Pass\"\n                        \n                        # Check for test failures and errors\n                        for failure in result.failures:\n                            if failure[0] == test:\n                                status = \"Fail\"\n                                status_class = \"fail\"\n                                break\n                        if status != \"Fail\":\n                            for error in result.errors:\n                                if error[0] == test:\n                                    status = \"Error\"\n                                    status_class = \"error\"\n                                    break\n                                    \n                        # Parse test output to capture step statuses\n                        test_output = getattr(test, '_testMethodDoc', '')\n                        if test_output:\n                            lines = test_output.splitlines()\n                            current_step = None\n                            for line in lines:\n                                if \"Test step\" in line and \"status:\" in line:\n                                    try:\n                                        step_num = line.split(\"Test step\")[1].split(\":\")[0].strip()\n                                        step_status = line.split(\"status:\")[1].strip().lower()\n                                        step_statuses[f\"{test_name}_{step_num}\"] = step_status\n                                    except:\n                                        continue\n\n                        test_method = getattr(test_class, test._testMethodName)\n                        test_method_docstring = test_method.__doc__\n                        test_steps = []\n                        \n                        # Collect all test steps and descriptions\n                        if test_method_docstring:\n                            lines = test_method_docstring.splitlines()\n                            current_step = None\n                            for line in lines:\n                                if \"<TEST_STEP>\" in line:\n                                    current_step = line.replace(\"<TEST_STEP>\", \"\").replace(\"</TEST_STEP>\", \"\").strip()\n                                elif \"<TEST_STEP_DESCRIPTION>\" in line and current_step:\n                                    description = line.replace(\"<TEST_STEP_DESCRIPTION>\", \"\").replace(\"</TEST_STEP_DESCRIPTION>\", \"\").strip()\n                                    test_steps.append((current_step, description))\n                                    current_step = None\n\n                        # Also check setUp and tearDown methods for additional steps\n                        for method_name in ['setUp', 'tearDown']:\n                            if hasattr(test_class, method_name):\n                                method = getattr(test_class, method_name)\n                                if method.__doc__:\n                                    lines = method.__doc__.splitlines()\n                                    current_step = None\n                                    for line in lines:\n                                        if \"<TEST_STEP>\" in line:\n                                            current_step = line.replace(\"<TEST_STEP>\", \"\").replace(\"</TEST_STEP>\", \"\").strip()\n                                        elif \"<TEST_STEP_DESCRIPTION>\" in line and current_step:\n                                            description = line.replace(\"<TEST_STEP_DESCRIPTION>\", \"\").replace(\"</TEST_STEP_DESCRIPTION>\", \"\").strip()\n                                            test_steps.append((current_step, description))\n                                            current_step = None\n\n                        # Sort test steps by step number\n                        test_steps.sort(key=lambda x: int(x[0]))\n\n                        # Write each test step as a main row\n                        for step, description in test_steps:\n                            # Get step-specific status if available\n                            step_key = f\"{test._testMethodName}_{step}\"\n                            step_status = step_statuses.get(step_key, \"\").capitalize()\n                            if not step_status or step_status.lower() not in ['pass', 'fail', 'error']:\n                                step_status = status\n                                step_status_class = status_class\n                            else:\n                                step_status_class = step_status.lower()\n                            details_formatted = html.escape(description).replace('\\n', '<br>')\n                            f.write(f\"<tr><td>{step}</td><td>{details_formatted}</td><td class='{step_status_class}'>{step_status}</td></tr>\\n\")\n                        test_step += 1\n\n            except Exception as e:\n                print(f\"Error processing test module: {e}\")\n\n        f.write(\"</table>\\n\")\n        f.write(\"</body>\\n\")\n        f.write(\"</html>\\n\")\n\n    print(f\"HTML test report generated: {report_file}\")\n\ndef main():\n    config_file = \"./config/config.yaml\"\n    try:\n        with open(config_file, \"r\") as f:\n            config = yaml.safe_load(f)\n    except FileNotFoundError:\n        print(f\"Error: Configuration file '{config_file}' not found.\")\n        exit(1)\n    except yaml.YAMLError as e:\n        print(f\"Error parsing YAML file: {e}\")\n        exit(1)\n\n    report_path = config.get(\"report_path\", \"reports\")\n    tests_to_run = config.get(\"tests_to_run\", [])  # Get tests_to_run from config\n\n    if not os.path.exists(report_path):\n        os.makedirs(report_path)\n\n    test_start_time = datetime.now()\n    result = run_tests(tests_to_run)\n    test_end_time = datetime.now()\n    test_execution_time = test_end_time - test_start_time\n\n    if result:\n        generate_report(result, report_path, test_start_time)\n        generate_html_report(result, report_path, tests_to_run, test_start_time, test_execution_time)  # Pass tests_to_run!!!\n    else:\n        print(\"Test execution failed. No report generated.\")\n\nif __name__ == \"__main__\":\n    main()\n",
+      "size": 18971,
+      "lines": 432
+    }
+  },
+  "functions": {
+    "run_script": {
+      "file": "RDK-RPi-Tests-main/triggers/Laucher.py",
+      "line": 4,
+      "code": "def run_script(script_path):\n    \"\"\"Runs a Python script.\"\"\"\n    try:\n        subprocess.run([\"python3\", \"-m\", script_path], check=True)  # Use -m for packages\n    except subprocess.CalledProcessError as e:\n        print(f\"Error running script {script_path}: {e}\")\n        exit(1)",
+      "docstring": "Runs a Python script.",
+      "parameters": [
+        "script_path"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "exit",
+        "print",
+        "run_script",
+        "run"
+      ]
+    },
+    "main": {
+      "file": "RDK-RPi-Tests-main/scripts/Main.py",
+      "line": 401,
+      "code": "def main():\n    config_file = \"./config/config.yaml\"\n    try:\n        with open(config_file, \"r\") as f:\n            config = yaml.safe_load(f)\n    except FileNotFoundError:\n        print(f\"Error: Configuration file '{config_file}' not found.\")\n        exit(1)\n    except yaml.YAMLError as e:\n        print(f\"Error parsing YAML file: {e}\")\n        exit(1)\n\n    report_path = config.get(\"report_path\", \"reports\")\n    tests_to_run = config.get(\"tests_to_run\", [])  # Get tests_to_run from config\n\n    if not os.path.exists(report_path):\n        os.makedirs(report_path)\n\n    test_start_time = datetime.now()\n    result = run_tests(tests_to_run)\n    test_end_time = datetime.now()\n    test_execution_time = test_end_time - test_start_time\n\n    if result:\n        generate_report(result, report_path, test_start_time)\n        generate_html_report(result, report_path, tests_to_run, test_start_time, test_execution_time)  # Pass tests_to_run!!!\n    else:\n        print(\"Test execution failed. No report generated.\")",
+      "docstring": "No documentation",
+      "parameters": [],
+      "returns": "Unknown",
+      "dependencies": [
+        "generate_html_report",
+        "get",
+        "print",
+        "exit",
+        "safe_load",
+        "main",
+        "makedirs",
+        "run_tests",
+        "open",
+        "now",
+        "exists",
+        "generate_report"
+      ]
+    },
+    "test_print_message": {
+      "file": "RDK-RPi-Tests-main/tests/qt.py",
+      "line": 3,
+      "code": "def test_print_message():\n    message = \"Message from Quick Test - Integration of GitHub and Bamboo is successful!\"\n    print(message)\n    assert message == \"Message from Quick Test - Integration of GitHub and Bamboo is successful!\"",
+      "docstring": "No documentation",
+      "parameters": [],
+      "returns": "Unknown",
+      "dependencies": [
+        "test_print_message",
+        "print"
+      ]
+    },
+    "__init__": {
+      "file": "RDK-RPi-Tests-main/scripts/Main.py",
+      "line": 68,
+      "code": "                def __init__(self, *args, **kwargs):\n                    super().__init__(*args, **kwargs)\n                    self.step_statuses = {}\n                    self._output_buffer = []\n                    self._current_test = None",
+      "docstring": "No documentation",
+      "parameters": [
+        "self"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "super",
+        "__init__"
+      ]
+    },
+    "collect_test_steps": {
+      "file": "RDK-RPi-Tests-main/tests/TC_Speedtest.py",
+      "line": 35,
+      "code": "    def collect_test_steps(self):\n        \"\"\"Collect all test steps from docstrings in the test class.\"\"\"\n        # Clear existing steps to prevent duplicates\n        self.test_steps = []\n        \n        # Process each method's docstring for test steps\n        for name, method in inspect.getmembers(self, predicate=inspect.ismethod):\n            if name in ['setUp', 'tearDown', 'test_remote_speedtest']:\n                print(f\"\\nProcessing {name} method...\")\n                doc = method.__doc__\n                if doc:\n                    # Get all test steps from the docstring\n                    step_list = parse_test_step(doc)\n                    if step_list:\n                        for step_info in step_list:\n                            step_info['method'] = name  # Tag with source method\n                            print(f\"Found test step {step_info['step']} in {name}\")\n                            self.test_steps.append(step_info)\n                        print(f\"Added all steps from {name}: {[s['step'] for s in step_list]}\")\n        \n        # Sort test steps by step number\n        self.test_steps.sort(key=lambda x: int(x['step']))\n        \n        # Initialize status for all steps\n        for step in self.test_steps:\n            step_num = str(step['step'])\n            if step_num not in self.step_statuses:\n                self.step_statuses[step_num] = \"Not Started\"",
+      "docstring": "Collect all test steps from docstrings in the test class.",
+      "parameters": [
+        "self"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "int",
+        "print",
+        "sort",
+        "collect_test_steps",
+        "parse_test_step",
+        "getmembers",
+        "str",
+        "append"
+      ]
+    },
+    "update_step_status": {
+      "file": "RDK-RPi-Tests-main/tests/TC_Speedtest.py",
+      "line": 64,
+      "code": "    def update_step_status(self, step_num, status):\n        \"\"\"Update the status of a test step and refresh the report.\"\"\"\n        print(f\"Updating status for step {step_num} to {status}\")\n        print(f\"Current test steps: {[step['step'] for step in self.test_steps]}\")\n        print(f\"Current statuses before update: {self.step_statuses}\")\n        self.step_statuses[str(step_num)] = status\n        if self.report_path:\n            update_html_report(self.report_path, self.test_steps, self.step_statuses)\n        print(f\"Statuses after update: {self.step_statuses}\")",
+      "docstring": "Update the status of a test step and refresh the report.",
+      "parameters": [
+        "self",
+        "step_num",
+        "status"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "update_html_report",
+        "print",
+        "update_step_status",
+        "str"
+      ]
+    },
+    "setUp": {
+      "file": "RDK-RPi-Tests-main/tests/TC_Speedtest.py",
+      "line": 74,
+      "code": "    def setUp(self):\n        \"\"\"<TEST_STEP>1</TEST_STEP>\n        <TEST_STEP_DESCRIPTION>Verify SSH connection to the RDK-B device is successful\n        - Connect to device using provided credentials\n        - Verify SSH connection is active and responsive\n        Expected: Successful SSH connection to the RDK-B device<TEST_STEP_DESCRIPTION>\"\"\"\n        # Initialize test steps and report path\n        self.report_path = \"reports/test_report_\" + datetime.now().strftime(\"%Y%m%d_%H%M%S\") + \".html\"\n        self.collect_test_steps()\n        # Update initial status of the test step\n        status = \"failed\"\n        self.client = ssh_connect(HOSTNAME, USERNAME, PASSWORD)\n        if self.client:\n            ssh_connection_check(self.client)\n            status = \"passed\"\n        \n        self.update_step_status(1, status)",
+      "docstring": "<TEST_STEP>1</TEST_STEP>\n<TEST_STEP_DESCRIPTION>Verify SSH connection to the RDK-B device is successful\n- Connect to device using provided credentials\n- Verify SSH connection is active and responsive\nExpected: Successful SSH connection to the RDK-B device<TEST_STEP_DESCRIPTION>",
+      "parameters": [
+        "self"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "collect_test_steps",
+        "strftime",
+        "update_step_status",
+        "ssh_connect",
+        "now",
+        "setUp",
+        "ssh_connection_check"
+      ]
+    },
+    "tearDown": {
+      "file": "RDK-RPi-Tests-main/tests/TC_Speedtest.py",
+      "line": 92,
+      "code": "    def tearDown(self):\n        \"\"\"<TEST_STEP>5</TEST_STEP>\n        <TEST_STEP_DESCRIPTION>Verify successfully closure of SSH connection to DUT \n        - Close SSH connection to RDK-B device\n        - Verify connection is properly terminated\n        Expected: SSH connection successfully closed<TEST_STEP_DESCRIPTION>\"\"\"\n        status = \"failed\"\n        if self.client:\n            self.client.close()\n            status = \"passed\"\n            # Reset client to None\n        self.update_step_status(5, status)\n        sys.stdout.flush()",
+      "docstring": "<TEST_STEP>5</TEST_STEP>\n<TEST_STEP_DESCRIPTION>Verify successfully closure of SSH connection to DUT \n- Close SSH connection to RDK-B device\n- Verify connection is properly terminated\nExpected: SSH connection successfully closed<TEST_STEP_DESCRIPTION>",
+      "parameters": [
+        "self"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "close",
+        "flush",
+        "update_step_status",
+        "tearDown"
+      ]
+    },
+    "test_remote_speedtest": {
+      "file": "RDK-RPi-Tests-main/tests/TC_Speedtest.py",
+      "line": 106,
+      "code": "    def test_remote_speedtest(self):\n        \"\"\"Test Steps for Remote Speedtest\n\n        <TEST_STEP>2</TEST_STEP>\n        <TEST_STEP_DESCRIPTION>Verify whether speedtest command worked successfully\n        - Run speedtest via CLI\n        - Verify command execution successful\n        - Validate response format is correct\n        Expected: Speedtest results returned in valid dictionary format<TEST_STEP_DESCRIPTION>\n\n        <TEST_STEP>3</TEST_STEP>\n        <TEST_STEP_DESCRIPTION>Validate speedtest command populated all required metrics\n        - Verify all required metrics present (download, upload, host, ping)\n        - Confirm all values are in correct format\n        - Parse numerical values for performance validation\n        Expected: All metrics present and properly formatted</TEST_STEP_DESCRIPTION>\n\n        <TEST_STEP>4</TEST_STEP>\n        <TEST_STEP_DESCRIPTION>Verify performance metrics meets the requirements\n        - Download speed >= 150 Mbps\n        - Upload speed >= 25 Mbps\n        - Ping <= 50 ms\n        Expected: All performance metrics within acceptable thresholds</TEST_STEP_DESCRIPTION>\n        \"\"\"\n        # Step 2: Execute speedtest\n        status = \"failed\"\n        if not self.client:\n            self.skipTest(\"SSH connection failed, skipping remote speedtest.\")\n        results = run_speedtest(ssh_connection=self.client)\n        if self.assertIsInstance(results, dict):\n            status = \"passed\"\n        self.update_step_status(2, status)\n        \n        download_speed = None  # Initialize to None\n        upload_speed = None\n        ping = None\n\n        # Step 3: Validate results structure\n        status = \"failed\"\n        if not results:\n            print(\"No results to validate\")\n            self.fail(\"No speedtest results available\")\n        else:\n            try:\n                for key in [\"download\", \"upload\", \"host\", \"ping\"]:\n                    print(f\"Validating {key} metric...\")\n                    with self.subTest(key=key):\n                        print(f\"Checking if {key} exists in results\")\n                        self.assertIn(key, results)\n                        print(f\"Checking if {key} value is string type\")\n                        self.assertIsInstance(results[key], str)\n                        if key != \"host\":  # Skip host name\n                            try:\n                                print(f\"Attempting to parse {key} value: {results[key]}\")\n                                value = float(results[key].split()[0]) # Extract numerical part\n                                print(f\"Successfully parsed {key} value: {value}\")\n                                if key == \"download\":\n                                    download_speed = value\n                                elif key == \"upload\":\n                                    upload_speed = value\n                                elif key == \"ping\":\n                                    ping = value\n                            except (ValueError, IndexError) as e:\n                                print(f\"Error converting {key} value to float: {e}\")\n                                self.fail(f\"Could not convert {key} value to float: {e}\")\n                status = \"passed\"\n            except AssertionError as e:\n                print(f\"Validation failed: {e}\")\n                self.fail(f\"Speedtest result validation failed: {e}\")\n        self.update_step_status(3, status)\n\n        formatted_output = format_speedtest_output(results)\n        print(formatted_output)\n\n        \"\"\"<TEST_STEP>4</TEST_STEP>\n        <TEST_STEP_DESCRIPTION>Verify performance metrics meet requirements:\n        - Download speed >= 150 Mbps\n        - Upload speed >= 25 Mbps\n        - Ping <= 50 ms\n        Expected: All performance metrics within acceptable thresholds</TEST_STEP_DESCRIPTION>\"\"\"\n        status = \"failed\"  # Start with failed, change to passed only if all checks pass\n        \n        # Check if all required values are present\n        if any(v is None for v in [download_speed, upload_speed, ping]):\n            print(\"Missing required speed test metrics\")\n            self.fail(\"One or more speed test metrics are missing\")\n        else:\n            print(\"Starting performance threshold validation...\")\n            print(f\"Current values - Download: {download_speed} Mbps, Upload: {upload_speed} Mbps, Ping: {ping} ms\")\n            # All values present, check thresholds\n            all_passed = True\n            \n            print(f\"Checking download speed threshold (>= 150 Mbps)\")\n            if download_speed < 150:\n                print(f\"FAIL: Download speed {download_speed} Mbps is below minimum threshold of 150 Mbps\")\n                all_passed = False\n            else:\n                print(f\"PASS: Download speed {download_speed} Mbps meets minimum threshold of 150 Mbps\")\n\n            print(f\"Checking upload speed threshold (>= 25 Mbps)\")\n            if upload_speed < 25:\n                print(f\"FAIL: Upload speed {upload_speed} Mbps is below minimum threshold of 25 Mbps\")\n                all_passed = False\n            else:\n                print(f\"PASS: Upload speed {upload_speed} Mbps meets minimum threshold of 25 Mbps\")\n\n            print(f\"Checking ping threshold (<= 50 ms)\")\n            if ping > 50:\n                print(f\"FAIL: Ping {ping} ms exceeds maximum threshold of 50 ms\")\n                all_passed = False\n            else:\n                print(f\"PASS: Ping {ping} ms is within maximum threshold of 50 ms\")\n\n            if all_passed:\n                status = \"passed\"\n\n        self.update_step_status(4, status)\n        self.assertIsInstance(formatted_output, str)",
+      "docstring": "Test Steps for Remote Speedtest\n\n<TEST_STEP>2</TEST_STEP>\n<TEST_STEP_DESCRIPTION>Verify whether speedtest command worked successfully\n- Run speedtest via CLI\n- Verify command execution successful\n- Validate response format is correct\nExpected: Speedtest results returned in valid dictionary format<TEST_STEP_DESCRIPTION>\n\n<TEST_STEP>3</TEST_STEP>\n<TEST_STEP_DESCRIPTION>Validate speedtest command populated all required metrics\n- Verify all required metrics present (download, upload, host, ping)\n- Confirm all values are in correct format\n- Parse numerical values for performance validation\nExpected: All metrics present and properly formatted</TEST_STEP_DESCRIPTION>\n\n<TEST_STEP>4</TEST_STEP>\n<TEST_STEP_DESCRIPTION>Verify performance metrics meets the requirements\n- Download speed >= 150 Mbps\n- Upload speed >= 25 Mbps\n- Ping <= 50 ms\nExpected: All performance metrics within acceptable thresholds</TEST_STEP_DESCRIPTION>",
+      "parameters": [
+        "self"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "any",
+        "assertIsInstance",
+        "present",
+        "print",
+        "assertIn",
+        "format_speedtest_output",
+        "threshold",
+        "test_remote_speedtest",
+        "update_step_status",
+        "float",
+        "subTest",
+        "fail",
+        "except",
+        "run_speedtest",
+        "split",
+        "skipTest"
+      ]
+    },
+    "ssh_connection_check": {
+      "file": "RDK-RPi-Tests-main/utils/common_utils.py",
+      "line": 9,
+      "code": "def ssh_connection_check(client):\n    # Check if the SSH connection is active\n    if client.get_transport() is not None:\n        print(\"SSH connection is active.\")\n        stdin, stdout, stderr = client.exec_command(Xb_UPTIME_VERSION)\n        output = stdout.read().decode('utf-8')\n        print(f\"Uptime : {output}\")\n    else:\n        print(\"SSH connection is not active. Exiting...\")\n        exit()",
+      "docstring": "No documentation",
+      "parameters": [
+        "client"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "print",
+        "exit",
+        "exec_command",
+        "get_transport",
+        "read",
+        "decode",
+        "ssh_connection_check"
+      ]
+    },
+    "ssh_connect": {
+      "file": "RDK-RPi-Tests-main/utils/common_utils.py",
+      "line": 20,
+      "code": "def ssh_connect(host, user, password):\n    # Establish SSH connection to the RDK-B device\n    client = paramiko.SSHClient()\n    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())\n    client.connect(host, username=user, password=password)\n    return client",
+      "docstring": "No documentation",
+      "parameters": [
+        "host",
+        "user",
+        "password"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "ssh_connect",
+        "connect",
+        "AutoAddPolicy",
+        "SSHClient",
+        "set_missing_host_key_policy"
+      ]
+    },
+    "parse_dmcli_output": {
+      "file": "RDK-RPi-Tests-main/utils/common_utils.py",
+      "line": 27,
+      "code": "def parse_dmcli_output(output):\n    \"\"\" Parse the dmcli output and extract the value \"\"\"\n    match = re.search(r'value:\\s*(\\S+)', output)\n    if match:\n        return match.group(1)\n    return None",
+      "docstring": "Parse the dmcli output and extract the value ",
+      "parameters": [
+        "output"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "parse_dmcli_output",
+        "group",
+        "search"
+      ]
+    },
+    "run_dmcli_command": {
+      "file": "RDK-RPi-Tests-main/utils/common_utils.py",
+      "line": 34,
+      "code": "def run_dmcli_command(command, timeout=TIMEOUT):\n    \"\"\" Run a dmcli command and return the output\"\"\"\n    result = subprocess.run(\n        command,\n        shell=True,\n        check=False,\n        capture_output=True,\n        text=True,\n        timeout=timeout\n    )\n    return result.stdout.strip()",
+      "docstring": "Run a dmcli command and return the output",
+      "parameters": [
+        "command",
+        "timeout"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "strip",
+        "run_dmcli_command",
+        "run"
+      ]
+    },
+    "extract_rownum": {
+      "file": "RDK-RPi-Tests-main/utils/common_utils.py",
+      "line": 46,
+      "code": "def extract_rownum(text, delimiter):\n    \"\"\" Extract the row numbers from the text based on the delimiter \"\"\"\n    rows = text.split(delimiter)\n    row_numbers = []\n    for row in rows:\n        match = re.search(r'(\\d+)', row)\n        if match:\n            row_numbers.append(int(match.group(1)))\n    return row_numbers",
+      "docstring": "Extract the row numbers from the text based on the delimiter ",
+      "parameters": [
+        "text",
+        "delimiter"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "int",
+        "search",
+        "extract_rownum",
+        "group",
+        "split",
+        "append"
+      ]
+    },
+    "parse_test_step": {
+      "file": "RDK-RPi-Tests-main/utils/common_utils.py",
+      "line": 56,
+      "code": "def parse_test_step(docstring):\n    \"\"\"Parse test step information from docstring.\n    Returns a list of all test steps found in the docstring.\"\"\"\n    # Remove leading/trailing whitespace from each line and join\n    cleaned_docstring = '\\n'.join(line.strip() for line in docstring.split('\\n'))\n    \n    # Find all test step sections\n    step_pattern = r'<TEST_STEP>\\s*(\\d+)\\s*</TEST_STEP>\\s*<TEST_STEP_DESCRIPTION>\\s*(.*?)\\s*</TEST_STEP_DESCRIPTION>'\n    step_matches = list(re.finditer(step_pattern, cleaned_docstring, re.DOTALL))\n    \n    if not step_matches:\n        return None\n    \n    # Extract all test steps\n    test_steps = []\n    for match in step_matches:\n        step_info = {\n            'step': match.group(1),\n            'details': match.group(2).strip()\n        }\n        test_steps.append(step_info)\n    \n    print(f\"Found {len(test_steps)} test steps in docstring: {[s['step'] for s in test_steps]}\")\n    return test_steps",
+      "docstring": "Parse test step information from docstring.\nReturns a list of all test steps found in the docstring.",
+      "parameters": [
+        "docstring"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "print",
+        "list",
+        "parse_test_step",
+        "len",
+        "finditer",
+        "join",
+        "group",
+        "strip",
+        "split",
+        "append"
+      ]
+    },
+    "update_html_report": {
+      "file": "RDK-RPi-Tests-main/utils/common_utils.py",
+      "line": 81,
+      "code": "def update_html_report(report_path, test_steps, statuses):\n    \"\"\"Update HTML report with test steps and their status.\"\"\"\n    # Create initial report if it doesn't exist\n    if not os.path.exists(report_path):\n        os.makedirs(os.path.dirname(report_path), exist_ok=True)\n        timestamp = datetime.now().strftime(\"%Y%m%d_%H%M%S\")\n        initial_content = f\"\"\"<!DOCTYPE html>",
+      "docstring": "Update HTML report with test steps and their status.",
+      "parameters": [
+        "report_path",
+        "test_steps",
+        "statuses"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "dirname",
+        "strftime",
+        "makedirs",
+        "update_html_report",
+        "now",
+        "exists"
+      ]
+    },
+    "run_speedtest": {
+      "file": "RDK-RPi-Tests-main/utils/common_utils.py",
+      "line": 162,
+      "code": "def run_speedtest(ssh_connection=None):\n    \"\"\"Runs speedtest, optionally over SSH.\n\n    Args:\n        ssh_connection: A paramiko SSHClient object, or None for local execution.\n\n    Returns:\n        A dictionary containing speedtest results, or None on error.\n    \"\"\"\n    try:\n        if ssh_connection:  # Run over SSH\n            command = \"speedtest\"\n            stdin, stdout, stderr = ssh_connection.exec_command(command)\n            output = stdout.read().decode('utf-8')  # Decode the output\n            error = stderr.read().decode('utf-8')\n            print (f\"Output : {output}\")\n            print (f\"Error : {error}\")\n            if error: #check for errors from the remote\n                print(f\"Error on remote: {error}\")\n                return None\n        else:  # Run locally\n            result = subprocess.run([\"speedtest\"], capture_output=True, text=True, check=True)\n            output = result.stdout\n\n        # Parse the output (same parsing logic as before)\n        download_match = re.search(r\"Download: (\\d+\\.\\d+) Mbit/s\", output)\n        upload_match = re.search(r\"Upload: (\\d+\\.\\d+) Mbit/s\", output)\n        host_match = re.search(r\"Hosted by (.+) \\[(.+?) km\\]\", output)\n        ping_match = re.search(r\"(\\d+\\.\\d+) ms\", output)\n\n        if download_match and upload_match and host_match and ping_match:\n            download_speed = download_match.group(1)\n            upload_speed = upload_match.group(1)\n            host = host_match.group(1)\n            ping = ping_match.group(1)\n\n            return {\n                \"download\": download_speed,\n                \"upload\": upload_speed,\n                \"host\": host,\n                \"ping\": ping\n            }\n        else:\n            print(\"Error: Could not parse speedtest output.\")\n            print(output)  # Print for debugging\n            return None\n\n    except subprocess.CalledProcessError as e:\n        print(f\"Error: speedtest command failed locally: {e}\")\n        return None\n    except FileNotFoundError:\n        print(\"Error: speedtest command not found locally. Make sure it's installed and in your PATH.\")\n        return None\n    except Exception as e:\n        print(f\"An unexpected error occurred: {e}\")\n        return None",
+      "docstring": "Runs speedtest, optionally over SSH.\n\nArgs:\n    ssh_connection: A paramiko SSHClient object, or None for local execution.\n\nReturns:\n    A dictionary containing speedtest results, or None on error.",
+      "parameters": [
+        "ssh_connection"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "search",
+        "print",
+        "output",
+        "exec_command",
+        "run",
+        "read",
+        "by",
+        "decode",
+        "group",
+        "run_speedtest"
+      ]
+    },
+    "format_speedtest_output": {
+      "file": "RDK-RPi-Tests-main/utils/common_utils.py",
+      "line": 219,
+      "code": "def format_speedtest_output(speedtest_data):\n  \"\"\"Formats the speedtest data into a user-friendly string.\n\n  Args:\n    speedtest_data: A dictionary containing speedtest results, as returned by run_speedtest().\n\n  Returns:\n    A formatted string with the speedtest results, or None if the input is invalid.\n  \"\"\"\n  if not speedtest_data:\n    return None\n\n  return (\n      f\"Testing download speed - {speedtest_data['download']} Mbit/s\\n\"\n      f\"Testing upload speed -  {speedtest_data['upload']} Mbit/s\\n\"\n      f\"Host : {speedtest_data['host']}\\n\"\n      f\"Ping : {speedtest_data['ping']} ms\"\n  )",
+      "docstring": "Formats the speedtest data into a user-friendly string.\n\nArgs:\n  speedtest_data: A dictionary containing speedtest results, as returned by run_speedtest().\n\nReturns:\n  A formatted string with the speedtest results, or None if the input is invalid.",
+      "parameters": [
+        "speedtest_data"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "run_speedtest",
+        "format_speedtest_output",
+        "return"
+      ]
+    },
+    "create_response": {
+      "file": "RDK-RPi-Tests-main/scripts/parental_control_setting.py",
+      "line": 12,
+      "code": "def create_response():\n    return {\n        \"status\": \"failure\",\n        \"error_message\": \"\",\n        \"response_code\": 1,\n        \"spoken_response\": \"\",\n        \"output\": \"\"\n    }",
+      "docstring": "No documentation",
+      "parameters": [],
+      "returns": "Unknown",
+      "dependencies": [
+        "create_response"
+      ]
+    },
+    "get_mac_address_by_hostname": {
+      "file": "RDK-RPi-Tests-main/scripts/parental_control_setting.py",
+      "line": 21,
+      "code": "def get_mac_address_by_hostname(hostname):\n    \"\"\" Get the MAC address of a connected client by hostname \"\"\"\n    try:\n        num = run_dmcli_command(f\"{DM_RETV} {DM_HOST_NUMBER_OF_ENTRIES}\")\n        \n        if num is None:\n            raise ValueError(\"Failed to get the number of host entries\")\n\n        num = int(num)\n\n        for i in range(1, num + 1):\n            command = f\"dmcli eRT retv Device.Hosts.Host.{i}.HostName\"\n            current_hostname = run_dmcli_command(command)\n            if current_hostname == hostname:\n                command = f\"dmcli eRT retv Device.Hosts.Host.{i}.PhysAddress\"\n                mac_address = run_dmcli_command(command)\n                return mac_address\n\n        raise ValueError(f\"Hostname {hostname} not found\")\n    except (subprocess.CalledProcessError, ValueError) as e:\n        print(f\"Error: {e}\")\n        return 1",
+      "docstring": "Get the MAC address of a connected client by hostname ",
+      "parameters": [
+        "hostname"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "run_dmcli_command",
+        "int",
+        "print",
+        "get_mac_address_by_hostname",
+        "except",
+        "ValueError",
+        "range"
+      ]
+    },
+    "get_pc_row_numbers": {
+      "file": "RDK-RPi-Tests-main/scripts/parental_control_setting.py",
+      "line": 44,
+      "code": "def get_pc_row_numbers():\n    \"\"\" Get the specific row numbers of managed devices. Returns a list of row numbers \"\"\"\n    try:\n        command = f\"dmcli eRT getv {DM_PC}. | grep -i Description\"\n        output = run_dmcli_command(command)\n        row_numbers = extract_rownum(output, DM_PC)\n        return row_numbers\n    except subprocess.CalledProcessError as e:\n        print(f\"Error executing dmcli command: {e.stderr.decode()}\")\n        return None",
+      "docstring": "Get the specific row numbers of managed devices. Returns a list of row numbers ",
+      "parameters": [],
+      "returns": "Unknown",
+      "dependencies": [
+        "run_dmcli_command",
+        "print",
+        "extract_rownum",
+        "get_pc_row_numbers",
+        "decode"
+      ]
+    },
+    "get_row_number_by_hostname": {
+      "file": "RDK-RPi-Tests-main/scripts/parental_control_setting.py",
+      "line": 55,
+      "code": "def get_row_number_by_hostname(hostname):\n    \"\"\" Get the row number of a managed device based on the hostname \"\"\"\n    try:\n        row_numbers = get_pc_row_numbers()\n\n        for i in row_numbers:\n            command = f\"dmcli eRT retv {DM_PC}.{i}.Description\"\n            current_hostname = run_dmcli_command(command)\n            if current_hostname == hostname:\n                return i\n\n        raise ValueError(f\"Hostname {hostname} not found in ManagedDevices.Device table\")\n    except (subprocess.CalledProcessError, ValueError) as e:\n        print(f\"Error: {e}\")\n        return None",
+      "docstring": "Get the row number of a managed device based on the hostname ",
+      "parameters": [
+        "hostname"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "run_dmcli_command",
+        "print",
+        "get_pc_row_numbers",
+        "get_row_number_by_hostname",
+        "except",
+        "ValueError"
+      ]
+    },
+    "enable_disable_pc": {
+      "file": "RDK-RPi-Tests-main/scripts/parental_control_setting.py",
+      "line": 71,
+      "code": "def enable_disable_pc(enable):\n    \"\"\" Enable or Disable Parental Control Managed Devices Feature \"\"\"\n    response = create_response()\n    command = f\"dmcli eRT setv {DM_MD}.Enable bool {enable}\"\n    try:\n        output = run_dmcli_command(command)\n        response = {\n            \"status\": \"success\" if DM_SUCCESS in output else \"failure\",\n            \"error_message\": \"\" if DM_SUCCESS in output else \"Failed to set Enable value\",\n            \"response_code\": 0 if DM_SUCCESS in output else 1,\n            \"spoken_response\": \"\",\n            \"output\": \"\",\n        }\n        return response\n    except subprocess.CalledProcessError as e:\n        response = {\n            \"status\": \"failure\",\n            \"error_message\": e.stderr.decode(),\n            \"response_code\": 1,\n            \"spoken_response\": \"\",\n            \"output\": \"\",\n        }\n        return response",
+      "docstring": "Enable or Disable Parental Control Managed Devices Feature ",
+      "parameters": [
+        "enable"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "enable_disable_pc",
+        "run_dmcli_command",
+        "create_response",
+        "decode"
+      ]
+    },
+    "block_device": {
+      "file": "RDK-RPi-Tests-main/scripts/parental_control_setting.py",
+      "line": 95,
+      "code": "def block_device(hostname, start_time, end_time, block_days, always_block):\n    \"\"\" Block a new device \"\"\"\n    response = create_response()\n    try:\n        mac_address = get_mac_address_by_hostname(hostname)\n        if mac_address is None:\n            raise ValueError(f\"MAC address for hostname {hostname} not found\")\n    except ValueError as e:\n        response[\"error_message\"] = str(e)\n        return response\n\n    try:\n        # Add a new row to the ManagedDevices table\n        command = f\"dmcli eRT addtable {DM_PC}.\"\n        output = run_dmcli_command(command)\n        print(output)\n        if DM_SUCCESS not in output:\n            raise ValueError(\"Failed to add a new row to the ManagedDevices table\")\n\n        row_numbers = extract_rownum(output, DM_PC)\n        print(row_numbers)\n        if not row_numbers:\n            raise ValueError(\"Failed to extract row number\")\n        row_number = row_numbers[-1]\n        print(row_number)\n    except (subprocess.CalledProcessError, ValueError) as e:\n        response[\"error_message\"] = str(e)\n        return response\n\n    try:\n        # Set the common parameters for the blocked device\n        common_commands = [\n            f\"dmcli eRT setv {DM_MD}.Enable bool true\",\n            f\"dmcli eRT setv {DM_PC}.{row_number}.Description string {hostname}\",\n            f\"dmcli eRT setv {DM_PC}.{row_number}.MACAddress string {mac_address}\"\n        ]\n\n        for cmd in common_commands:\n            output = run_dmcli_command(cmd)\n            if DM_SUCCESS not in output:\n                raise ValueError(f\"Failed to execute command: {cmd}\")\n\n        # Set the specific parameters based on always_block\n        if always_block:\n            specific_commands = [\n                f\"dmcli eRT setv {DM_PC}.{row_number}.AlwaysBlock bool true\"\n            ]\n        else:\n            if block_days:\n                block_days = block_days.strip() or \"Mon,Tue,Wed,Thu,Fri,Sat,Sun\" # Default is all days\n\n            specific_commands = [\n                f\"dmcli eRT setv {DM_PC}.{row_number}.Type string Block\",\n                f\"dmcli eRT setv {DM_PC}.{row_number}.StartTime string {start_time}\",\n                f\"dmcli eRT setv {DM_PC}.{row_number}.EndTime string {end_time}\",\n                f\"dmcli eRT setv {DM_PC}.{row_number}.BlockDays string {block_days}\"\n            ]\n\n        for cmd in specific_commands:\n            output = run_dmcli_command(cmd)\n            if DM_SUCCESS not in output:\n                raise ValueError(f\"Failed to execute command: {cmd}\")\n\n        response[\"status\"] = \"success\"\n        response[\"response_code\"] = 0\n        response[\"spoken_response\"] = \"Device blocked successfully\"\n        return response\n    except (subprocess.CalledProcessError, ValueError) as e:\n        response[\"error_message\"] = str(e)\n        return response",
+      "docstring": "Block a new device ",
+      "parameters": [
+        "hostname",
+        "start_time",
+        "end_time",
+        "block_days",
+        "always_block"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "run_dmcli_command",
+        "block_device",
+        "print",
+        "get_mac_address_by_hostname",
+        "extract_rownum",
+        "str",
+        "except",
+        "strip",
+        "create_response",
+        "ValueError"
+      ]
+    },
+    "unblock_device": {
+      "file": "RDK-RPi-Tests-main/scripts/parental_control_setting.py",
+      "line": 166,
+      "code": "def unblock_device(hostname):\n    \"\"\" Unblock a device from block list \"\"\"\n    response = create_response()\n    try:\n        row_number = get_row_number_by_hostname(hostname)\n        if row_number is None:\n            raise ValueError(f\"Hostname {hostname} not found in ManagedDevices.Device table\")\n    except ValueError as e:\n        response[\"error_message\"] = str(e)\n        return response\n\n    # Unblock the device by setting the Type to Allow\n    command = f\"dmcli eRT setv {DM_PC}.{row_number}.Type string Allow\" \n    output = run_dmcli_command(command)\n    if DM_SUCCESS in output:\n        response[\"status\"] = \"success\"\n        response[\"response_code\"] = 0\n        response[\"spoken_response\"] = f\"Device {hostname} unblocked successfully\"\n    else:\n        response[\"error_message\"] = f\"Failed to unblock the device {hostname}\"\n\n    return response",
+      "docstring": "Unblock a device from block list ",
+      "parameters": [
+        "hostname"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "run_dmcli_command",
+        "str",
+        "get_row_number_by_hostname",
+        "unblock_device",
+        "create_response",
+        "ValueError"
+      ]
+    },
+    "delete_device": {
+      "file": "RDK-RPi-Tests-main/scripts/parental_control_setting.py",
+      "line": 189,
+      "code": "def delete_device(hostname):\n    \"\"\" Delete a blocked device from the ManagedDevices table \"\"\"\n    response = create_response()\n    try:\n        row_number = get_row_number_by_hostname(hostname)\n        if row_number is None:\n            raise ValueError(f\"Hostname {hostname} not found in ManagedDevices.Device table\")\n    except ValueError as e:\n        response[\"error_message\"] = str(e)\n        return response\n\n    # Delete the row from the ManagedDevices table\n    command = f\"dmcli eRT deltable {DM_PC}.{row_number}.\"\n    output = run_dmcli_command(command)\n    if DM_SUCCESS in output:\n        response[\"status\"] = \"success\"\n        response[\"response_code\"] = 0\n        response[\"spoken_response\"] = f\"Device {hostname} deleted successfully from the block list\"\n    else:\n        response[\"error_message\"] = f\"Failed to delete the device {hostname} from the block list\"\n\n    return response",
+      "docstring": "Delete a blocked device from the ManagedDevices table ",
+      "parameters": [
+        "hostname"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "run_dmcli_command",
+        "delete_device",
+        "str",
+        "get_row_number_by_hostname",
+        "create_response",
+        "ValueError"
+      ]
+    },
+    "list_blocked_devices": {
+      "file": "RDK-RPi-Tests-main/scripts/parental_control_setting.py",
+      "line": 212,
+      "code": "def list_blocked_devices():\n    \"\"\" List all the devices that are blocked \"\"\"\n    response = create_response()\n    try:\n        row_numbers = get_pc_row_numbers()\n        if row_numbers is None:\n            raise ValueError(\"Failed to get Parental control rows\")\n\n        blocked_devices = []\n        for i in row_numbers:\n            command = f\"dmcli eRT retv {DM_PC}.{i}.Type\"\n            output = run_dmcli_command(command)\n\n            if \"Block\" in output:\n                command = f\"dmcli eRT retv {DM_PC}.{i}.Description\"\n                hostname = run_dmcli_command(command)\n                blocked_devices.append(hostname)\n\n        response[\"status\"] = \"success\"\n        response[\"response_code\"] = 0\n        response[\"spoken_response\"] = \"Blocked devices listed successfully\"\n        response[\"output\"] = blocked_devices\n        return response\n    except (subprocess.CalledProcessError, ValueError) as e:\n        response[\"error_message\"] = str(e)\n        return response",
+      "docstring": "List all the devices that are blocked ",
+      "parameters": [],
+      "returns": "Unknown",
+      "dependencies": [
+        "run_dmcli_command",
+        "list_blocked_devices",
+        "get_pc_row_numbers",
+        "str",
+        "except",
+        "create_response",
+        "ValueError",
+        "append"
+      ]
+    },
+    "update_device": {
+      "file": "RDK-RPi-Tests-main/scripts/parental_control_setting.py",
+      "line": 239,
+      "code": "def update_device(hostname, start_time, end_time, block_days, always_block):\n    \"\"\" Update the block time/day for a device \"\"\"\n    response = create_response()\n    try:\n        row_number = get_row_number_by_hostname(hostname)\n        if row_number is None:\n            raise ValueError(f\"Hostname {hostname} not found in ManagedDevices.Device table\")\n    except ValueError as e:\n        response[\"error_message\"] = str(e)\n        return response\n\n    try:\n        if always_block:\n            command = f\"dmcli eRT setv {DM_PC}.{row_number}.AlwaysBlock bool true\"\n            output = run_dmcli_command(command)\n            if DM_SUCCESS not in output:\n                raise ValueError(f\"Failed to set AlwaysBlock for {hostname}\")\n        else:\n            command = command = f\"dmcli eRT setv {DM_PC}.{row_number}.AlwaysBlock bool false\"\n            output = run_dmcli_command(command)\n            if DM_SUCCESS not in output:\n                raise ValueError(f\"Failed to set BlockDays for {hostname}\")\n            \n            if start_time:\n                command = f\"dmcli eRT setv {DM_PC}.{row_number}.StartTime string {start_time}\"\n                output = run_dmcli_command(command)\n                if DM_SUCCESS not in output:\n                    raise ValueError(f\"Failed to set StartTime for {hostname}\")\n\n            if end_time:\n                command = f\"dmcli eRT setv {DM_PC}.{row_number}.EndTime string {end_time}\"\n                output = run_dmcli_command(command)\n                if DM_SUCCESS not in output:\n                    raise ValueError(f\"Failed to set EndTime for {hostname}\")\n\n            if block_days:\n                command = f\"dmcli eRT setv {DM_PC}.{row_number}.BlockDays string {block_days}\"\n                output = run_dmcli_command(command)\n                if DM_SUCCESS not in output:\n                    raise ValueError(f\"Failed to set BlockDays for {hostname}\")\n\n        response[\"status\"] = \"success\"\n        response[\"response_code\"] = 0\n        response[\"spoken_response\"] = \"Device block time updated successfully.\"\n        return response\n    except (subprocess.CalledProcessError, ValueError) as e:\n        response[\"error_message\"] = str(e)\n        return response",
+      "docstring": "Update the block time/day for a device ",
+      "parameters": [
+        "hostname",
+        "start_time",
+        "end_time",
+        "block_days",
+        "always_block"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "run_dmcli_command",
+        "str",
+        "get_row_number_by_hostname",
+        "except",
+        "update_device",
+        "create_response",
+        "ValueError"
+      ]
+    },
+    "handle_sigterm": {
+      "file": "RDK-RPi-Tests-main/scripts/parental_control_setting.py",
+      "line": 288,
+      "code": "def handle_sigterm(signum, frame):\n    print(\"Received SIGTERM, exiting gracefully...\")\n    sys.exit(0)",
+      "docstring": "No documentation",
+      "parameters": [
+        "signum",
+        "frame"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "handle_sigterm",
+        "print",
+        "exit"
+      ]
+    },
+    "validate_time_format": {
+      "file": "RDK-RPi-Tests-main/scripts/parental_control_setting.py",
+      "line": 292,
+      "code": "def validate_time_format(time_str):\n    \"\"\" Validate time format to be between 00:00 and 23:59 \"\"\"\n    if re.match(r\"^([01]\\d|2[0-3]):([0-5]\\d)$\", time_str):\n        return True\n    return False",
+      "docstring": "Validate time format to be between 00:00 and 23:59 ",
+      "parameters": [
+        "time_str"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "match",
+        "validate_time_format"
+      ]
+    },
+    "parental_control_settings": {
+      "file": "RDK-RPi-Tests-main/scripts/parental_control_setting.py",
+      "line": 298,
+      "code": "def parental_control_settings():\n    \"\"\"\n    TODO: Update as per the JIRA ticket\n    1. Enable or Disable Parental Control Managed Devices Feature --Enable true or false\n    2. Block a device\n    3. Unblock/Delete a device from block list - Find row number and delete\n    4. List all the devices that are blocked - Get from Hosts table and loop over PC table\n    5. Update the block time/day for a device - Find row number and update\n    \"\"\"\n    # TODO: Declare Spoken response and dmcli constants\n    response = create_response()\n\n    signal.signal(signal.SIGTERM, handle_sigterm)\n    parser = argparse.ArgumentParser(description=\"Parental Control Managed Devices\")\n    parser.add_argument('--Enable', type=bool, help='Enable or Disable the Managed Devices Feature: true or false')\n    parser.add_argument('--Hostname', type=str, help='Enter the Hostname for the managed device: Test_iPhone')\n    parser.add_argument('--StartTime', type=str, help='Enter the Start Time (UTC Format) to block the managed device: 22:15')\n    parser.add_argument('--EndTime', type=str, help='Enter the End Time (UTC Format) to unblock the managed device: 23:00')\n    parser.add_argument('--BlockDays', type=str, help='Block days for parental control') # Mon,Tue,Wed,Thu,Fri,Sat,Sun If not specified, default is all days\n    parser.add_argument('--AlwaysBlock', type=bool, help='Block the device completely: true or false')\n    parser.add_argument('--a', type=str, required=True, choices=['enable', 'disable', 'list', 'block', 'unblock', 'delete', 'update'], help='Action to perform')\n\n    args = parser.parse_args()\n    if args.a == 'enable':\n        response = enable_disable_pc(True)\n    elif args.a == 'disable':\n        response = enable_disable_pc(False)\n    elif args.a == 'list':\n        response = list_blocked_devices()\n    elif args.a == 'block':\n        if args.Hostname and (args.AlwaysBlock or (args.StartTime and args.EndTime and \n                                                   validate_time_format(args.StartTime) and validate_time_format(args.EndTime))):\n            response = block_device(args.Hostname, args.StartTime, args.EndTime, args.BlockDays, args.AlwaysBlock)\n        else:\n            response[\"response_code\"] = 1\n            response[\"error_message\"] = (\n                \"Hostname is mandatory, either AlwaysBlock should be present or \"\n                \"StartTime and EndTime should be specified.\"\n                \"Format for StartTime and EndTime should be in 24-hour format (HH:MM)\"\n            )\n    elif args.a == 'unblock':\n        if args.Hostname:\n            response = unblock_device(args.Hostname)\n        else:\n            response[\"response_code\"] = 1\n            response[\"error_message\"] = \"Hostname is required for unblocking a device\"\n    elif args.a == 'delete': \n        if args.Hostname:\n            response = delete_device(args.Hostname) #Delete from ManagedDevices table\n        else:\n            response[\"response_code\"] = 1\n            response[\"error_message\"] = \"Hostname is required for deleting a device from Blocked list\"\n    elif args.a == 'update':\n        if args.Hostname and (args.AlwaysBlock or ((args.StartTime or args.EndTime) and \n                                                   (validate_time_format(args.StartTime) or validate_time_format(args.EndTime)))):\n            response = update_device(args.Hostname, args.StartTime, args.EndTime, args.BlockDays, args.AlwaysBlock)\n        else:\n            response[\"response_code\"] = 1\n            response[\"error_message\"] = (\n                \"Hostname is mandatory, either AlwaysBlock should be present or \"\n                \"StartTime and EndTime should be specified.\"\n                \"Format for StartTime and EndTime should be in 24-hour format (HH:MM)\"\n            )\n    else:\n        response[\"response_code\"] = 1\n        response[\"error_message\"] = \"Invalid arguments provided. Please check the usage.\"\n    \n    print(json.dumps(response))\n\n    sys.exit(response[\"response_code\"])",
+      "docstring": "TODO: Update as per the JIRA ticket\n1. Enable or Disable Parental Control Managed Devices Feature --Enable true or false\n2. Block a device\n3. Unblock/Delete a device from block list - Find row number and delete\n4. List all the devices that are blocked - Get from Hosts table and loop over PC table\n5. Update the block time/day for a device - Find row number and update",
+      "parameters": [],
+      "returns": "Unknown",
+      "dependencies": [
+        "validate_time_format",
+        "parental_control_settings",
+        "signal",
+        "format",
+        "exit",
+        "list_blocked_devices",
+        "create_response",
+        "and",
+        "enable_disable_pc",
+        "block_device",
+        "print",
+        "delete_device",
+        "add_argument",
+        "unblock_device",
+        "Time",
+        "dumps",
+        "parse_args",
+        "or",
+        "update_device",
+        "ArgumentParser"
+      ]
+    },
+    "run_tests": {
+      "file": "RDK-RPi-Tests-main/scripts/Main.py",
+      "line": 32,
+      "code": "def run_tests(tests_to_run):\n    \"\"\"Runs the specified tests.\"\"\"\n    suite = unittest.TestSuite()\n\n    for test_module_name in tests_to_run:\n        print(f\"Trying to import: {test_module_name}\")\n        try:\n            test_module = __import__(test_module_name, fromlist=[\"*\"])  # Import everything\n\n            print(f\"Imported: {test_module_name}\")\n\n            # Dynamically find all test classes\n            for name in dir(test_module):\n                obj = getattr(test_module, name)\n                if isinstance(obj, type) and issubclass(obj, unittest.TestCase):\n                    print(f\"Adding tests from: {obj.__name__}\")  # Use obj.__name__\n                    suite.addTest(unittest.TestLoader().loadTestsFromModule(test_module)) # Load from module\n\n        except ImportError as e:\n            print(f\"ImportError: {e}\")\n            print(f\"sys.path: {sys.path}\")\n            return None\n        except Exception as e:\n            print(f\"Error running tests from '{test_module_name}': {e}\")\n            return None\n\n    # Create a custom test runner to capture step statuses\n    class StepStatusRunner(unittest.TextTestRunner):\n        def __init__(self, *args, **kwargs):\n            super().__init__(*args, **kwargs)\n            self.step_statuses = {}\n            self._current_test = None\n            self._output_buffer = []\n\n        def _makeResult(self):\n            class OutputCaptureResult(unittest.TextTestResult):\n                def __init__(self, *args, **kwargs):\n                    super().__init__(*args, **kwargs)\n                    self.step_statuses = {}\n                    self._output_buffer = []\n                    self._current_test = None\n\n                def startTest(self, test):\n                    self._output_buffer = []\n                    self._current_test = test\n                    super().startTest(test)\n\n                def addSuccess(self, test):\n                    self._processOutput()\n                    super().addSuccess(test)\n\n                def addError(self, test, err):\n                    self._processOutput()\n                    super().addError(test, err)\n\n                def addFailure(self, test, err):\n                    self._processOutput()\n                    super().addFailure(test, err)\n\n                def _processOutput(self):\n                    if not self._current_test:\n                        return\n                    output = ''.join(self._output_buffer)\n                    for line in output.splitlines():\n                        if \"Test step\" in line and \"status:\" in line:\n                            try:\n                                step_num = line.split(\"Test step\")[1].split(\":\")[0].strip()\n                                step_status = line.split(\"status:\")[1].strip().lower()\n                                self.step_statuses[f\"{self._current_test._testMethodName}_{step_num}\"] = step_status\n                            except:\n                                continue\n                    self._output_buffer = []\n\n                def addOutput(self, output):\n                    if self._current_test:\n                        self._output_buffer.append(output)\n                        self._processOutput()\n\n            result = OutputCaptureResult(self.stream, self.descriptions, self.verbosity)\n            result.step_statuses = self.step_statuses\n            return result\n\n        def _processOutput(self, test):\n            for line in self._output_buffer:\n                if \"Test step\" in line and \"status:\" in line:\n                    try:\n                        step_num = line.split(\"Test step\")[1].split(\":\")[0].strip()\n                        step_status = line.split(\"status:\")[1].strip().lower()\n                        self.step_statuses[f\"{test._testMethodName}_{step_num}\"] = step_status\n                    except:\n                        continue\n            self._output_buffer = []\n\n        def _addError(self, test, err):\n            self._processOutput(test)\n            unittest.TextTestResult.addError(self, test, err)\n\n        def _addFailure(self, test, err):\n            self._processOutput(test)\n            unittest.TextTestResult.addFailure(self, test, err)\n\n        def _addSuccess(self, test):\n            self._processOutput(test)\n            unittest.TextTestResult.addSuccess(self, test)\n\n    runner = StepStatusRunner(stream=sys.stdout)\n    result = runner.run(suite)\n    return result",
+      "docstring": "Runs the specified tests.",
+      "parameters": [
+        "tests_to_run"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "getattr",
+        "run_tests",
+        "run",
+        "_addError",
+        "strip",
+        "issubclass",
+        "StepStatusRunner",
+        "addOutput",
+        "OutputCaptureResult",
+        "join",
+        "__init__",
+        "addError",
+        "isinstance",
+        "print",
+        "addTest",
+        "addFailure",
+        "_addFailure",
+        "lower",
+        "__import__",
+        "TestLoader",
+        "split",
+        "_addSuccess",
+        "startTest",
+        "super",
+        "addSuccess",
+        "TestSuite",
+        "dir",
+        "_processOutput",
+        "_makeResult",
+        "splitlines",
+        "loadTestsFromModule",
+        "append"
+      ]
+    },
+    "generate_report": {
+      "file": "RDK-RPi-Tests-main/scripts/Main.py",
+      "line": 141,
+      "code": "def generate_report(result, report_path, test_start_time):\n    \"\"\"Generates a text report.\"\"\"\n    timestamp = test_start_time.strftime(\"%Y%m%d_%H%M%S\")\n    report_file = os.path.join(report_path, f\"test_report_{timestamp}.txt\")\n\n    with open(report_file, \"w\") as f:\n        f.write(f\"Test Report - {timestamp}\\n\\n\")\n        f.write(f\"Total Tests Run: {result.testsRun}\\n\")\n        f.write(f\"Tests Passed: {result.testsRun - len(result.failures) - len(result.errors)}\\n\")\n        f.write(f\"Tests Failed: {len(result.failures)}\\n\")\n        f.write(f\"Tests in Error: {len(result.errors)}\\n\\n\")\n\n        if result.failures:\n            f.write(\"Failures:\\n\")\n            for failure in result.failures:\n                f.write(f\"{failure[0]}\\n{failure[1]}\\n\\n\")\n\n        if result.errors:\n            f.write(\"Errors:\\n\")\n            for error in result.errors:\n                f.write(f\"{error[0]}\\n{error[1]}\\n\\n\")\n\n    print(f\"Test report generated: {report_file}\")",
+      "docstring": "Generates a text report.",
+      "parameters": [
+        "result",
+        "report_path",
+        "test_start_time"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "write",
+        "print",
+        "len",
+        "strftime",
+        "open",
+        "join",
+        "generate_report"
+      ]
+    },
+    "generate_html_report": {
+      "file": "RDK-RPi-Tests-main/scripts/Main.py",
+      "line": 165,
+      "code": "def generate_html_report(result, report_path, tests_to_run, test_start_time, test_execution_time):\n    \"\"\"Generates an HTML report with detailed test step information.\"\"\"\n    timestamp = test_start_time.strftime(\"%Y%m%d_%H%M%S\")\n    report_file = os.path.join(report_path, f\"test_report_{timestamp}.html\")\n\n    # SSH connection details\n    hostname = HOSTNAME\n    username = USERNAME\n    password = PASSWORD\n\n    # DMCLI commands\n    ip_command = DUT_IP_COMMAND\n    mac_command = DUT_MAC_COMMAND\n    image_command = DUT_IMAGE_COMMAND\n\n    test_end_time = test_start_time + test_execution_time\n    try:\n        # Establish SSH connection\n        client = ssh_connect(hostname, username, password)\n\n        # Get RDK-B image name\n        stdin, stdout, stderr = client.exec_command(image_command)\n        image_name = stdout.read().decode(\"utf-8\").strip()\n\n        # Get DUT IP address\n        stdin, stdout, stderr = client.exec_command(ip_command)\n        ip_address = stdout.read().decode(\"utf-8\").strip()\n\n        # Get DUT MAC address\n        stdin, stdout, stderr = client.exec_command(mac_command)\n        mac_address = stdout.read().decode(\"utf-8\").strip()\n\n        # Get test start and end timestamps from uptime\n        stdin, stdout, stderr = client.exec_command(\"uptime\")\n        uptime_output = stdout.read().decode(\"utf-8\").strip()\n        # Parse uptime output to extract start and end times (example:  09:30:00 up 1 day,  1:22,  load average: 0.00, 0.01, 0.00)\n        client.close()\n\n    except Exception as e:\n        image_name = \"N/A\"\n        ip_address = \"N/A\"\n        mac_address = \"N/A\"\n        print(f\"Error getting environment details: {e}\")\n\n    with open(report_file, \"w\") as f:\n        f.write(\"<!DOCTYPE html>\\n\")\n        f.write(\"<html>\\n\")\n        f.write(\"<head>\\n\")\n        f.write(\"<title>Test Report</title>\\n\")\n        f.write(\"<style>\\n\")\n        f.write(\"body {\\n\")\n        f.write(\"  font-family: sans-serif;\\n\")\n        f.write(\"}\\n\")\n        f.write(\".header {\\n\")\n        f.write(\"  text-align: center;\\n\")\n        f.write(\"  margin-bottom: 20px;\\n\")\n        f.write(\"}\\n\")\n        f.write(\"table {\\n\")\n        f.write(\"  width: 80%;\\n\")\n        f.write(\"  margin: 20px auto;\\n\")\n        f.write(\"  border-collapse: collapse;\\n\")\n        f.write(\"}\\n\")\n        f.write(\"th, td {\\n\")\n        f.write(\"  border: 1px solid #ddd;\\n\")\n        f.write(\"  padding: 8px;\\n\")\n        f.write(\"  text-align: left;\\n\")\n        f.write(\"}\\n\")\n        f.write(\"th {\\n\")\n        f.write(\"  background-color: #f2f2f2;\\n\")\n        f.write(\"  font-weight: bold;\\n\")\n        f.write(\"}\\n\")\n        f.write(\"tr:nth-child(even) {background-color: #f9f9f9;}\\n\")\n        f.write(\".pass { color: green; }\\n\")\n        f.write(\".fail { color: red; }\\n\")\n        f.write(\".error { color: orange; }\\n\")\n        f.write(\"</style>\\n\")\n        f.write(\"</head>\\n\")\n        f.write(\"<body>\\n\")\n\n        f.write(\"<div class='header'>\\n\")\n        f.write(f\"<h1>Test Report - {timestamp}</h1>\\n\")\n\n        # Add environment details\n        f.write(\"<h2>Environment Details</h2>\\n\")\n        f.write(\"<ul>\\n\")\n        f.write(f\"<li>RDK-B Image Name: {image_name}</li>\\n\")\n        f.write(f\"<li>DUT IP Address: {ip_address}</li>\\n\")\n        f.write(f\"<li>DUT MAC Address: {mac_address}</li>\\n\")\n        f.write(f\"<li>Test Start Timestamp: Date: {test_start_time.strftime('%m/%d/%Y')} Time: {test_start_time.strftime('%I:%M:%S %p')}</li>\\n\")\n        f.write(f\"<li>Test End Timestamp: Date: {test_end_time.strftime('%m/%d/%Y')} Time: {test_end_time.strftime('%I:%M:%S %p')}</li>\\n\")\n        f.write(\"<li>Device Under Test (DUT): Raspberry Pi (RPi)</li>\\n\")\n        f.write(f\"<li>Total Tests Run: {result.testsRun}</li>\\n\")\n        f.write(f\"<li>Tests Passed: {result.testsRun - len(result.failures) - len(result.errors)}</li>\\n\")\n        f.write(f\"<li>Tests Failed: {len(result.failures)}</li>\\n\")\n        f.write(f\"<li>Tests in Error: {len(result.errors)}</li>\\n\")\n        f.write(\"</ul>\\n\")\n\n        test_id = \"\"\n        test_name = \"\"\n        test_description = \"\"\n\n        if tests_to_run:\n            try:\n                test_module = __import__(tests_to_run[0], fromlist=[\"*\"])\n                for name in dir(test_module):\n                    obj = getattr(test_module, name)\n                    if isinstance(obj, type) and issubclass(obj, unittest.TestCase):\n                        docstring = obj.__doc__\n                        if docstring:\n                            lines = docstring.splitlines()\n                            for line in lines:\n                                if \"<TEST_ID>\" in line:\n                                    test_id = line.replace(\"<TEST_ID>\", \"\").replace(\"</TEST_ID>\", \"\").strip()\n                                if \"<TEST_CASE_NAME>\" in line:\n                                    test_name = line.replace(\"<TEST_CASE_NAME>\", \"\").replace(\"</TEST_CASE_NAME>\", \"\").strip()\n                                if \"<TEST_CASE_DESCRIPTION>\" in line:\n                                    test_description = line.replace(\"<TEST_CASE_DESCRIPTION>\", \"\").replace(\"</TEST_CASE_DESCRIPTION>\", \"\").strip()\n\n                        break\n            except Exception as e:\n                print(f\"Error extracting test details: {e}\")\n\n        f.write(f\"<h2>Test ID: {test_id}</h2>\\n\")\n        f.write(f\"<h2>Test Case Name: {test_name}</h2>\\n\")\n        f.write(f\"<h2>Test Case Description: {test_description}</h2>\\n\")\n        f.write(\"</div>\\n\")\n\n        f.write(\"<table>\\n\")\n        f.write(\"<tr><th>Test Step</th><th>Details</th><th>Status</th></tr>\\n\")\n\n        test_step = 1\n\n        for test_module_name in tests_to_run:\n            try:\n                test_module = __import__(test_module_name, fromlist=[\"*\"])\n                for name in dir(test_module):\n                    obj = getattr(test_module, name)\n                    if isinstance(obj, type) and issubclass(obj, unittest.TestCase):\n                        test_class = obj\n                        break\n\n                test_suite = unittest.TestLoader().loadTestsFromModule(test_module)\n                for test_case in test_suite:\n                    for test in test_case:\n                        # Get the step statuses from test output\n                        step_statuses = getattr(result, 'step_statuses', {})\n                        test_name = test._testMethodName\n                        \n                        # Default status for overall test\n                        status_class = \"pass\"\n                        status = \"Pass\"\n                        \n                        # Check for test failures and errors\n                        for failure in result.failures:\n                            if failure[0] == test:\n                                status = \"Fail\"\n                                status_class = \"fail\"\n                                break\n                        if status != \"Fail\":\n                            for error in result.errors:\n                                if error[0] == test:\n                                    status = \"Error\"\n                                    status_class = \"error\"\n                                    break\n                                    \n                        # Parse test output to capture step statuses\n                        test_output = getattr(test, '_testMethodDoc', '')\n                        if test_output:\n                            lines = test_output.splitlines()\n                            current_step = None\n                            for line in lines:\n                                if \"Test step\" in line and \"status:\" in line:\n                                    try:\n                                        step_num = line.split(\"Test step\")[1].split(\":\")[0].strip()\n                                        step_status = line.split(\"status:\")[1].strip().lower()\n                                        step_statuses[f\"{test_name}_{step_num}\"] = step_status\n                                    except:\n                                        continue\n\n                        test_method = getattr(test_class, test._testMethodName)\n                        test_method_docstring = test_method.__doc__\n                        test_steps = []\n                        \n                        # Collect all test steps and descriptions\n                        if test_method_docstring:\n                            lines = test_method_docstring.splitlines()\n                            current_step = None\n                            for line in lines:\n                                if \"<TEST_STEP>\" in line:\n                                    current_step = line.replace(\"<TEST_STEP>\", \"\").replace(\"</TEST_STEP>\", \"\").strip()\n                                elif \"<TEST_STEP_DESCRIPTION>\" in line and current_step:\n                                    description = line.replace(\"<TEST_STEP_DESCRIPTION>\", \"\").replace(\"</TEST_STEP_DESCRIPTION>\", \"\").strip()\n                                    test_steps.append((current_step, description))\n                                    current_step = None\n\n                        # Also check setUp and tearDown methods for additional steps\n                        for method_name in ['setUp', 'tearDown']:\n                            if hasattr(test_class, method_name):\n                                method = getattr(test_class, method_name)\n                                if method.__doc__:\n                                    lines = method.__doc__.splitlines()\n                                    current_step = None\n                                    for line in lines:\n                                        if \"<TEST_STEP>\" in line:\n                                            current_step = line.replace(\"<TEST_STEP>\", \"\").replace(\"</TEST_STEP>\", \"\").strip()\n                                        elif \"<TEST_STEP_DESCRIPTION>\" in line and current_step:\n                                            description = line.replace(\"<TEST_STEP_DESCRIPTION>\", \"\").replace(\"</TEST_STEP_DESCRIPTION>\", \"\").strip()\n                                            test_steps.append((current_step, description))\n                                            current_step = None\n\n                        # Sort test steps by step number\n                        test_steps.sort(key=lambda x: int(x[0]))\n\n                        # Write each test step as a main row\n                        for step, description in test_steps:\n                            # Get step-specific status if available\n                            step_key = f\"{test._testMethodName}_{step}\"\n                            step_status = step_statuses.get(step_key, \"\").capitalize()\n                            if not step_status or step_status.lower() not in ['pass', 'fail', 'error']:\n                                step_status = status\n                                step_status_class = status_class\n                            else:\n                                step_status_class = step_status.lower()\n                            details_formatted = html.escape(description).replace('\\n', '<br>')\n                            f.write(f\"<tr><td>{step}</td><td>{details_formatted}</td><td class='{step_status_class}'>{step_status}</td></tr>\\n\")\n                        test_step += 1\n\n            except Exception as e:\n                print(f\"Error processing test module: {e}\")\n\n        f.write(\"</table>\\n\")\n        f.write(\"</body>\\n\")\n        f.write(\"</html>\\n\")\n\n    print(f\"HTML test report generated: {report_file}\")",
+      "docstring": "Generates an HTML report with detailed test step information.",
+      "parameters": [
+        "result",
+        "report_path",
+        "tests_to_run",
+        "test_start_time",
+        "test_execution_time"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "times",
+        "Test",
+        "getattr",
+        "Pi",
+        "strip",
+        "hasattr",
+        "escape",
+        "issubclass",
+        "read",
+        "ssh_connect",
+        "join",
+        "capitalize",
+        "write",
+        "isinstance",
+        "print",
+        "get",
+        "exec_command",
+        "strftime",
+        "replace",
+        "close",
+        "open",
+        "lower",
+        "__import__",
+        "child",
+        "TestLoader",
+        "split",
+        "generate_html_report",
+        "int",
+        "sort",
+        "len",
+        "dir",
+        "decode",
+        "splitlines",
+        "loadTestsFromModule",
+        "append"
+      ]
+    },
+    "_makeResult": {
+      "file": "RDK-RPi-Tests-main/scripts/Main.py",
+      "line": 66,
+      "code": "        def _makeResult(self):\n            class OutputCaptureResult(unittest.TextTestResult):\n                def __init__(self, *args, **kwargs):\n                    super().__init__(*args, **kwargs)\n                    self.step_statuses = {}\n                    self._output_buffer = []\n                    self._current_test = None\n\n                def startTest(self, test):\n                    self._output_buffer = []\n                    self._current_test = test\n                    super().startTest(test)\n\n                def addSuccess(self, test):\n                    self._processOutput()\n                    super().addSuccess(test)\n\n                def addError(self, test, err):\n                    self._processOutput()\n                    super().addError(test, err)\n\n                def addFailure(self, test, err):\n                    self._processOutput()\n                    super().addFailure(test, err)\n\n                def _processOutput(self):\n                    if not self._current_test:\n                        return\n                    output = ''.join(self._output_buffer)\n                    for line in output.splitlines():\n                        if \"Test step\" in line and \"status:\" in line:\n                            try:\n                                step_num = line.split(\"Test step\")[1].split(\":\")[0].strip()\n                                step_status = line.split(\"status:\")[1].strip().lower()\n                                self.step_statuses[f\"{self._current_test._testMethodName}_{step_num}\"] = step_status\n                            except:\n                                continue\n                    self._output_buffer = []\n\n                def addOutput(self, output):\n                    if self._current_test:\n                        self._output_buffer.append(output)\n                        self._processOutput()\n\n            result = OutputCaptureResult(self.stream, self.descriptions, self.verbosity)\n            result.step_statuses = self.step_statuses\n            return result",
+      "docstring": "No documentation",
+      "parameters": [
+        "self"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "addFailure",
+        "super",
+        "addSuccess",
+        "addOutput",
+        "OutputCaptureResult",
+        "_processOutput",
+        "lower",
+        "_makeResult",
+        "join",
+        "strip",
+        "__init__",
+        "splitlines",
+        "split",
+        "append",
+        "addError",
+        "startTest"
+      ]
+    },
+    "_processOutput": {
+      "file": "RDK-RPi-Tests-main/scripts/Main.py",
+      "line": 91,
+      "code": "                def _processOutput(self):\n                    if not self._current_test:\n                        return\n                    output = ''.join(self._output_buffer)\n                    for line in output.splitlines():\n                        if \"Test step\" in line and \"status:\" in line:\n                            try:\n                                step_num = line.split(\"Test step\")[1].split(\":\")[0].strip()\n                                step_status = line.split(\"status:\")[1].strip().lower()\n                                self.step_statuses[f\"{self._current_test._testMethodName}_{step_num}\"] = step_status\n                            except:\n                                continue\n                    self._output_buffer = []",
+      "docstring": "No documentation",
+      "parameters": [
+        "self"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "_processOutput",
+        "lower",
+        "join",
+        "strip",
+        "splitlines",
+        "split"
+      ]
+    },
+    "_addError": {
+      "file": "RDK-RPi-Tests-main/scripts/Main.py",
+      "line": 125,
+      "code": "        def _addError(self, test, err):\n            self._processOutput(test)\n            unittest.TextTestResult.addError(self, test, err)",
+      "docstring": "No documentation",
+      "parameters": [
+        "self",
+        "test",
+        "err"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "_processOutput",
+        "_addError",
+        "addError"
+      ]
+    },
+    "_addFailure": {
+      "file": "RDK-RPi-Tests-main/scripts/Main.py",
+      "line": 129,
+      "code": "        def _addFailure(self, test, err):\n            self._processOutput(test)\n            unittest.TextTestResult.addFailure(self, test, err)",
+      "docstring": "No documentation",
+      "parameters": [
+        "self",
+        "test",
+        "err"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "_addFailure",
+        "_processOutput",
+        "addFailure"
+      ]
+    },
+    "_addSuccess": {
+      "file": "RDK-RPi-Tests-main/scripts/Main.py",
+      "line": 133,
+      "code": "        def _addSuccess(self, test):\n            self._processOutput(test)\n            unittest.TextTestResult.addSuccess(self, test)",
+      "docstring": "No documentation",
+      "parameters": [
+        "self",
+        "test"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "_processOutput",
+        "addSuccess",
+        "_addSuccess"
+      ]
+    },
+    "startTest": {
+      "file": "RDK-RPi-Tests-main/scripts/Main.py",
+      "line": 74,
+      "code": "                def startTest(self, test):\n                    self._output_buffer = []\n                    self._current_test = test\n                    super().startTest(test)",
+      "docstring": "No documentation",
+      "parameters": [
+        "self",
+        "test"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "super",
+        "startTest"
+      ]
+    },
+    "addSuccess": {
+      "file": "RDK-RPi-Tests-main/scripts/Main.py",
+      "line": 79,
+      "code": "                def addSuccess(self, test):\n                    self._processOutput()\n                    super().addSuccess(test)",
+      "docstring": "No documentation",
+      "parameters": [
+        "self",
+        "test"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "super",
+        "_processOutput",
+        "addSuccess"
+      ]
+    },
+    "addError": {
+      "file": "RDK-RPi-Tests-main/scripts/Main.py",
+      "line": 83,
+      "code": "                def addError(self, test, err):\n                    self._processOutput()\n                    super().addError(test, err)",
+      "docstring": "No documentation",
+      "parameters": [
+        "self",
+        "test",
+        "err"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "super",
+        "_processOutput",
+        "addError"
+      ]
+    },
+    "addFailure": {
+      "file": "RDK-RPi-Tests-main/scripts/Main.py",
+      "line": 87,
+      "code": "                def addFailure(self, test, err):\n                    self._processOutput()\n                    super().addFailure(test, err)",
+      "docstring": "No documentation",
+      "parameters": [
+        "self",
+        "test",
+        "err"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "super",
+        "_processOutput",
+        "addFailure"
+      ]
+    },
+    "addOutput": {
+      "file": "RDK-RPi-Tests-main/scripts/Main.py",
+      "line": 105,
+      "code": "                def addOutput(self, output):\n                    if self._current_test:\n                        self._output_buffer.append(output)\n                        self._processOutput()",
+      "docstring": "No documentation",
+      "parameters": [
+        "self",
+        "output"
+      ],
+      "returns": "Unknown",
+      "dependencies": [
+        "addOutput",
+        "_processOutput",
+        "append"
+      ]
+    }
+  },
+  "classes": {
+    "TestSpeedtest": {
+      "file": "RDK-RPi-Tests-main/tests/TC_Speedtest.py",
+      "line": 24,
+      "code": "class TestSpeedtest(unittest.TestCase):\n    \"\"\"<TEST_ID>TC_XB_SPEEDTEST_1001<TEST_ID>\n    <TEST_CASE_NAME> Test case for speedtest from cli <TEST_CASE_NAME>\n    <TEST_CASE_DESCRIPTION> To verify the speedtest from cli <TEST_CASE_DESCRIPTION>\"\"\"\n    \n    def __init__(self, *args, **kwargs):\n        super().__init__(*args, **kwargs)\n        self.test_steps = []\n        self.step_statuses = {}\n        self.report_path = None\n        \n    def collect_test_steps(self):\n        \"\"\"Collect all test steps from docstrings in the test class.\"\"\"\n        # Clear existing steps to prevent duplicates\n        self.test_steps = []\n        \n        # Process each method's docstring for test steps\n        for name, method in inspect.getmembers(self, predicate=inspect.ismethod):\n            if name in ['setUp', 'tearDown', 'test_remote_speedtest']:\n                print(f\"\\nProcessing {name} method...\")\n                doc = method.__doc__\n                if doc:\n                    # Get all test steps from the docstring\n                    step_list = parse_test_step(doc)\n                    if step_list:\n                        for step_info in step_list:\n                            step_info['method'] = name  # Tag with source method\n                            print(f\"Found test step {step_info['step']} in {name}\")\n                            self.test_steps.append(step_info)\n                        print(f\"Added all steps from {name}: {[s['step'] for s in step_list]}\")\n        \n        # Sort test steps by step number\n        self.test_steps.sort(key=lambda x: int(x['step']))\n        \n        # Initialize status for all steps\n        for step in self.test_steps:\n            step_num = str(step['step'])\n            if step_num not in self.step_statuses:\n                self.step_statuses[step_num] = \"Not Started\"\n                        \n    def update_step_status(self, step_num, status):\n        \"\"\"Update the status of a test step and refresh the report.\"\"\"\n        print(f\"Updating status for step {step_num} to {status}\")\n        print(f\"Current test steps: {[step['step'] for step in self.test_steps]}\")\n        print(f\"Current statuses before update: {self.step_statuses}\")\n        self.step_statuses[str(step_num)] = status\n        if self.report_path:\n            update_html_report(self.report_path, self.test_steps, self.step_statuses)\n        print(f\"Statuses after update: {self.step_statuses}\")\n\n    def setUp(self):\n        \"\"\"<TEST_STEP>1</TEST_STEP>\n        <TEST_STEP_DESCRIPTION>Verify SSH connection to the RDK-B device is successful\n        - Connect to device using provided credentials\n        - Verify SSH connection is active and responsive\n        Expected: Successful SSH connection to the RDK-B device<TEST_STEP_DESCRIPTION>\"\"\"\n        # Initialize test steps and report path\n        self.report_path = \"reports/test_report_\" + datetime.now().strftime(\"%Y%m%d_%H%M%S\") + \".html\"\n        self.collect_test_steps()\n        # Update initial status of the test step\n        status = \"failed\"\n        self.client = ssh_connect(HOSTNAME, USERNAME, PASSWORD)\n        if self.client:\n            ssh_connection_check(self.client)\n            status = \"passed\"\n        \n        self.update_step_status(1, status)\n\n    def tearDown(self):\n        \"\"\"<TEST_STEP>5</TEST_STEP>\n        <TEST_STEP_DESCRIPTION>Verify successfully closure of SSH connection to DUT \n        - Close SSH connection to RDK-B device\n        - Verify connection is properly terminated\n        Expected: SSH connection successfully closed<TEST_STEP_DESCRIPTION>\"\"\"\n        status = \"failed\"\n        if self.client:\n            self.client.close()\n            status = \"passed\"\n            # Reset client to None\n        self.update_step_status(5, status)\n        sys.stdout.flush()\n\n    def test_remote_speedtest(self):\n        \"\"\"Test Steps for Remote Speedtest\n\n        <TEST_STEP>2</TEST_STEP>\n        <TEST_STEP_DESCRIPTION>Verify whether speedtest command worked successfully\n        - Run speedtest via CLI\n        - Verify command execution successful\n        - Validate response format is correct\n        Expected: Speedtest results returned in valid dictionary format<TEST_STEP_DESCRIPTION>\n\n        <TEST_STEP>3</TEST_STEP>\n        <TEST_STEP_DESCRIPTION>Validate speedtest command populated all required metrics\n        - Verify all required metrics present (download, upload, host, ping)\n        - Confirm all values are in correct format\n        - Parse numerical values for performance validation\n        Expected: All metrics present and properly formatted</TEST_STEP_DESCRIPTION>\n\n        <TEST_STEP>4</TEST_STEP>\n        <TEST_STEP_DESCRIPTION>Verify performance metrics meets the requirements\n        - Download speed >= 150 Mbps\n        - Upload speed >= 25 Mbps\n        - Ping <= 50 ms\n        Expected: All performance metrics within acceptable thresholds</TEST_STEP_DESCRIPTION>\n        \"\"\"\n        # Step 2: Execute speedtest\n        status = \"failed\"\n        if not self.client:\n            self.skipTest(\"SSH connection failed, skipping remote speedtest.\")\n        results = run_speedtest(ssh_connection=self.client)\n        if self.assertIsInstance(results, dict):\n            status = \"passed\"\n        self.update_step_status(2, status)\n        \n        download_speed = None  # Initialize to None\n        upload_speed = None\n        ping = None\n\n        # Step 3: Validate results structure\n        status = \"failed\"\n        if not results:\n            print(\"No results to validate\")\n            self.fail(\"No speedtest results available\")\n        else:\n            try:\n                for key in [\"download\", \"upload\", \"host\", \"ping\"]:\n                    print(f\"Validating {key} metric...\")\n                    with self.subTest(key=key):\n                        print(f\"Checking if {key} exists in results\")\n                        self.assertIn(key, results)\n                        print(f\"Checking if {key} value is string type\")\n                        self.assertIsInstance(results[key], str)\n                        if key != \"host\":  # Skip host name\n                            try:\n                                print(f\"Attempting to parse {key} value: {results[key]}\")\n                                value = float(results[key].split()[0]) # Extract numerical part\n                                print(f\"Successfully parsed {key} value: {value}\")\n                                if key == \"download\":\n                                    download_speed = value\n                                elif key == \"upload\":\n                                    upload_speed = value\n                                elif key == \"ping\":\n                                    ping = value\n                            except (ValueError, IndexError) as e:\n                                print(f\"Error converting {key} value to float: {e}\")\n                                self.fail(f\"Could not convert {key} value to float: {e}\")\n                status = \"passed\"\n            except AssertionError as e:\n                print(f\"Validation failed: {e}\")\n                self.fail(f\"Speedtest result validation failed: {e}\")\n        self.update_step_status(3, status)\n\n        formatted_output = format_speedtest_output(results)\n        print(formatted_output)\n\n        \"\"\"<TEST_STEP>4</TEST_STEP>\n        <TEST_STEP_DESCRIPTION>Verify performance metrics meet requirements:\n        - Download speed >= 150 Mbps\n        - Upload speed >= 25 Mbps\n        - Ping <= 50 ms\n        Expected: All performance metrics within acceptable thresholds</TEST_STEP_DESCRIPTION>\"\"\"\n        status = \"failed\"  # Start with failed, change to passed only if all checks pass\n        \n        # Check if all required values are present\n        if any(v is None for v in [download_speed, upload_speed, ping]):\n            print(\"Missing required speed test metrics\")\n            self.fail(\"One or more speed test metrics are missing\")\n        else:\n            print(\"Starting performance threshold validation...\")\n            print(f\"Current values - Download: {download_speed} Mbps, Upload: {upload_speed} Mbps, Ping: {ping} ms\")\n            # All values present, check thresholds\n            all_passed = True\n            \n            print(f\"Checking download speed threshold (>= 150 Mbps)\")\n            if download_speed < 150:\n                print(f\"FAIL: Download speed {download_speed} Mbps is below minimum threshold of 150 Mbps\")\n                all_passed = False\n            else:\n                print(f\"PASS: Download speed {download_speed} Mbps meets minimum threshold of 150 Mbps\")\n\n            print(f\"Checking upload speed threshold (>= 25 Mbps)\")\n            if upload_speed < 25:\n                print(f\"FAIL: Upload speed {upload_speed} Mbps is below minimum threshold of 25 Mbps\")\n                all_passed = False\n            else:\n                print(f\"PASS: Upload speed {upload_speed} Mbps meets minimum threshold of 25 Mbps\")\n\n            print(f\"Checking ping threshold (<= 50 ms)\")\n            if ping > 50:\n                print(f\"FAIL: Ping {ping} ms exceeds maximum threshold of 50 ms\")\n                all_passed = False\n            else:\n                print(f\"PASS: Ping {ping} ms is within maximum threshold of 50 ms\")\n\n            if all_passed:\n                status = \"passed\"\n\n        self.update_step_status(4, status)\n        self.assertIsInstance(formatted_output, str)\n",
+      "docstring": "<TEST_ID>TC_XB_SPEEDTEST_1001<TEST_ID>\n<TEST_CASE_NAME> Test case for speedtest from cli <TEST_CASE_NAME>\n<TEST_CASE_DESCRIPTION> To verify the speedtest from cli <TEST_CASE_DESCRIPTION>",
+      "methods": {
+        "__init__": {
+          "line": 29,
+          "parameters": [
+            "self"
+          ],
+          "docstring": "No documentation"
+        },
+        "collect_test_steps": {
+          "line": 35,
+          "parameters": [
+            "self"
+          ],
+          "docstring": "Collect all test steps from docstrings in the test class."
+        },
+        "update_step_status": {
+          "line": 64,
+          "parameters": [
+            "self",
+            "step_num",
+            "status"
+          ],
+          "docstring": "Update the status of a test step and refresh the report."
+        },
+        "setUp": {
+          "line": 74,
+          "parameters": [
+            "self"
+          ],
+          "docstring": "<TEST_STEP>1</TEST_STEP>\n<TEST_STEP_DESCRIPTION>Verify SSH connection to the RDK-B device is successful\n- Connect to device using provided credentials\n- Verify SSH connection is active and responsive\nExpected: Successful SSH connection to the RDK-B device<TEST_STEP_DESCRIPTION>"
+        },
+        "tearDown": {
+          "line": 92,
+          "parameters": [
+            "self"
+          ],
+          "docstring": "<TEST_STEP>5</TEST_STEP>\n<TEST_STEP_DESCRIPTION>Verify successfully closure of SSH connection to DUT \n- Close SSH connection to RDK-B device\n- Verify connection is properly terminated\nExpected: SSH connection successfully closed<TEST_STEP_DESCRIPTION>"
+        },
+        "test_remote_speedtest": {
+          "line": 106,
+          "parameters": [
+            "self"
+          ],
+          "docstring": "Test Steps for Remote Speedtest\n\n<TEST_STEP>2</TEST_STEP>\n<TEST_STEP_DESCRIPTION>Verify whether speedtest command worked successfully\n- Run speedtest via CLI\n- Verify command execution successful\n- Validate response format is correct\nExpected: Speedtest results returned in valid dictionary format<TEST_STEP_DESCRIPTION>\n\n<TEST_STEP>3</TEST_STEP>\n<TEST_STEP_DESCRIPTION>Validate speedtest command populated all required metrics\n- Verify all required metrics present (download, upload, host, ping)\n- Confirm all values are in correct format\n- Parse numerical values for performance validation\nExpected: All metrics present and properly formatted</TEST_STEP_DESCRIPTION>\n\n<TEST_STEP>4</TEST_STEP>\n<TEST_STEP_DESCRIPTION>Verify performance metrics meets the requirements\n- Download speed >= 150 Mbps\n- Upload speed >= 25 Mbps\n- Ping <= 50 ms\nExpected: All performance metrics within acceptable thresholds</TEST_STEP_DESCRIPTION>"
+        }
+      },
+      "base_classes": []
+    },
+    "StepStatusRunner": {
+      "file": "RDK-RPi-Tests-main/scripts/Main.py",
+      "line": 59,
+      "code": "    class StepStatusRunner(unittest.TextTestRunner):\n        def __init__(self, *args, **kwargs):\n            super().__init__(*args, **kwargs)\n            self.step_statuses = {}\n            self._current_test = None\n            self._output_buffer = []\n\n        def _makeResult(self):\n            class OutputCaptureResult(unittest.TextTestResult):\n                def __init__(self, *args, **kwargs):\n                    super().__init__(*args, **kwargs)\n                    self.step_statuses = {}\n                    self._output_buffer = []\n                    self._current_test = None\n\n                def startTest(self, test):\n                    self._output_buffer = []\n                    self._current_test = test\n                    super().startTest(test)\n\n                def addSuccess(self, test):\n                    self._processOutput()\n                    super().addSuccess(test)\n\n                def addError(self, test, err):\n                    self._processOutput()\n                    super().addError(test, err)\n\n                def addFailure(self, test, err):\n                    self._processOutput()\n                    super().addFailure(test, err)\n\n                def _processOutput(self):\n                    if not self._current_test:\n                        return\n                    output = ''.join(self._output_buffer)\n                    for line in output.splitlines():\n                        if \"Test step\" in line and \"status:\" in line:\n                            try:\n                                step_num = line.split(\"Test step\")[1].split(\":\")[0].strip()\n                                step_status = line.split(\"status:\")[1].strip().lower()\n                                self.step_statuses[f\"{self._current_test._testMethodName}_{step_num}\"] = step_status\n                            except:\n                                continue\n                    self._output_buffer = []\n\n                def addOutput(self, output):\n                    if self._current_test:\n                        self._output_buffer.append(output)\n                        self._processOutput()\n\n            result = OutputCaptureResult(self.stream, self.descriptions, self.verbosity)\n            result.step_statuses = self.step_statuses\n            return result\n\n        def _processOutput(self, test):\n            for line in self._output_buffer:\n                if \"Test step\" in line and \"status:\" in line:\n                    try:\n                        step_num = line.split(\"Test step\")[1].split(\":\")[0].strip()\n                        step_status = line.split(\"status:\")[1].strip().lower()\n                        self.step_statuses[f\"{test._testMethodName}_{step_num}\"] = step_status\n                    except:\n                        continue\n            self._output_buffer = []\n\n        def _addError(self, test, err):\n            self._processOutput(test)\n            unittest.TextTestResult.addError(self, test, err)\n\n        def _addFailure(self, test, err):\n            self._processOutput(test)\n            unittest.TextTestResult.addFailure(self, test, err)\n\n        def _addSuccess(self, test):\n            self._processOutput(test)\n            unittest.TextTestResult.addSuccess(self, test)\n",
+      "docstring": "No documentation",
+      "methods": {
+        "__init__": {
+          "line": 60,
+          "parameters": [
+            "self"
+          ],
+          "docstring": "No documentation"
+        },
+        "_makeResult": {
+          "line": 66,
+          "parameters": [
+            "self"
+          ],
+          "docstring": "No documentation"
+        },
+        "_processOutput": {
+          "line": 114,
+          "parameters": [
+            "self",
+            "test"
+          ],
+          "docstring": "No documentation"
+        },
+        "_addError": {
+          "line": 125,
+          "parameters": [
+            "self",
+            "test",
+            "err"
+          ],
+          "docstring": "No documentation"
+        },
+        "_addFailure": {
+          "line": 129,
+          "parameters": [
+            "self",
+            "test",
+            "err"
+          ],
+          "docstring": "No documentation"
+        },
+        "_addSuccess": {
+          "line": 133,
+          "parameters": [
+            "self",
+            "test"
+          ],
+          "docstring": "No documentation"
+        }
+      },
+      "base_classes": []
+    },
+    "OutputCaptureResult": {
+      "file": "RDK-RPi-Tests-main/scripts/Main.py",
+      "line": 67,
+      "code": "            class OutputCaptureResult(unittest.TextTestResult):\n                def __init__(self, *args, **kwargs):\n                    super().__init__(*args, **kwargs)\n                    self.step_statuses = {}\n                    self._output_buffer = []\n                    self._current_test = None\n\n                def startTest(self, test):\n                    self._output_buffer = []\n                    self._current_test = test\n                    super().startTest(test)\n\n                def addSuccess(self, test):\n                    self._processOutput()\n                    super().addSuccess(test)\n\n                def addError(self, test, err):\n                    self._processOutput()\n                    super().addError(test, err)\n\n                def addFailure(self, test, err):\n                    self._processOutput()\n                    super().addFailure(test, err)\n\n                def _processOutput(self):\n                    if not self._current_test:\n                        return\n                    output = ''.join(self._output_buffer)\n                    for line in output.splitlines():\n                        if \"Test step\" in line and \"status:\" in line:\n                            try:\n                                step_num = line.split(\"Test step\")[1].split(\":\")[0].strip()\n                                step_status = line.split(\"status:\")[1].strip().lower()\n                                self.step_statuses[f\"{self._current_test._testMethodName}_{step_num}\"] = step_status\n                            except:\n                                continue\n                    self._output_buffer = []\n\n                def addOutput(self, output):\n                    if self._current_test:\n                        self._output_buffer.append(output)\n                        self._processOutput()\n",
+      "docstring": "No documentation",
+      "methods": {
+        "__init__": {
+          "line": 68,
+          "parameters": [
+            "self"
+          ],
+          "docstring": "No documentation"
+        },
+        "startTest": {
+          "line": 74,
+          "parameters": [
+            "self",
+            "test"
+          ],
+          "docstring": "No documentation"
+        },
+        "addSuccess": {
+          "line": 79,
+          "parameters": [
+            "self",
+            "test"
+          ],
+          "docstring": "No documentation"
+        },
+        "addError": {
+          "line": 83,
+          "parameters": [
+            "self",
+            "test",
+            "err"
+          ],
+          "docstring": "No documentation"
+        },
+        "addFailure": {
+          "line": 87,
+          "parameters": [
+            "self",
+            "test",
+            "err"
+          ],
+          "docstring": "No documentation"
+        },
+        "_processOutput": {
+          "line": 91,
+          "parameters": [
+            "self"
+          ],
+          "docstring": "No documentation"
+        },
+        "addOutput": {
+          "line": 105,
+          "parameters": [
+            "self",
+            "output"
+          ],
+          "docstring": "No documentation"
+        }
+      },
+      "base_classes": []
+    }
+  },
+  "imports": [
+    "paramiko",
+    "signal",
+    "re",
+    "argparse",
+    "datetime",
+    "utils.constants",
+    "html",
+    "yaml",
+    "common_utils",
+    "inspect",
+    "subprocess",
+    "os",
+    "utils",
+    "utils.common_utils",
+    "pytest",
+    "constants",
+    "json",
+    "unittest",
+    "sys"
+  ],
+  "patterns": {},
+  "full_context": ""
+}

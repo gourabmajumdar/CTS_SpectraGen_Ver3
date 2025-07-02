@@ -2914,19 +2914,21 @@ async function reviewApplicationCode() {
                             autoResizeCodeTextarea(index);
                         }
 
-                        // Update main code tab badge to show "REVIEWED"
-                        const codeTabBadge = document.getElementById('codeTabBadge');
-                        if (codeTabBadge) {
-                            codeTabBadge.textContent = 'REVIEWED ✅';
-                            codeTabBadge.style.background = '#10b981';
-                            codeTabBadge.style.color = 'white';
-                        }
+                        // Update tab header to show review completed status
+                        const tabHeader = document.querySelector(`[data-tab="${codeTabId}"]`);
+                        if (tabHeader) {
+                            const badge = tabHeader.querySelector('.file-type-badge');
+                            if (badge) {
+                                badge.textContent = 'REVIEWED';
+                                badge.style.background = '#10b981';
+                                badge.style.color = 'white';
+                            }
 
-                        // Also update the code tab status indicator
-                        const codeStatus = document.getElementById('codeStatus');
-                        if (codeStatus) {
-                            codeStatus.textContent = '✅ Review completed successfully';
-                            codeStatus.className = 'status-indicator success';
+                            // Add reviewed icon to tab title
+                            const tabTitle = tabHeader.querySelector('.tab-title');
+                            if (tabTitle && !tabTitle.textContent.includes('✅')) {
+                                tabTitle.textContent = `✅ ${tabTitle.textContent}`;
+                            }
                         }
 
                         console.log(`✅ Updated review for ${report.script_name}`);
@@ -3312,33 +3314,12 @@ async function pollProgress(taskType) {
         const response = await fetch(`/progress/${taskType}`);
         const progressData = await response.json();
 
-        // FIXED: Check if we're in developer workflow and use appropriate progress update
-        const isDeveloperWorkflow = document.getElementById('developerContent').style.display !== 'none';
-
         // Update UI with real progress
-        /*
         updateProgress(
             progressData.progress,
             progressData.step,
             Math.floor(progressData.progress / 20) // Convert to step index
         );
-        */
-
-        if (isDeveloperWorkflow) {
-            // Update developer progress UI
-            updateDeveloperProgress(
-                progressData.progress,
-                progressData.step,
-                Math.floor(progressData.progress / 20)
-            );
-        } else {
-            // Update QA progress UI (existing behavior)
-            updateProgress(
-                progressData.progress,
-                progressData.step,
-                Math.floor(progressData.progress / 20)
-            );
-        }
 
         // Check if task is completed
         if (progressData.completed) {
@@ -3347,11 +3328,7 @@ async function pollProgress(taskType) {
 
             // Small delay to show 100% before hiding
             setTimeout(() => {
-                if (isDeveloperWorkflow) {
-                    hideDeveloperProgress();
-                } else {
-                    hideProgress();
-                }
+                hideProgress();
             }, 1000);
         }
 
@@ -7531,52 +7508,9 @@ async function runCode() {
         }
     }
 
-    // Find the Run button in the tab area and add loading state
-    const runButton = document.querySelector('button[onclick="runCode()"]');
-    if (runButton) {
-        runButton.disabled = true;
-        runButton.classList.add('btn-loading');
-        // FIXED: Keep the button text visible with spinner
-        runButton.innerHTML = '⏳ Running...';
-
-        // Add inline spinner CSS if not already present
-        if (!document.getElementById('button-spinner-styles')) {
-            const style = document.createElement('style');
-            style.id = 'button-spinner-styles';
-            style.textContent = `
-                .btn-loading {
-                    position: relative;
-                    pointer-events: none;
-                    opacity: 0.9;
-                    padding-left: 28px !important;
-                }
-                
-                .btn-loading::before {
-                    content: '';
-                    position: absolute;
-                    left: 6px;
-                    top: 50%;
-                    transform: translateY(-50%);
-                    width: 12px;
-                    height: 12px;
-                    border: 2px solid rgba(255,255,255,0.4);
-                    border-radius: 50%;
-                    border-top-color: #fff;
-                    animation: button-spin 1s linear infinite;
-                }
-                
-                @keyframes button-spin {
-                    to { transform: translateY(-50%) rotate(360deg); }
-                }
-            `;
-            document.head.appendChild(style);
-        }
-    }
-
     // Show device selection modal (reuse QA workflow device selection)
     showDeviceSelectionModal('developer');
 }
-
 
 // Add device selection modal functionality for developer workflow
 function showDeviceSelectionModal(workflowType = 'developer') {
@@ -7855,106 +7789,6 @@ async function checkDeviceRealTimeStatus(deviceId) {
     }
 }
 
-// FIXED: Add developer-specific progress functions
-function startDeveloperProgress(taskType, title, steps) {
-    console.log(`🔄 Starting developer progress tracking for: ${title}`);
-
-    currentTaskType = taskType;
-
-    // Show developer progress container
-    const progressContainer = document.getElementById('developerProgressContainer');
-    const progressTitle = document.getElementById('developerProgressTitle');
-    const progressStatus = document.getElementById('developerProgressStatus');
-    const progressBar = document.getElementById('developerProgressBar');
-    const progressPercentage = document.getElementById('developerProgressPercentage');
-    const progressSteps = document.getElementById('developerProgressSteps');
-
-    if (!progressContainer) {
-        console.error('❌ Developer progress container not found!');
-        return;
-    }
-
-    // Show progress container
-    progressContainer.style.display = 'block';
-    progressContainer.classList.add('show');
-
-    // Set title and initial status
-    if (progressTitle) progressTitle.textContent = title;
-    if (progressStatus) progressStatus.textContent = 'Initializing...';
-
-    // Reset progress bar
-    if (progressBar) progressBar.style.width = '0%';
-    if (progressPercentage) progressPercentage.textContent = '0%';
-
-    // Create step elements
-    if (progressSteps) {
-        progressSteps.innerHTML = '';
-        steps.forEach((step, index) => {
-            const stepElement = document.createElement('div');
-            stepElement.className = 'progress-step';
-            stepElement.innerHTML = `
-                <div class="step-icon pending" id="dev-step-${index}">●</div>
-                <span>${step}</span>
-            `;
-            progressSteps.appendChild(stepElement);
-        });
-    }
-
-    // Reset progress
-    updateDeveloperProgress(0, 'Initializing...', 0);
-
-    // Start polling for real progress
-    progressPollingInterval = setInterval(() => {
-        pollProgress(taskType);
-    }, 500);
-}
-
-function updateDeveloperProgress(percentage, status, activeStepIndex = -1) {
-    const progressBar = document.getElementById('developerProgressBar');
-    const progressPercentage = document.getElementById('developerProgressPercentage');
-    const progressStatus = document.getElementById('developerProgressStatus');
-    const progressSteps = document.getElementById('developerProgressSteps');
-
-    if (!progressBar || !progressPercentage || !progressStatus) return;
-
-    progressBar.style.width = percentage + '%';
-    progressPercentage.textContent = Math.round(percentage) + '%';
-    progressStatus.textContent = status;
-
-    // Update step states
-    if (progressSteps) {
-        const stepElements = progressSteps.querySelectorAll('.progress-step');
-        stepElements.forEach((step, index) => {
-            const icon = step.querySelector('.step-icon');
-            step.classList.remove('active', 'completed');
-            icon.classList.remove('active', 'completed', 'pending');
-
-            if (index < activeStepIndex) {
-                step.classList.add('completed');
-                icon.classList.add('completed');
-                icon.textContent = '✓';
-            } else if (index === activeStepIndex) {
-                step.classList.add('active');
-                icon.classList.add('active');
-                icon.textContent = '●';
-            } else {
-                icon.classList.add('pending');
-                icon.textContent = '●';
-            }
-        });
-    }
-}
-
-function hideDeveloperProgress() {
-    setTimeout(() => {
-        const progressContainer = document.getElementById('developerProgressContainer');
-        if (progressContainer) {
-            progressContainer.style.display = 'none';
-            progressContainer.classList.remove('show');
-        }
-    }, 1000);
-}
-
 // Execute code with selected device
 async function executeWithSelectedDevice(workflowType = 'developer') {
     const selectedDevice = document.querySelector('input[name="selectedDevice"]:checked');
@@ -7977,12 +7811,9 @@ async function executeWithSelectedDevice(workflowType = 'developer') {
 async function executeDeveloperCode(selectedDeviceId) {
     console.log('🚀 [DEVELOPER] Starting application code execution...');
 
-    // ADD THIS LINE to define the runButton variable
-    const runButton = document.querySelector('button[onclick="runCode()"]');
-
     try {
         // Start real progress tracking (same as QA workflow)
-        startDeveloperProgress('execute', 'Executing Application Code', [
+        startRealProgress('execute', 'Executing Application Code', [
             'Preparing application code for execution',
             'Connecting to selected remote device',
             'Uploading application code files',
@@ -8022,22 +7853,15 @@ async function executeDeveloperCode(selectedDeviceId) {
             // Handle execution failure
             console.error('❌ [DEVELOPER] Execution failed:', result.message);
             stopProgressPolling();
-            hideDeveloperProgress();
+            hideProgress();
             showToast(`Execution failed: ${result.message}`, 'error');
         }
 
     } catch (error) {
         console.error('❌ [DEVELOPER] Execution error:', error);
         stopProgressPolling();
-        hideDeveloperProgress();
+        hideProgress();
         showToast(`Execution error: ${error.message}`, 'error');
-    } finally {
-        // Reset the Run button in tab area
-        if (runButton) {
-            runButton.disabled = false;
-            runButton.classList.remove('btn-loading');
-            runButton.innerHTML = '▶️ Run';
-        }
     }
 }
 
@@ -8082,15 +7906,6 @@ function closeDeviceSelectionModal() {
     const modal = document.getElementById('deviceSelectionModal');
     if (modal) {
         modal.remove();
-    }
-    selectedDeviceId = null;
-
-    // FIXED: Reset Run button when modal is closed/cancelled
-    const runButton = document.querySelector('button[onclick="runCode()"]');
-    if (runButton && runButton.classList.contains('btn-loading')) {
-        runButton.disabled = false;
-        runButton.classList.remove('btn-loading');
-        runButton.innerHTML = '▶️ Run';
     }
 }
 

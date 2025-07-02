@@ -5300,4 +5300,59 @@ textarea:focus-visible {
     }
 }
 
+/* Added for developer workflow execution */
+/* Add these CSS animations to style.css for the device selection modal */
 
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Modal backdrop blur effect */
+#deviceSelectionModal {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+/* Device selection modal button hover effects */
+#deviceSelectionModal button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+#deviceSelectionModal button:disabled {
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+#deviceSelectionModal button:disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+/* Device card hover effects */
+#devicesList > div:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+/* Execute button enabled state */
+#executeWithDeviceBtn:not(:disabled) {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+}
+
+#executeWithDeviceBtn:not(:disabled):hover {
+    background: linear-gradient(135deg, #2563eb, #1e40af);
+}
