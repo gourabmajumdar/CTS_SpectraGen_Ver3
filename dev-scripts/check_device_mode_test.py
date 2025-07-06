@@ -1,3 +1,7 @@
+# ♻️ AI OLLAMA MODEL GENERATED CODE UNIT TEST CODE
+# Filename: Backend/default_scripts/check_device_mode_test.py
+# ========================================================================
+
 import pytest
 import subprocess
 from unittest.mock import patch, MagicMock

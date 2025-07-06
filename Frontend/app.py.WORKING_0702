@@ -20,8 +20,6 @@ import tempfile
 import socket
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import xml.etree.ElementTree as ET
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'Backend'))
-from smart_code_reuse import DeveloperWorkflowReuse
 
 # Initialize Flask with explicit static folder configuration
 app = Flask(__name__,
@@ -51,15 +49,6 @@ try:
 except ImportError as e:
     AI_GENERATOR_AVAILABLE = False
     print(f"⚠️ Enhanced Code Generator not available: {e}")
-
-# Initialize developer reuse system
-try:
-    developer_reuse_system = DeveloperWorkflowReuse()
-    developer_reuse_system.initialize()
-    print("✅ Developer reuse system initialized")
-except Exception as e:
-    developer_reuse_system = None
-    print(f"⚠️ Developer reuse system failed to initialize: {e}")
 
 # 2. ADD AI CONFIGURATION (near other config variables)
 AI_CONFIG = {
@@ -1091,231 +1080,9 @@ def check_all_devices_status():
 
     return status_results
 
-#Route for unit test run
-# Add this endpoint to your app.py file
-
-@app.route('/run_unit_tests', methods=['POST'])
-def run_unit_tests():
-    """Execute unit tests using pytest in Linux environment"""
-    try:
-        data = request.get_json()
-        test_content = data.get('test_content', '')
-        test_filename = data.get('test_filename', 'test_execution.py')
-        use_pytest = data.get('use_pytest', True)
-
-        if not test_content.strip():
-            return jsonify({
-                'success': False,
-                'message': 'No test content provided'
-            })
-
-        print(f"[UNITTEST] Starting unit test execution: {test_filename}")
-
-        # Create temporary directory for test execution
-        import tempfile
-        import subprocess
-        import os
-
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Write test content to temporary file
-            test_file_path = os.path.join(temp_dir, test_filename)
-
-            with open(test_file_path, 'w', encoding='utf-8') as f:
-                f.write(test_content)
-
-            print(f"[UNITTEST] Test file created: {test_file_path}")
-
-            # Install pytest if using pytest
-            if use_pytest:
-                print("[UNITTEST] Installing pytest...")
-                try:
-                    install_result = subprocess.run([
-                        'pip3', 'install', 'pytest', 'pytest-html'
-                    ], capture_output=True, text=True, timeout=60)
-
-                    if install_result.returncode != 0:
-                        print(f"[UNITTEST] Warning: pytest installation failed: {install_result.stderr}")
-                        # Continue anyway, pytest might already be installed
-                except subprocess.TimeoutExpired:
-                    print("[UNITTEST] Warning: pytest installation timed out")
-                except Exception as e:
-                    print(f"[UNITTEST] Warning: pytest installation error: {e}")
-
-            # Execute the unit tests
-            start_time = time.time()
-
-            if use_pytest and ('import pytest' in test_content or 'def test_' in test_content):
-                # Use pytest for execution
-                print(f"[UNITTEST] Running with pytest: {test_filename}")
-                cmd = ['python3', '-m', 'pytest', test_file_path, '-v', '--tb=short']
-            else:
-                # Use standard Python execution for unittest
-                print(f"[UNITTEST] Running with standard Python: {test_filename}")
-                cmd = ['python3', test_file_path]
-
-            try:
-                result = subprocess.run(
-                    cmd,
-                    cwd=temp_dir,
-                    capture_output=True,
-                    text=True,
-                    timeout=120  # 2 minute timeout
-                )
-
-                execution_time = time.time() - start_time
-
-                print(f"[UNITTEST] Execution completed in {execution_time:.2f}s")
-                print(f"[UNITTEST] Return code: {result.returncode}")
-                print(f"[UNITTEST] STDOUT: {result.stdout[:500]}...")
-                print(f"[UNITTEST] STDERR: {result.stderr[:200]}...")
-
-                # Parse pytest output for test results
-                tests_passed = 0
-                tests_failed = 0
-
-                if use_pytest and result.stdout:
-                    # Parse pytest output
-                    if 'passed' in result.stdout:
-                        #import re
-                        passed_match = re.search(r'(\d+)\s+passed', result.stdout)
-                        if passed_match:
-                            tests_passed = int(passed_match.group(1))
-
-                    if 'failed' in result.stdout:
-                        failed_match = re.search(r'(\d+)\s+failed', result.stdout)
-                        if failed_match:
-                            tests_failed = int(failed_match.group(1))
-
-                # Determine execution status
-                if result.returncode == 0:
-                    execution_status = "SUCCESS - All tests passed"
-                else:
-                    execution_status = "FAILED - Some tests failed or errors occurred"
-
-                return jsonify({
-                    'success': True,
-                    'stdout': result.stdout,
-                    'stderr': result.stderr,
-                    'return_code': result.returncode,
-                    'execution_time': f"{execution_time:.2f}s",
-                    'execution_status': execution_status,
-                    'tests_passed': tests_passed,
-                    'tests_failed': tests_failed,
-                    'test_framework': 'pytest' if use_pytest else 'unittest',
-                    'message': f'Unit test execution completed in {execution_time:.2f}s'
-                })
-
-            except subprocess.TimeoutExpired:
-                return jsonify({
-                    'success': False,
-                    'message': 'Unit test execution timed out (120s limit)',
-                    'stdout': '',
-                    'stderr': 'Execution timed out',
-                    'return_code': -1,
-                    'execution_time': '120s (timeout)'
-                })
-
-            except Exception as e:
-                return jsonify({
-                    'success': False,
-                    'message': f'Unit test execution error: {str(e)}',
-                    'stdout': '',
-                    'stderr': str(e),
-                    'return_code': -1,
-                    'execution_time': 'N/A'
-                })
-
-    except Exception as e:
-        print(f"[UNITTEST] Error in run_unit_tests endpoint: {e}")
-        return jsonify({
-            'success': False,
-            'message': f'Unit test execution failed: {str(e)}',
-            'stdout': '',
-            'stderr': str(e),
-            'return_code': -1
-        })
-
-@app.route('/check_reusable_code', methods=['POST'])
-def check_reusable_code():
-    """Check if prompt matches existing default scripts"""
-    try:
-        data = request.get_json()
-        prompt = data.get('prompt', '')
-        include_tests = data.get('include_tests', True)
-
-        print(f"[DEBUG] Checking prompt: '{prompt}'")
-
-        if not developer_reuse_system:
-            return jsonify({
-                'success': True,
-                'reusable_found': False,
-                'message': 'Developer reuse system not available'
-            })
-
-        # DEBUG: Test all scripts with very low threshold
-        matches = developer_reuse_system.matcher.find_matching_scripts(prompt, confidence_threshold=2.0)
-        print(f"[DEBUG] All matches found:")
-        for i, match in enumerate(matches):
-            print(f"  {i + 1}. {match['script_name']}: {match['confidence']:.1f}% confidence")
-            print(f"     Script keywords: {match['metadata'].get('keywords', [])[:10]}")
-            print(f"     Script functions: {match['metadata'].get('functions', [])}")
-            print(f"     Match reasons: {match.get('match_reasons', [])}")
-            print(f"     ---")
-
-        result = developer_reuse_system.get_reusable_code(
-            prompt=prompt,
-            include_tests=include_tests,
-            confidence_threshold=2.0
-        )
-
-        if result:
-            print(f"[DEBUG] ✅ Selected: {result['source_script']} with {result['confidence']}% confidence")
-            return jsonify({
-                'success': True,
-                'reusable_found': True,
-                'confidence': result['confidence'],
-                'source_script': result['source_script'],
-                'generated_code': result['generated_code'],
-                'message': result['message']
-            })
-        else:
-            print("[DEBUG] ❌ No script met the threshold")
-            return jsonify({
-                'success': True,
-                'reusable_found': False,
-                'message': 'No suitable reusable code found, will use AI generation'
-            })
-
-    except Exception as e:
-        print(f"[DEBUG] Error: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        })
-
-
-@app.route('/get_reuse_stats_developer', methods=['GET'])
-def get_reuse_stats_developer():
-    """Get developer workflow reuse statistics"""
-    try:
-        if not developer_reuse_system:
-            return jsonify({
-                'success': False,
-                'error': 'Developer reuse system not available'
-            })
-
-        stats = developer_reuse_system.get_reuse_statistics()
-        return jsonify({
-            'success': True,
-            **stats
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        })
 
 # Add this endpoint to app.py (if not already present from previous solution)
+
 @app.route('/get-unittest-review-summary', methods=['GET'])
 def get_unittest_review_summary():
     """Get the unittest review summary from summary2.txt for developer workflow"""
@@ -2315,35 +2082,6 @@ def simulate_progress_during_subprocess(task_type, start_progress, end_progress,
         update_progress(task_type, int(current_progress), 'Processing', status_messages[i])
 
 
-# 1. ADD this new function (don't modify existing functions)
-def save_generated_code_dev(generated_code):
-    """Save generated code to dev-scripts folder immediately after generation"""
-    try:
-        dev_scripts_dir = os.path.join(os.getcwd(), "..", "dev-scripts")
-        os.makedirs(dev_scripts_dir, exist_ok=True)
-
-        # Clean old files
-        for filename in os.listdir(dev_scripts_dir):
-            file_path = os.path.join(dev_scripts_dir, filename)
-            if os.path.isfile(file_path):
-                os.remove(file_path)
-
-        # Save files
-        for i, code_result in enumerate(generated_code):
-            file_name = code_result.get('file_name', f'dev_code_{i + 1}.py')
-            if not file_name.endswith('.py'):
-                file_name += '.py'
-
-            dest_path = os.path.join(dev_scripts_dir, file_name)
-            with open(dest_path, 'w', encoding='utf-8') as f:
-                f.write(code_result.get('generated_code', ''))
-
-        print(f"[DEV_SCRIPTS] Saved {len(generated_code)} files immediately")
-        return True
-    except Exception as e:
-        print(f"[DEV_SCRIPTS] Error saving immediately: {e}")
-        return False
-
 '''
 @app.route('/generate', methods=['POST'])
 def generate_code():
@@ -2758,165 +2496,6 @@ def remove_ansi_codes(text):
     return ansi_escape.sub('', text)
 
 
-# ADD this new save endpoint with this simplified version
-@app.route('/save_to_dev_scripts', methods=['POST'])
-def save_to_dev_scripts():
-    """Save code content to dev-scripts folder using proper filename"""
-    try:
-        data = request.get_json()
-
-        if not data:
-            return jsonify({
-                'success': False,
-                'message': 'No data received'
-            })
-
-        file_id = data.get('file_id')
-        content = data.get('content')
-
-        if not file_id or not content:
-            return jsonify({
-                'success': False,
-                'message': 'Missing file_id or content'
-            })
-
-        # Create dev-scripts directory if it doesn't exist
-        dev_scripts_dir = os.path.join(os.getcwd(), '..', 'dev-scripts')
-        os.makedirs(dev_scripts_dir, exist_ok=True)
-
-        # Get the proper filename from generatedApplicationCode
-        filename = None
-
-        # Handle enhanced tabs (main_0, test_0, etc.)
-        if '_' in file_id and file_id.replace('_', '').replace(file_id.split('_')[0], '').isdigit():
-            try:
-                index = int(file_id.split('_')[1])
-
-                # Get the proper filename from generatedApplicationCode
-                if generatedApplicationCode and index < len(generatedApplicationCode):
-                    filename = generatedApplicationCode[index].get('file_name')
-
-                    # Ensure .py extension
-                    if filename and not filename.endswith('.py'):
-                        filename += '.py'
-            except (ValueError, IndexError):
-                pass
-
-        # Handle basic tabs (prompt, code, review, etc.)
-        elif file_id in ['prompt', 'code', 'review', 'unittest']:
-            if file_id == 'prompt':
-                filename = 'ai_prompt.txt'
-            elif file_id == 'unittest':
-                # For unittest tab, try to get proper filename from generatedApplicationCode
-                if generatedApplicationCode:
-                    # Look for test file in generatedApplicationCode
-                    for code_result in generatedApplicationCode:
-                        if code_result.get('file_name', '').endswith('_test.py'):
-                            filename = code_result.get('file_name')
-                            break
-                if not filename:
-                    filename = 'unit_tests.py'
-            elif file_id == 'code':
-                # For code tab, try to get proper filename from generatedApplicationCode
-                if generatedApplicationCode and len(generatedApplicationCode) > 0:
-                    filename = generatedApplicationCode[0].get('file_name')
-                    if filename and not filename.endswith('.py'):
-                        filename += '.py'
-                if not filename:
-                    filename = 'main_code.py'
-            else:
-                filename = f"{file_id}.py"
-
-        # Fallback filename if we can't get proper name
-        if not filename:
-            filename = f"{file_id}.py"
-
-        # Full file path
-        file_path = os.path.join(dev_scripts_dir, filename)
-
-        # Write content to file (overwrite existing)
-        with open(file_path, 'w', encoding='utf-8') as f:
-            f.write(content)
-
-        print(f"[SAVE] Saved file: {file_path}")
-
-        return jsonify({
-            'success': True,
-            'message': f'File saved as {filename}',
-            'filename': filename,
-            'file_path': file_path
-        })
-
-    except Exception as e:
-        print(f"[ERROR] Failed to save to dev-scripts: {e}")
-        return jsonify({
-            'success': False,
-            'message': f'Failed to save file: {str(e)}'
-        })
-
-# ADD this new endpoint to get unit test from Dev Scripts to your app.py file
-@app.route('/get_unit_test_from_dev_scripts', methods=['GET'])
-def get_unit_test_from_dev_scripts():
-    """Get unit test file content from dev-scripts folder as fallback"""
-    try:
-        # Define dev-scripts folder path
-        dev_scripts_dir = os.path.join(os.getcwd(), '..', 'dev-scripts')
-
-        print(f"[UNIT_TEST_FALLBACK] Checking dev-scripts folder: {dev_scripts_dir}")
-
-        if not os.path.exists(dev_scripts_dir):
-            print(f"[UNIT_TEST_FALLBACK] dev-scripts folder not found")
-            return jsonify({
-                'success': False,
-                'message': 'dev-scripts folder not found'
-            })
-
-        # Look for files ending with '_test.py'
-        test_files = []
-        for filename in os.listdir(dev_scripts_dir):
-            if filename.endswith('_test.py') and os.path.isfile(os.path.join(dev_scripts_dir, filename)):
-                test_files.append(filename)
-
-        print(f"[UNIT_TEST_FALLBACK] Found {len(test_files)} test files: {test_files}")
-
-        if not test_files:
-            return jsonify({
-                'success': False,
-                'message': 'No unit test files (*_test.py) found in dev-scripts folder'
-            })
-
-        # Use the first test file found (you can modify this logic if needed)
-        test_filename = test_files[0]
-        test_file_path = os.path.join(dev_scripts_dir, test_filename)
-
-        # Read the test file content
-        try:
-            with open(test_file_path, 'r', encoding='utf-8') as f:
-                test_content = f.read()
-
-            print(f"[UNIT_TEST_FALLBACK] Successfully read {test_filename} ({len(test_content)} characters)")
-
-            return jsonify({
-                'success': True,
-                'test_content': test_content,
-                'test_filename': test_filename,
-                'source': 'dev-scripts',
-                'message': f'Unit test loaded from dev-scripts/{test_filename}'
-            })
-
-        except Exception as e:
-            print(f"[UNIT_TEST_FALLBACK] Error reading test file {test_file_path}: {e}")
-            return jsonify({
-                'success': False,
-                'message': f'Error reading test file: {str(e)}'
-            })
-
-    except Exception as e:
-        print(f"[UNIT_TEST_FALLBACK] Error in get_unit_test_from_dev_scripts: {e}")
-        return jsonify({
-            'success': False,
-            'message': f'Error accessing dev-scripts folder: {str(e)}'
-        })
 '''
 @app.route('/execute', methods=['POST'])
 def execute_code():
@@ -4724,32 +4303,6 @@ if __name__ == "__main__":
             'story_title': f'{workflow_type.title()} Implementation'
         }]
 
-@app.route('/store_generated_code', methods=['POST'])
-def store_generated_code():
-    """Store generated code for review function (used by smart reuse)"""
-    global generatedApplicationCode
-
-    try:
-        data = request.get_json()
-        generated_code = data.get('generated_code', [])
-
-        generatedApplicationCode = generated_code
-
-        print(f"[STORE] Stored {len(generated_code)} generated code files")
-        print(f"[STORE] generatedApplicationCode now has length: {len(generatedApplicationCode)}")
-
-        return jsonify({
-            'success': True,
-            'message': f'Stored {len(generated_code)} code files for review'
-        })
-
-    except Exception as e:
-        print(f"[STORE] Error storing generated code: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        })
-
 @app.route('/generate_app_code', methods=['POST'])
 def generate_application_code_enhanced():
     """Enhanced application code generation - PRESERVES FALLBACK TO EXISTING MOCK CODE"""
@@ -4789,10 +4342,6 @@ def generate_application_code_enhanced():
 
         # Store generated code globally for review function (existing logic)
         generatedApplicationCode = generated_code
-
-        # ⭐ ADD THESE 2 LINES ONLY:
-        #save_generated_code_dev(generated_code)  # Save immediately
-        #print(f"[GENERATE_APP] Files pre-saved to dev-scripts folder")
 
         print(f"[GENERATE_APP] Generated {len(generated_code)} code files")
 
@@ -6174,46 +5723,6 @@ def review_application_code():
 
         update_progress('review', 25, 'Processing', 'Copying application code for analysis')
 
-        '''
-        # Step 1: Setup dev-scripts directory (parallel to generated-scripts)
-        dev_scripts_dir = os.path.join(os.getcwd(), "..", "dev-scripts")
-        os.makedirs(dev_scripts_dir, exist_ok=True)
-
-        # ⭐ CHECK IF FILES ALREADY EXIST (from immediate save)
-        existing_files = []
-        if os.path.exists(dev_scripts_dir):
-            existing_files = [f for f in os.listdir(dev_scripts_dir) if f.endswith('.py')]
-
-        if existing_files:
-            print(f"[REVIEW] Found {len(existing_files)} existing files in dev-scripts, skipping copy and cleanup")
-            update_progress('review', 40, 'Processing', 'Using pre-saved files from dev-scripts')
-            copied_scripts = [os.path.join(dev_scripts_dir, f) for f in existing_files]
-
-            # Create simple order mapping for existing files
-            dev_order_mapping = []
-            for i, file_name in enumerate(existing_files):
-                dev_order_mapping.append({
-                    'order_index': i + 1,
-                    'script_name': file_name,
-                    'story_title': f'Application Code {i + 1}',
-                    'source_file': f'generated_application_code_{i + 1}'
-                })
-        else:
-            print("[REVIEW] No existing files found, proceeding with normal copy")
-
-            # KEEP EXISTING CLEANUP AND COPY LOGIC UNCHANGED
-            update_progress('review', 15, 'Processing', 'Cleaning previous analysis files')
-            for filename in os.listdir(dev_scripts_dir):
-                file_path = os.path.join(dev_scripts_dir, filename)
-                try:
-                    if os.path.isfile(file_path):
-                        os.remove(file_path)
-                        print(f"[CLEANUP] Deleted old dev script: {file_path}")
-                except Exception as e:
-                    print(f"[ERROR] Failed to delete {file_path}: {e}")
-
-            update_progress('review', 25, 'Processing', 'Copying application code for analysis')
-        '''
         # Step 2: Copy generated application code to dev-scripts directory
         copied_scripts = []
         dev_order_mapping = []

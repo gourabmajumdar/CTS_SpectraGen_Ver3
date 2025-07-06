@@ -10,18 +10,11 @@ from datetime import datetime
 import logging
 import argparse
 import sys
-from smart_code_reuse import DeveloperWorkflowReuse
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-try:
-    from smart_code_reuse import DeveloperWorkflowReuse
-    SMART_REUSE_AVAILABLE = True
-except ImportError:
-    SMART_REUSE_AVAILABLE = False
-    print("⚠️ Smart code reuse not available")
 
 class EnhancedCodeGenerator:
     """Enhanced code generator supporting both QA testing and application development with multiple AI backends"""
@@ -167,7 +160,7 @@ class EnhancedCodeGenerator:
             return self.generate_application_code(input_data, context, generation_options)
         else:
             return self.generate_test_code(input_data)
-    '''
+
     def generate_application_code(self, prompt_data, codebase_context=None, generation_options=None):
         """Generate application code from prompt data"""
         try:
@@ -233,128 +226,6 @@ class EnhancedCodeGenerator:
                 'story_id': 'ERROR-001',
                 'story_title': 'Generation Error'
             }]
-    '''
-
-    def generate_application_code(self, prompt_data, codebase_context=None, generation_options=None):
-        """Generate application code with smart reuse capability - PRESERVES EXISTING INTERFACE"""
-        try:
-            logger.info(f"[DEVELOPER] Generating application code")
-
-            # Extract prompt from prompt_data (adapt to your current data structure)
-            if isinstance(prompt_data, dict):
-                prompt = prompt_data.get('prompt', '') or prompt_data.get('description', '') or str(prompt_data)
-            else:
-                prompt = str(prompt_data)
-
-            logger.info(f"[DEVELOPER] Extracted prompt: {prompt[:100]}...")
-
-            # TRY SMART REUSE FIRST (if available)
-            if SMART_REUSE_AVAILABLE and prompt.strip():
-                try:
-                    smart_reuse = DeveloperWorkflowReuse()
-                    smart_reuse.initialize()
-
-                    # Determine if tests should be included
-                    #include_tests = True
-                    include_tests = False
-                    if generation_options and isinstance(generation_options, dict):
-                        include_tests = generation_options.get('includeTests', True) or generation_options.get(
-                            'include_tests', True)
-
-                    reuse_result = smart_reuse.get_reusable_code(
-                        prompt=prompt,
-                        include_tests=include_tests,
-                        confidence_threshold=30.0
-                    )
-
-                    if reuse_result:
-                        logger.info(f"✅ Smart reuse found with {reuse_result['confidence']:.1f}% confidence")
-                        logger.info(f"⚡ Time saved: ~{reuse_result['time_saved']}s")
-                        return reuse_result['generated_code']
-                    else:
-                        logger.info("❌ No suitable reusable code found, proceeding with AI generation")
-
-                except Exception as e:
-                    logger.warning(f"Smart reuse failed: {e}, proceeding with AI generation")
-
-            # FALLBACK TO YOUR EXISTING AI GENERATION LOGIC
-            logger.info("🤖 Using AI generation")
-
-            # YOUR EXISTING CODE CONTINUES HERE - KEEP EVERYTHING BELOW AS IS
-            # This preserves all your current logic for:
-            # - Building prompts
-            # - Calling Ollama/LLaMA
-            # - Processing generation options
-            # - Handling codebase context
-            # - Error handling and fallbacks
-
-            # FOR NOW, I'll show a simplified version that delegates to your existing workflow detection
-            # You can replace this with your actual existing logic
-
-            # Check if this is a story-based generation or prompt-based
-            if isinstance(prompt_data, dict) and 'workflow_type' in prompt_data:
-                workflow_type = prompt_data.get('workflow_type', 'jira')
-            else:
-                workflow_type = 'jira'  # default
-
-            # Build enhanced prompt with your existing logic
-            enhanced_prompt = self.build_enhanced_prompt(prompt_data, codebase_context, generation_options)
-
-            # Generate code using your existing backend selection
-            if self.ai_backend == 'ollama':
-                generated_code = self.generate_with_ollama(enhanced_prompt, mode='developer')
-            elif self.ai_backend == 'llama2':
-                generated_code = self.generate_with_llama(enhanced_prompt, mode='developer')
-            else:
-                generated_code = self.generate_fallback_application_code(prompt_data)
-
-            # Clean and format the generated code with your existing logic
-            clean_code = self.extract_and_clean_code(generated_code, mode='developer')
-
-            # Determine if tests should be included
-            #include_tests = True
-            include_tests = False
-            if generation_options and isinstance(generation_options, dict):
-                include_tests = generation_options.get('includeTests', True) or generation_options.get('include_tests',
-                                                                                                       True)
-            # Separate main code and unit tests if needed
-            if include_tests:
-                main_code, unit_tests = self.separate_main_code_and_tests(clean_code)
-
-                result = []
-                if main_code.strip():
-                    result.append({
-                        'file_name': 'main_implementation.py',
-                        'generated_code': main_code,
-                        'story_id': 'MAIN-001',
-                        'story_title': 'Main Implementation'
-                    })
-
-                if unit_tests.strip():
-                    result.append({
-                        'file_name': 'test_implementation.py',
-                        'generated_code': unit_tests,
-                        'story_id': 'TEST-001',
-                        'story_title': 'Unit Tests'
-                    })
-
-                return result
-            else:
-                return [{
-                    'file_name': 'generated_implementation.py',
-                    'generated_code': clean_code,
-                    'story_id': 'AI-GEN-001',
-                    'story_title': 'AI Generated Implementation'
-                }]
-
-        except Exception as e:
-            logger.error(f"[ERROR] Application code generation failed: {e}")
-            return [{
-                'file_name': 'error.py',
-                'generated_code': f"# Error generating code: {str(e)}",
-                'story_id': 'ERROR-001',
-                'story_title': 'Generation Error'
-            }]
 
     def generate_test_code(self, test_case_data):
         """Generate test code for QA workflow (PRESERVED ORIGINAL FUNCTIONALITY)"""
@@ -390,103 +261,6 @@ class EnhancedCodeGenerator:
                 'error': str(e)
             }
 
-    # 3. ADD this helper method (only if you don't have something similar)
-    def build_enhanced_prompt(self, prompt_data, codebase_context=None, generation_options=None):
-        """Build enhanced prompt - adapt this to your existing prompt building logic"""
-
-        # If you already have prompt building logic, use that instead
-        # This is just a fallback
-
-        if isinstance(prompt_data, dict):
-            base_prompt = prompt_data.get('prompt', '') or prompt_data.get('description', '')
-        else:
-            base_prompt = str(prompt_data)
-
-        enhanced_prompt = f"""You are an expert Python developer. Generate production-ready code.
-
-    Requirements:
-    {base_prompt}
-
-    Instructions:
-    - Write clean, maintainable Python code
-    - Include proper error handling
-    - Add comprehensive docstrings
-    - Follow Python best practices
-    """
-
-        # Add generation options if provided
-        if generation_options:
-            if generation_options.get('includeTests') or generation_options.get('include_tests'):
-                enhanced_prompt += """
-            - Include comprehensive unit tests after the main code
-            - Use this EXACT separator: # ============================================================
-            - Add this EXACT header: # Unit Tests
-            - Write tests using the unittest framework
-            """
-            if generation_options.get('generateDocs'):
-                enhanced_prompt += "\n- Generate detailed documentation"
-
-        return enhanced_prompt
-
-    # 4. OPTIONALLY add this helper if you don't have similar logic
-    def generate_fallback_application_code(self, prompt_data):
-        """Generate fallback code when AI generation fails"""
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        return f'''"""
-    Generated Application Code - Fallback Mode
-    Generated on: {timestamp}
-    AI Backend: {self.ai_backend} (fallback)
-    """
-
-    import logging
-    from typing import Any, Dict
-
-    logger = logging.getLogger(__name__)
-
-    class ApplicationImplementation:
-        """Fallback application implementation"""
-
-        def __init__(self):
-            self.logger = logging.getLogger(self.__class__.__name__)
-
-        def execute(self) -> Dict[str, Any]:
-            """Execute the application logic"""
-            try:
-                self.logger.info("Executing application implementation")
-
-                # TODO: Implement actual application logic
-                result = {{
-                    "status": "success",
-                    "message": "Application executed successfully",
-                    "timestamp": "{timestamp}"
-                }}
-
-                return result
-
-            except Exception as e:
-                self.logger.error(f"Application execution failed: {{e}}")
-                return {{
-                    "status": "error",
-                    "message": str(e)
-                }}
-
-    def main():
-        """Main execution function"""
-        app = ApplicationImplementation()
-        result = app.execute()
-
-        if result["status"] == "success":
-            print(f"[PASS] ✅ {{result['message']}}")
-        else:
-            print(f"[FAIL] ❌ {{result['message']}}")
-
-    if __name__ == "__main__":
-        main()
-    '''
-
-    # COMMENTING IT FOR NOW FOR DEBUG
-    '''
     def generate_with_ollama(self, prompt, mode='qa'):
         """Generate code using Ollama API"""
         try:
@@ -510,71 +284,6 @@ class EnhancedCodeGenerator:
                     "num_predict": max_tokens,
                     "top_p": 0.9,
                     "top_k": 40
-                }
-            }
-
-            # Make the request
-            response = requests.post(
-                f"{self.ollama_base_url}/api/generate",
-                json=data,
-                timeout=120  # 2 minutes timeout
-            )
-
-            if response.status_code == 200:
-                result = response.json()
-                generated_text = result.get('response', '')
-                logger.info(f"[{mode.upper()}] Ollama generation completed ({len(generated_text)} chars)")
-                return generated_text
-            else:
-                logger.error(f"[ERROR] Ollama API error: {response.status_code}")
-                return self.generate_fallback_code(mode)
-
-        except Exception as e:
-            logger.error(f"[ERROR] Ollama generation failed: {e}")
-            return self.generate_fallback_code(mode)
-    '''
-
-    def generate_with_ollama(self, prompt, mode='qa'):
-        """Generate code using Ollama API"""
-        try:
-            logger.info(f"[{mode.upper()}] Generating code with Ollama...")
-
-            # Configure generation parameters based on mode
-            if mode == 'developer':
-                max_tokens = 2000
-                temperature = 0.1  # Lower temperature for more deterministic code
-            else:
-                max_tokens = 1000
-                temperature = 0.2
-
-            # Enhanced prompt for better test separation in developer mode
-            if mode == 'developer':
-                enhanced_prompt = f"""You are an expert Python developer. Follow these instructions exactly:
-
-    {prompt}
-
-    CRITICAL: If unit tests are requested, use this EXACT format:
-    1. Write the main implementation code first
-    2. Add this EXACT line: # ============================================================
-    3. Add this EXACT line: # Unit Tests
-    4. Write unit tests using unittest framework
-
-    The separator lines are MANDATORY for proper parsing."""
-            else:
-                enhanced_prompt = prompt
-
-            # Prepare the request
-            data = {
-                "model": self.ollama_model,
-                "prompt": enhanced_prompt,
-                "stream": False,
-                "options": {
-                    "temperature": temperature,
-                    "num_predict": max_tokens,
-                    "top_p": 0.9,
-                    "top_k": 40,
-                    "repeat_penalty": 1.1,
-                    "stop": ["```\n\n", "# End of code"]  # Stop tokens to prevent rambling
                 }
             }
 
@@ -642,7 +351,7 @@ IMPORTANT: If the user requested unit tests, you MUST generate them after the ma
 3. Add this header: # Unit Tests
 4. Write comprehensive unit tests using the unittest framework
 
-The separator lines are MANDATORY for proper parsing."""
+Do not skip any requested components."""
             else:
                 enhanced_prompt = prompt
 

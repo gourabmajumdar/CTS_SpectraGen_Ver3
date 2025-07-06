@@ -1599,9 +1599,6 @@ function showDeveloperMode() {
     // Reset any QA-specific elements
     resetQAElements();
 
-    // SHOW current mode indicator on Developer page
-    updateModeIndicatorVisibility(true);
-
     console.log('✅ Developer mode displayed');
 }
 
@@ -1632,9 +1629,6 @@ function showQAMode() {
     // Reset any developer-specific elements
     resetDeveloperElements();
 
-    // SHOW current mode indicator on QA page
-    updateModeIndicatorVisibility(true);
-
     console.log('✅ QA mode displayed');
 }
 
@@ -1661,9 +1655,6 @@ function showCodebaseManager() {
 
     // Switch mode on backend
     switchMode('codebase');
-
-    // SHOW current mode indicator on Developer page
-    updateModeIndicatorVisibility(true);
 
     console.log('✅ Codebase manager displayed');
 }
@@ -1761,13 +1752,6 @@ function showHome() {
 }
 */
 
-function updateModeIndicatorVisibility(showIndicator) {
-    const modeIndicator = document.getElementById('modeIndicator');
-    if (modeIndicator) {
-        modeIndicator.style.display = showIndicator ? 'flex' : 'none';
-    }
-}
-
 // Override existing showHome function to work with new structure
 function showHome() {
     console.log('🏠 Showing Home page');
@@ -1791,9 +1775,6 @@ function showHome() {
     // Update dashboard title
     const dashboardTitle = document.getElementById('dashboardTitle');
     if (dashboardTitle) dashboardTitle.textContent = '';
-
-    // HIDE current mode indicator on Home page
-    updateModeIndicatorVisibility(false);
 
     console.log('✅ Home page displayed');
 }
@@ -2003,7 +1984,7 @@ async function ingestDeveloperRequirements() {
 
         // Step 2: Build the comprehensive prompt
         const aiPrompt = buildAIPrompt({
-            workflowType: window.selectedWorkflowType || 'User Prompt',
+            workflowType: window.selectedWorkflowType || 'jira',
             uploadedContent: uploadedContent,
             requirementText: '', // Not using separate requirement text anymore
             technicalNotes: technicalNotes,
@@ -2134,7 +2115,7 @@ function displayCreatedPrompt(aiPrompt, result) {
         // Create display message with prompt
         const displayMessage = `=== DEVELOPER REQUIREMENTS PROCESSED ===
 Generated on: ${new Date().toLocaleString()}
-Workflow Type: ${window.selectedWorkflowType || 'User Prompt'}
+Workflow Type: ${window.selectedWorkflowType || 'jira'}
 
 === EXTRACTED REQUIREMENTS SUMMARY ===
 ${result.extractedRequirements || 'Successfully processed requirements and built AI prompt'}
@@ -2218,10 +2199,6 @@ function buildAIPrompt(data) {
 
     // Add workflow context
     switch(workflowType) {
-        case 'User Prompt':
-            prompt += `TASK TYPE: User Prompt Implementation\n`;
-            prompt += `Generate code that fully implements the user prompt with all acceptance criteria.\n\n`;
-            break;
         case 'jira':
             prompt += `TASK TYPE: JIRA User Story Implementation\n`;
             prompt += `Generate code that fully implements the user story with all acceptance criteria.\n\n`;
@@ -2486,7 +2463,6 @@ function autoResizeCodeTextarea(index) {
     }
 }
 
-/*
 async function generateApplicationCode() {
     console.log('🔧 Starting application code generation...');
 
@@ -2548,278 +2524,6 @@ async function generateApplicationCode() {
             displayGeneratedApplicationCodeInTab(generatedCode);
 
             // Enable review button
-            const reviewBtn = document.getElementById('reviewAppBtn');
-            if (reviewBtn) {
-                reviewBtn.disabled = false;
-            }
-
-            showToast(result.message || 'Code generated successfully!', 'success');
-        } else {
-            showToast(result.message, 'error');
-        }
-
-    } catch (error) {
-        console.error('❌ Code generation error:', error);
-        showToast('Code generation failed: ' + error.message, 'error');
-    } finally {
-        generateBtn.disabled = false;
-        generateBtn.classList.remove('btn-loading');
-        generateBtn.textContent = 'Generate Application Code';
-        hideProgress();
-    }
-}
-*/
-
-/*
-async function generateApplicationCode() {
-    console.log('🔧 Starting application code generation...');
-
-    // EXISTING: Skip user story selection check for simplified workflow
-    // Instead, check if we have processed requirements (prompt data)
-    const promptTextarea = document.getElementById('promptTabTextarea');
-    if (!promptTextarea || !promptTextarea.value.trim()) {
-        showToast('Please ingest requirements first before generating code!', 'warning');
-        return;
-    }
-
-    const generateBtn = document.getElementById('generateAppBtn');
-    if (!generateBtn) return;
-
-    generateBtn.disabled = true;
-    generateBtn.classList.add('btn-loading');
-
-    try {
-        showProgress('Generating Application Code', [
-            'Checking for reusable code',
-            'Loading processed requirements',
-            'Preparing LLaMA model context',
-            'Generating Python code',
-            'Optimizing implementation',
-            'Finalizing code structure'
-        ]);
-
-        // NEW: Check for reusable code FIRST
-        updateProgress(10, 'Checking User Prompts/Stories', 0);
-        const currentPrompt = promptTextarea.value.trim();
-
-        const reuseResult = await checkForReusableCode(currentPrompt, true);
-        // DEBUG: Check what reuseResult actually contains
-        console.log('[DEBUG] reuseResult received:', reuseResult);
-        console.log('[DEBUG] reuseResult type:', typeof reuseResult);
-        console.log('[DEBUG] reuseResult.reusable_found:', reuseResult ? reuseResult.reusable_found : 'reuseResult is null');
-        console.log('[DEBUG] reuseResult && reuseResult.reusable_found:', !!(reuseResult && reuseResult.reusable_found));
-
-        if (reuseResult && reuseResult.reusable_found) {
-            // Use reused code directly
-            console.log('✅ Checking Generation options & Using smart code Generation');
-            updateProgress(80, 'Smart reuse found - using existing code', 4);
-            await delay(500);
-
-            // Display the reused code
-            const generatedCode = reuseResult.generated_code || [];
-            generatedApplicationCode = reuseResult.generated_code;
-
-             // DEBUG: Check what was actually assigned
-            console.log('[DEBUG] Smart reuse - generatedApplicationCode assigned:');
-            console.log('[DEBUG] Type:', typeof generatedApplicationCode);
-            console.log('[DEBUG] Length:', generatedApplicationCode ? generatedApplicationCode.length : 'null/undefined');
-            console.log('[DEBUG] Content preview:', generatedApplicationCode);
-
-            displayGeneratedApplicationCodeInTab(generatedCode);
-
-            // Enable review button
-            const reviewBtn = document.getElementById('reviewAppBtn');
-            if (reviewBtn) {
-                reviewBtn.disabled = false;
-            }
-
-            updateProgress(100, 'Smart reuse completed successfully', 5);
-            showToast(`Smart Reuse Complete: Used ${reuseResult.source_script}`, 'success');
-            return; // Exit early - no need for AI generation
-        }
-
-        // EXISTING: Fallback to normal AI generation if no reuse found
-        console.log('🤖 Proceeding with AI based Code generation');
-        updateProgress(20, 'Loading processed requirements', 1);
-        await delay(1000);
-
-        updateProgress(40, 'Preparing LLaMA model context', 2);
-        await delay(1000);
-
-        updateProgress(60, 'Generating application code', 3);
-
-        // EXISTING: Call backend without selected_story_ids
-        const response = await fetch('/generate_app_code', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                // No selected_story_ids needed - backend will use stored prompt
-                generate_from_prompt: true
-            })
-        });
-
-        updateProgress(80, 'Optimizing implementation', 4);
-        await delay(1000);
-
-        const result = await response.json();
-
-        updateProgress(100, 'Code generation completed', 5);
-
-        if (result.success) {
-            // EXISTING: Display generated code in the tab editor
-            const generatedCode = result.generated_code || [];
-            generatedApplicationCode = result.generated_code;
-            displayGeneratedApplicationCodeInTab(generatedCode);
-
-            // EXISTING: Enable review button
-            const reviewBtn = document.getElementById('reviewAppBtn');
-            if (reviewBtn) {
-                reviewBtn.disabled = false;
-            }
-
-            showToast(result.message || 'Code generated successfully!', 'success');
-        } else {
-            showToast(result.message, 'error');
-        }
-
-    } catch (error) {
-        console.error('❌ Code generation error:', error);
-        showToast('Code generation failed: ' + error.message, 'error');
-    } finally {
-        generateBtn.disabled = false;
-        generateBtn.classList.remove('btn-loading');
-        generateBtn.textContent = 'Generate Application Code';
-        hideProgress();
-    }
-}
-*/
-
-//NEW FIXED ONE - LETS TRY
-async function generateApplicationCode() {
-    console.log('🔧 Starting application code generation...');
-
-    // EXISTING: Skip user story selection check for simplified workflow
-    const promptTextarea = document.getElementById('promptTabTextarea');
-    if (!promptTextarea || !promptTextarea.value.trim()) {
-        showToast('Please ingest requirements first before generating code!', 'warning');
-        return;
-    }
-
-    const generateBtn = document.getElementById('generateAppBtn');
-    if (!generateBtn) return;
-
-    generateBtn.disabled = true;
-    generateBtn.classList.add('btn-loading');
-
-    try {
-        showProgress('Generating Application Code', [
-            'Checking for reusable code',
-            'Loading processed requirements',
-            'Preparing LLaMA model context',
-            'Generating Python code',
-            'Optimizing implementation',
-            'Finalizing code structure'
-        ]);
-
-        // NEW: Check for reusable code FIRST
-        updateProgress(10, 'Checking for reusable code', 0);
-        const currentPrompt = promptTextarea.value.trim();
-        console.log('[DEBUG] About to call checkForReusableCode with prompt:', currentPrompt.substring(0, 100));
-
-        const reuseResult = await checkForReusableCode(currentPrompt, true);
-
-        // DEBUG: Check what reuseResult actually contains
-        console.log('[DEBUG] reuseResult received:', reuseResult);
-        console.log('[DEBUG] reuseResult type:', typeof reuseResult);
-        console.log('[DEBUG] reuseResult.reusable_found:', reuseResult ? reuseResult.reusable_found : 'reuseResult is null');
-        console.log('[DEBUG] reuseResult && reuseResult.reusable_found:', !!(reuseResult && reuseResult.reusable_found));
-
-        if (reuseResult && reuseResult.reusable_found) {
-            console.log('[DEBUG] ✅ ENTERING smart code generation section');
-            // Use reused code directly
-            console.log('✅ Using smart code generation');
-            updateProgress(80, 'Smart code found - using existing code', 4);
-            await delay(1000);
-
-            // Display the reused code
-            const generatedCode = reuseResult.generated_code || [];
-            generatedApplicationCode = reuseResult.generated_code;
-
-            // FIX: Send the reused code to server so review function can access it
-            try {
-                await fetch('/store_generated_code', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        generated_code: reuseResult.generated_code
-                    })
-                });
-                console.log('[DEBUG] ✅ Sent reused code to server for review function');
-            } catch (error) {
-                console.error('[DEBUG] ❌ Failed to send code to server:', error);
-            }
-            await delay(1000);
-            // DEBUG: Check what was actually assigned
-            console.log('[DEBUG] After assignment - generatedApplicationCode:', generatedApplicationCode);
-            console.log('[DEBUG] After assignment - generatedApplicationCode length:', generatedApplicationCode ? generatedApplicationCode.length : 'null');
-            await delay(1000);
-
-            displayGeneratedApplicationCodeInTab(generatedCode);
-
-            // Enable review button
-            const reviewBtn = document.getElementById('reviewAppBtn');
-            if (reviewBtn) {
-                reviewBtn.disabled = false;
-            }
-
-            updateProgress(100, 'Smart reuse completed successfully', 5);
-            showToast(`Smart Code Generation Complete: Used ${reuseResult.source_script}`, 'success');
-            return; // Exit early - no need for AI generation
-        } else {
-            console.log('[DEBUG] ❌ NOT ENTERING smart reuse section');
-            console.log('[DEBUG] Reason: reuseResult =', reuseResult);
-        }
-
-        // EXISTING: Fallback to normal AI generation if no reuse found
-        console.log('🤖 No reusable code found, proceeding with AI generation');
-        updateProgress(20, 'Loading processed requirements', 1);
-        await delay(1000);
-
-        updateProgress(40, 'Preparing LLaMA model context', 2);
-        await delay(1000);
-
-        updateProgress(60, 'Generating application code', 3);
-
-        // EXISTING: Call backend without selected_story_ids
-        const response = await fetch('/generate_app_code', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                // No selected_story_ids needed - backend will use stored prompt
-                generate_from_prompt: true
-            })
-        });
-
-        updateProgress(80, 'Optimizing implementation', 4);
-        await delay(1000);
-
-        const result = await response.json();
-
-        updateProgress(100, 'Code generation completed', 5);
-
-        if (result.success) {
-            // EXISTING: Display generated code in the tab editor
-            const generatedCode = result.generated_code || [];
-            generatedApplicationCode = result.generated_code;
-            displayGeneratedApplicationCodeInTab(generatedCode);
-
-            // EXISTING: Enable review button
             const reviewBtn = document.getElementById('reviewAppBtn');
             if (reviewBtn) {
                 reviewBtn.disabled = false;
@@ -3112,36 +2816,6 @@ ${data.summary_content}
         });
 }
 
-async function checkForReusableCode(prompt, includeTests = true) {
-    try {
-        console.log('🔍 Checking for reusable code...');
-
-        const response = await fetch('/check_reusable_code', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                prompt: prompt,
-                include_tests: includeTests
-            })
-        });
-
-        const result = await response.json();
-
-        if (result.success && result.reusable_found) {
-            console.log(`♻️ Smart Code Generation: ${result.source_script} (${result.confidence}% confidence)`);
-            //showToast(`Smart Code Generation: Found ${result.source_script} (${result.confidence}% confidence)`, 'success');
-            return result;
-        }
-
-        return null;
-    } catch (error) {
-        console.error('Error checking reusable code:', error);
-        return null;
-    }
-}
-
 // MODIFICATION: In the reviewApplicationCode function, find the success block and add this call
 // Look for the line: showToast(`Application code review completed for ${result.individual_reports.length} file(s)! Check each tab for detailed results.`, 'success');
 // ADD THIS LINE IMMEDIATELY AFTER IT:
@@ -3350,24 +3024,10 @@ Please check "Open Report" for comprehensive HTML results.
                     switchTab('code');
                 }, 500);
             }*/
-            /*
             // Switch to review tab to show results
             setTimeout(() => {
                 switchTab('review');
             }, 500);
-             */
-            setTimeout(() => {
-                // Try to switch to first main code tab in enhanced tabs
-                const firstMainTab = document.querySelector('.enhanced-tab-header[data-tab*="main"]');
-                if (firstMainTab) {
-                    const tabId = firstMainTab.getAttribute('data-tab');
-                    console.log(`📝 Auto-switching to enhanced tab: ${tabId}`);
-                    switchEnhancedTab(tabId);
-                } else {
-                    // Don't auto-switch if we can't find the right tab
-                    console.log('📝 No auto-switch - user can manually select tab');
-                }
-            }, 600);
 
         } else {
             // Error handling - same as QA workflow
@@ -7770,7 +7430,6 @@ ${file.generated_code || ''}
 }
 
 // Save content from a specific tab
-/*
 function saveTabContent(tabName) {
     console.log(`💾 Saving ${tabName} content`);
 
@@ -7789,65 +7448,6 @@ function saveTabContent(tabName) {
     localStorage.setItem(`${storageKey}_timestamp`, new Date().toISOString());
 
     showToast(`${tabName.charAt(0).toUpperCase() + tabName.slice(1)} content saved successfully!`, 'success');
-}
-*/
-
-// REPLACE your existing saveTabContent function with this version that saves to dev-scripts
-async function saveTabContent(tabName) {
-    console.log(`💾 Saving ${tabName} content`);
-
-    const textarea = document.getElementById(`${tabName}TabTextarea`);
-    if (!textarea) {
-        console.error(`❌ Textarea not found: ${tabName}TabTextarea`);
-        return;
-    }
-
-    const content = textarea.value.trim();
-    if (!content) {
-        showToast(`No ${tabName} content to save!`, 'warning');
-        return;
-    }
-
-    try {
-        // Call backend to save to dev-scripts folder
-        const response = await fetch('/save_to_dev_scripts', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                file_id: tabName,
-                content: content
-            })
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-            // Update localStorage as backup
-            const storageKey = `developer_${tabName}_data`;
-            localStorage.setItem(storageKey, content);
-            localStorage.setItem(`${storageKey}_timestamp`, new Date().toISOString());
-
-            // Show success message
-            showToast(`${tabName.charAt(0).toUpperCase() + tabName.slice(1)} saved to dev-scripts/${result.filename}`, 'success');
-
-            console.log(`✅ ${tabName} saved successfully: ${result.file_path}`);
-
-        } else {
-            throw new Error(result.message || 'Failed to save file');
-        }
-
-    } catch (error) {
-        console.error(`❌ Error saving ${tabName}:`, error);
-
-        // Fallback to localStorage only
-        const storageKey = `developer_${tabName}_data`;
-        localStorage.setItem(storageKey, content);
-        localStorage.setItem(`${storageKey}_timestamp`, new Date().toISOString());
-
-        showToast(`${tabName.charAt(0).toUpperCase() + tabName.slice(1)} save failed. Saved to browser storage only.`, 'error');
-    }
 }
 
 // Download content from a specific tab
@@ -8501,7 +8101,10 @@ function displayCreatedPromptInTab(aiPrompt, result) {
 
     const displayMessage = `=== DEVELOPER REQUIREMENTS PROCESSED ===
 Generated on: ${new Date().toLocaleString()}
-Workflow Type: ${window.selectedWorkflowType || 'User Prompt'}
+Workflow Type: ${window.selectedWorkflowType || 'jira'}
+
+=== EXTRACTED REQUIREMENTS SUMMARY ===
+${result.extractedRequirements || 'Successfully processed requirements and built AI prompt'}
 
 === GENERATED AI PROMPT FOR LLAMA MODEL ===
 ${aiPrompt}
@@ -8706,8 +8309,54 @@ function addUnitTestTab(testFile) {
 }
 
 
-// FIXED: Enhanced parseGeneratedCodeFiles to handle unit test checkbox properly
+
+
+// Parse generated code to separate main code from unit tests
 /*
+function parseGeneratedCodeFiles(codeResults) {
+    console.log('📋 Parsing generated code files');
+
+    const files = [];
+
+    codeResults.forEach((result, index) => {
+        const code = result.generated_code || '';
+        const fileName = result.file_name || `generated_code_${index + 1}.py`;
+
+        // Split the code into main code and unit tests
+        const { mainCode, unitTests } = separateMainCodeAndTests(code);
+
+        // Create main code file
+        if (mainCode.trim()) {
+            files.push({
+                id: `main_${index}`,
+                name: fileName,
+                displayName: fileName.replace('.py', ''),
+                content: mainCode,
+                type: 'main',
+                icon: '🚀',
+                language: 'python'
+            });
+        }
+
+        // Create unit test file if tests exist
+        if (unitTests.trim()) {
+            const testFileName = fileName.replace('.py', '_test.py');
+            files.push({
+                id: `test_${index}`,
+                name: testFileName,
+                displayName: testFileName.replace('.py', ''),
+                content: unitTests,
+                type: 'test',
+                icon: '🧪',
+                language: 'python'
+            });
+        }
+    });
+
+    return files;
+}
+*/
+// FIXED: Enhanced parseGeneratedCodeFiles to handle unit test checkbox properly
 function parseGeneratedCodeFiles(codeResults) {
     console.log('📋 Parsing generated code files for main code and unit tests');
 
@@ -8766,169 +8415,7 @@ function parseGeneratedCodeFiles(codeResults) {
     console.log(`✅ Parsed ${files.length} files (${files.filter(f => f.type === 'main').length} main, ${files.filter(f => f.type === 'test').length} test)`);
     return files;
 }
-*/
 
-/*
-function parseGeneratedCodeFiles(codeResults) {
-    console.log('📋 Parsing generated code files for main code and unit tests');
-
-    const files = [];
-    const includeTestsCheckbox = document.getElementById('includeTests');
-    const shouldIncludeTests = includeTestsCheckbox && includeTestsCheckbox.checked;
-
-    codeResults.forEach((result, index) => {
-        const code = result.generated_code || '';
-        const fileName = result.file_name || `generated_code_${index + 1}.py`;
-
-        // Check if this is already a separate file (smart reuse case)
-        if (fileName.includes('_test.py')) {
-            // This is a test file
-            if (shouldIncludeTests) {
-                files.push({
-                    id: `test_${index}`,
-                    name: fileName,
-                    displayName: fileName.replace('.py', ''),
-                    content: code,
-                    type: 'test',
-                    icon: '🧪',
-                    language: 'python'
-                });
-            }
-        } else if (code.includes('# ♻️ SMART REUSE - EXISTING UNIT TESTS')) {
-            // This is a reused test file
-            if (shouldIncludeTests) {
-                files.push({
-                    id: `test_${index}`,
-                    name: fileName,
-                    displayName: fileName.replace('.py', ''),
-                    content: code,
-                    type: 'test',
-                    icon: '🧪',
-                    language: 'python'
-                });
-            }
-        } else {
-            // This is a main file
-            files.push({
-                id: `main_${index}`,
-                name: fileName,
-                displayName: fileName.replace('.py', ''),
-                content: code,
-                type: 'main',
-                icon: '🚀',
-                language: 'python'
-            });
-        }
-    });
-
-    return files;
-}
-*/
-
-// Replace the parseGeneratedCodeFiles function in your script.js with this fixed version:
-
-function parseGeneratedCodeFiles(codeResults) {
-    console.log('📋 Parsing generated code files for main code and unit tests');
-    console.log('📋 Received files:', codeResults.map(f => f.file_name));
-
-    const files = [];
-    const includeTestsCheckbox = document.getElementById('includeTests');
-    const shouldIncludeTests = includeTestsCheckbox && includeTestsCheckbox.checked;
-
-    codeResults.forEach((result, index) => {
-        const code = result.generated_code || '';
-        const fileName = result.file_name || `generated_code_${index + 1}.py`;
-
-        console.log(`📋 Processing file: ${fileName}`);
-
-        // Check if this is already a separate test file (from backend)
-        if (fileName.includes('test_implementation.py') ||
-            fileName.includes('unit_tests.py') ||
-            fileName.endsWith('_test.py') ||  // Smart reuse pattern
-            result.story_title === 'Unit Tests' ||
-            (result.story_title && result.story_title.includes('Tests'))) {  // Smart reuse pattern
-            // This is already a separate test file from backend
-            if (shouldIncludeTests) {
-                files.push({
-                    id: `test_${index}`,
-                    name: fileName,
-                    displayName: fileName.replace('.py', ''),
-                    content: code,
-                    type: 'test',
-                    icon: '🧪',
-                    language: 'python'
-                });
-                console.log(`✅ Added separate test file: ${fileName}`);
-            }
-        } else if (fileName.includes('main_implementation.py') ||
-                   result.story_title === 'Main Implementation' ||
-                   (result.story_title && result.story_title.startsWith('Smart Reuse:') && !result.story_title.includes('Tests'))) {  // Smart reuse pattern
-            // This is already a separate main file from backend
-            files.push({
-                id: `main_${index}`,
-                name: fileName,
-                displayName: fileName.replace('.py', ''),
-                content: code,
-                type: 'main',
-                icon: '🚀',
-                language: 'python'
-            });
-            console.log(`✅ Added separate main file: ${fileName}`);
-        } else {
-            // This might be a combined file that needs splitting
-            if (shouldIncludeTests) {
-                const { mainCode, unitTests } = separateMainCodeAndTests(code);
-
-                // Create main code file
-                if (mainCode.trim()) {
-                    files.push({
-                        id: `main_${index}`,
-                        name: fileName,
-                        displayName: fileName.replace('.py', ''),
-                        content: mainCode,
-                        type: 'main',
-                        icon: '🚀',
-                        language: 'python'
-                    });
-                    console.log(`✅ Added main code from combined file: ${fileName}`);
-                }
-
-                // Create unit test file if tests exist
-                if (unitTests.trim()) {
-                    const testFileName = fileName.replace('.py', '_test.py');
-                    files.push({
-                        id: `test_${index}`,
-                        name: testFileName,
-                        displayName: testFileName.replace('.py', ''),
-                        content: unitTests,
-                        type: 'test',
-                        icon: '🧪',
-                        language: 'python'
-                    });
-                    console.log(`✅ Added test code from combined file: ${testFileName}`);
-                }
-            } else {
-                // If tests not requested, treat everything as main code
-                files.push({
-                    id: `main_${index}`,
-                    name: fileName,
-                    displayName: fileName.replace('.py', ''),
-                    content: code,
-                    type: 'main',
-                    icon: '🚀',
-                    language: 'python'
-                });
-                console.log(`✅ Added as main code (no tests): ${fileName}`);
-            }
-        }
-    });
-
-    console.log(`📋 Final parsed files: ${files.length} total`);
-    console.log(`📋 Main files: ${files.filter(f => f.type === 'main').length}`);
-    console.log(`📋 Test files: ${files.filter(f => f.type === 'test').length}`);
-
-    return files;
-}
 // Separate main code from unit tests
 /*
 function separateMainCodeAndTests(code) {
@@ -9264,7 +8751,6 @@ function saveFileContent(fileId) {
     showToast(`File ${fileId} saved successfully!`, 'success');
 }
 
-
 // Download file content
 function downloadFileContent(fileId) {
     console.log(`📥 Downloading file content: ${fileId}`);
@@ -9321,243 +8807,11 @@ function copyFileContent(fileId) {
 }
 
 // Helper function to run unit tests (placeholder)
-/*
 function runTests() {
     console.log('▶️ Running unit tests...');
     showToast('Unit test execution feature coming soon!', 'info');
 }
-*/
 
-// Replace your current runTests() function in script.js with this implementation
-
-async function runTests(fileId = null) {
-    console.log('🧪 Starting unit test execution...');
-
-    // Get the unit test content
-    let testContent;
-    let testFileName;
-
-    if (fileId) {
-        // Running specific test file
-        const testTextarea = document.getElementById(`${fileId}Textarea`);
-        if (!testTextarea || !testTextarea.value.trim()) {
-            showToast('No unit test content to execute!', 'warning');
-            return;
-        }
-        testContent = testTextarea.value.trim();
-        testFileName = `${fileId}_test.py`;
-    } else {
-        // Running from main unit test tab
-        const unittestTextarea = document.getElementById('unittestTabTextarea');
-        if (!unittestTextarea || !unittestTextarea.value.trim()) {
-            showToast('No unit test content to execute!', 'warning');
-            return;
-        }
-
-        // Check if textarea has actual unit test code or just review summary
-        let hasValidTestCode = false;
-        if (unittestTextarea && unittestTextarea.value.trim()) {
-            const content = unittestTextarea.value.trim();
-
-            // Check if this looks like unit test code (has def test_ or import unittest/pytest)
-            hasValidTestCode = content.includes('def test_') ||
-                              content.includes('import unittest') ||
-                              content.includes('import pytest') ||
-                              content.includes('# UNIT TEST EXECUTION RESULTS'); // Previous execution results
-
-            if (hasValidTestCode && !content.includes('CODE REVIEW SUMMARY')) {
-                console.log('✅ Found valid unit test code in textarea');
-                testContent = content;
-                testFileName = 'unittest_execution.py';
-            }
-        }
-        // FALLBACK: If no valid test code in textarea, try to get from dev-scripts folder
-        if (!hasValidTestCode) {
-            console.log('⚠️ No valid unit test code in textarea, checking dev-scripts folder...');
-
-            try {
-                const response = await fetch('/get_unit_test_from_dev_scripts', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                });
-
-                const result = await response.json();
-
-                if (result.success && result.test_content) {
-                    console.log('✅ Found unit test file in dev-scripts folder:', result.test_filename);
-                    testContent = result.test_content;
-                    testFileName = result.test_filename;
-                    showToast('📁 Using unit test file from dev-scripts folder', 'info');
-                } else {
-                    showToast('No unit test content found in textarea or dev-scripts folder!', 'warning');
-                    return;
-                }
-            } catch (error) {
-                console.error('❌ Error fetching unit test from dev-scripts:', error);
-                showToast('No unit test content to execute!', 'warning');
-                return;
-            }
-        }
-        //testContent = unittestTextarea.value.trim();
-        //testFileName = 'unittest_execution.py';
-    }
-
-    // Check if this is smart reuse content (skip if it's just headers)
-    if (testContent.includes('# ♻️ SMART REUSE') && !testContent.includes('def test_')) {
-        showToast('Please wait for unit tests to be fully loaded before running.', 'warning');
-        return;
-    }
-
-    try {
-        // FIXED: Use manual progress control without polling
-        // First, show the developer progress container manually
-        const progressContainer = document.getElementById('developerProgressContainer');
-        const progressTitle = document.getElementById('developerProgressTitle');
-        const progressStatus = document.getElementById('developerProgressStatus');
-        const progressBar = document.getElementById('developerProgressBar');
-        const progressPercentage = document.getElementById('developerProgressPercentage');
-        const progressSteps = document.getElementById('developerProgressSteps');
-
-        if (!progressContainer) {
-            console.error('❌ Developer progress container not found!');
-            return;
-        }
-
-        // Show progress container
-        progressContainer.style.display = 'block';
-        progressContainer.classList.add('show');
-
-        // Set title and initial status
-        if (progressTitle) progressTitle.textContent = 'Running Unit Tests';
-        if (progressStatus) progressStatus.textContent = 'Initializing...';
-
-        // Reset progress bar
-        if (progressBar) progressBar.style.width = '0%';
-        if (progressPercentage) progressPercentage.textContent = '0%';
-
-        // Create step elements manually
-        const steps = [
-            'Preparing test environment',
-            'Saving test file to server',
-            'Installing dependencies (pytest)',
-            'Executing unit tests with pytest',
-            'Collecting test results'
-        ];
-
-        if (progressSteps) {
-            progressSteps.innerHTML = '';
-            steps.forEach((step, index) => {
-                const stepElement = document.createElement('div');
-                stepElement.className = 'progress-step';
-                stepElement.innerHTML = `
-                    <div class="step-icon pending" id="dev-step-${index}">●</div>
-                    <span>${step}</span>
-                `;
-                progressSteps.appendChild(stepElement);
-            });
-        }
-        // Use developer progress functions with properly defined steps array
-        //startDeveloperProgress('unit_tests', 'Running Unit Tests', progressSteps);
-        updateDeveloperProgress(20, 'Preparing test environment', 0);
-        await delay(500);
-
-        updateDeveloperProgress(40, 'Saving test file and installing pytest', 1);
-
-        // Send test content to backend for execution
-        const response = await fetch('/run_unit_tests', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                test_content: testContent,
-                test_filename: testFileName,
-                use_pytest: true
-            })
-        });
-
-        updateDeveloperProgress(60, 'Executing unit tests with pytest', 2);
-        await delay(1000);
-
-        const result = await response.json();
-
-        updateDeveloperProgress(80, 'Collecting test results', 3);
-        await delay(500);
-
-        updateDeveloperProgress(100, 'Unit test execution completed', 4);
-
-        if (result.success) {
-            // Display results in the unit test textarea
-            const resultOutput = `# ═══════════════════════════════════════════════════════════════
-# 🧪 UNIT TEST EXECUTION RESULTS
-# ═══════════════════════════════════════════════════════════════
-# Executed on: ${new Date().toLocaleString()}
-# Test File: ${testFileName}
-# Execution Status: ${result.execution_status || 'COMPLETED'}
-# 
-# ═══════════════════════════════════════════════════════════════
-# PYTEST OUTPUT:
-# ═══════════════════════════════════════════════════════════════
-
-${result.stdout || 'No output captured'}
-
-# ═══════════════════════════════════════════════════════════════
-# STD ERROR OUTPUT (if any):
-# ═══════════════════════════════════════════════════════════════
-
-${result.stderr || 'No errors'}
-
-# ═══════════════════════════════════════════════════════════════
-# EXECUTION SUMMARY:
-# ═══════════════════════════════════════════════════════════════
-# Return Code: ${result.return_code || 'N/A'}
-# Tests Passed: ${result.tests_passed || 'Check output above'}
-# Tests Failed: ${result.tests_failed || 'Check output above'}
-# Total Runtime: ${result.execution_time || 'N/A'}
-# 
-# ${result.return_code === 0 ? '✅ ALL TESTS PASSED!' : '❌ SOME TESTS FAILED - Check details above'}
-# ═══════════════════════════════════════════════════════════════
-
-# ORIGINAL TEST CODE:
-# ═══════════════════════════════════════════════════════════════
-
-${testContent}`;
-
-            // Update the textarea with results
-            if (fileId) {
-                const testTextarea = document.getElementById(`${fileId}Textarea`);
-                if (testTextarea) {
-                    testTextarea.value = resultOutput;
-                    updateEnhancedTabCharCount(fileId);
-                }
-            } else {
-                const unittestTextarea = document.getElementById('unittestTabTextarea');
-                if (unittestTextarea) {
-                    unittestTextarea.value = resultOutput;
-                    updateTabCharCount('unittest');
-                }
-            }
-
-            // Show success/failure message
-            if (result.return_code === 0) {
-                showToast('✅ Unit tests executed successfully! All tests passed.', 'success');
-            } else {
-                showToast('⚠️ Unit tests completed with failures. Check results above.', 'warning');
-            }
-
-        } else {
-            showToast(`Unit test execution failed: ${result.message}`, 'error');
-        }
-
-    } catch (error) {
-        console.error('❌ Unit test execution error:', error);
-        showToast('Unit test execution failed: ' + error.message, 'error');
-    } finally {
-        hideDeveloperProgress();
-    }
-}
 
 // ================================================================================================
 // KEYBOARD SHORTCUTS AND ACCESSIBILITY

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CTS SpectraGen Tool</title>
+    <title>CTS Development & Testing Hub</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -14,7 +14,7 @@
                 <img src="{{ url_for('static', filename='cog_logo.jpg') }}" alt="Cognizant Logo" class="logo-image">
             </div>
         </div>
-        <div class="header-title">SpectraGen Tool</div>
+        <div class="header-title">Development & Testing Hub</div>
 
         <!-- Mode Indicator (MISSING IN OLD VERSION) -->
         <div class="mode-indicator" id="modeIndicator">
@@ -533,6 +533,10 @@
                                     <span>Include Unit Tests</span>
                                 </label>
                                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" id="generateDocs" checked style="width: 18px; height: 18px; accent-color: #3b82f6;">
+                                    <span>Generate Documentation</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                                     <input type="checkbox" id="useLibraries" checked style="width: 18px; height: 18px; accent-color: #3b82f6;">
                                     <span>Use Existing Libraries</span>
                                 </label>
@@ -544,16 +548,10 @@
                                     <input type="checkbox" id="includeErrors" checked style="width: 18px; height: 18px; accent-color: #3b82f6;">
                                     <span>Include Error Handling</span>
                                 </label>
-                                <!--
                                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                                     <input type="checkbox" id="performanceOpt" checked style="width: 18px; height: 18px; accent-color: #3b82f6;">
                                     <span>Performance Optimized</span>
                                 </label>
-                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                    <input type="checkbox" id="generateDocs" checked style="width: 18px; height: 18px; accent-color: #3b82f6;">
-                                    <span>Generate Documentation</span>
-                                </label>
-                                -->
                             </div>
                         </div>
 

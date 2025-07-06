@@ -3419,7 +3419,7 @@ textarea:focus-visible {
     width: 100%;
 }
 
-/* Main workflow area - only    in developer mode */
+/* Main workflow area - only in developer mode */
 .developer-content .main-workflow-area {
     flex: 1;
     min-width: 0; /* Prevent flex item from overflowing */
