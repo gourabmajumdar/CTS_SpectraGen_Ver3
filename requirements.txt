@@ -1,0 +1,16 @@
+# Core Dependencies
+flask==2.3.3
+requests==2.31.0
+transformers==4.35.2
+torch==2.1.1
+paramiko==3.3.1
+werkzeug==2.3.7
+
+# Optional Dependencies for Enhanced Features
+PyYAML==6.0.1
+python-dotenv==1.0.0
+
+# Development Dependencies (optional)
+pytest==7.4.3
+black==23.9.1
+flake8==6.1.0

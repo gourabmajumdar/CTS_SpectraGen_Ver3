@@ -26,7 +26,6 @@ static/uploads/*
 
 # Log files
 *.log
-*.txt
 
 # IDE files
 .vscode/
@@ -36,7 +35,8 @@ static/uploads/*
 .DS_Store
 Thumbs.db
 
-
 # Generated reports & scripts
 generated-scripts/
 reports/
+developer_prompts/
+test_case/

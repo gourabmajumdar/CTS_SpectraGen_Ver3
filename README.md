@@ -1,213 +1,457 @@
-# 🧪 CTS AutoTest Dashboard
+# 🚀 AI-Powered Code Generation Platform (SpectraGen) by Cognizant
 
-A comprehensive **Flask-based web application** for automated test generation, execution, and code review. This tool streamlines the testing workflow by providing an intuitive interface for uploading test cases, generating Python unittest code, executing tests, and generating detailed code review reports.
+An intelligent web-based platform that revolutionizes software development and testing workflows through AI-powered code generation, smart reuse capabilities, and comprehensive project management.
 
-![Dashboard Preview](https://img.shields.io/badge/Flask-Dashboard-blue?style=for-the-badge&logo=flask)
-![Python](https://img.shields.io/badge/Python-3.8+-green?style=for-the-badge&logo=python)
-![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
+## 🌟 Overview
 
-## ✨ Features
+This platform combines the power of LLaMA/Ollama AI models with intelligent code analysis to streamline both **Developer** and **QA** workflows. Whether you're implementing user stories, generating test cases, or building applications from requirements, our platform provides automated, context-aware code generation with built-in quality assurance.
 
-### 🏠 **Home Dashboard**
-- Clean, intuitive welcome interface
-- Professional Cognizant-branded design
-- Responsive layout for all devices
+## ✨ Key Features
 
-### 🧪 **AutoTest Workflow**
-1. **📁 File Upload**: Support for multiple file formats (.rtf, .txt, .pdf, .docx)
-2. **⚡ Test Ingestion**: Intelligent parsing and processing of test requirements
-3. **🐍 Code Generation**: Automated Python unittest code generation
-4. **🚀 Test Execution**: Real-time code execution with detailed output
-5. **📊 Code Review**: Comprehensive code quality analysis and reporting
+### 🔄 **Dual Workflow Support**
+- **Developer Workflow**: Transform user stories, JIRA tickets, and requirements into production-ready code
+- **QA Workflow**: Generate comprehensive test scripts from test cases and requirements
+- **Codebase Intelligence**: Analyze existing codebases for smart code reuse and pattern recognition
 
-### 🎨 **User Experience**
-- **Progress Indicators**: Real-time progress tracking for all operations
-- **Interactive UI**: Smooth animations and responsive design
-- **State Management**: Guided workflow with clear next steps
-- **File Management**: Easy download and save functionality
-- **Professional Reports**: HTML report generation with embedded styling
+### 🤖 **AI-Powered Generation**
+- **Multiple AI Backends**: Support for Ollama, LLaMA 2, and auto-selection
+- **Smart Model Selection**: Automatically chooses the best available AI model
+- **Configurable Generation Options**: Unit tests, documentation, error handling, performance optimization
+- **Context-Aware Prompts**: Leverages existing codebase patterns and libraries
 
-## 🛠️ **Technology Stack**
+### ⚡ **Smart Code Reuse**
+- **Intelligent Matching**: Finds relevant existing code based on prompt analysis
+- **Confidence Scoring**: Rates reuse candidates with confidence percentages
+- **Time Estimation**: Calculates development time savings
+- **Pattern Recognition**: Learns from existing code patterns and structures
 
-- **Backend**: Flask (Python web framework)
-- **Frontend**: HTML5, CSS3, JavaScript (ES6+)
-- **Styling**: Custom CSS with gradient designs and animations
-- **File Processing**: Support for RTF, TXT, PDF, DOCX formats
-- **Code Execution**: Python subprocess management
-- **Report Generation**: Dynamic HTML report creation
+### 🛠️ **Integrated Development Environment**
+- **Multi-Tab Code Editor**: Edit, review, and manage generated code
+- **Syntax Highlighting**: Python syntax highlighting with line numbers
+- **Download & Save**: Export individual files or complete projects
+- **Real-Time Validation**: Instant feedback on code quality and structure
 
-## 📁 **Project Structure**
+### 📊 **Advanced Analytics & Reporting**
+- **Code Review Reports**: Detailed HTML reports with quality metrics
+- **Execution Analytics**: Success rates, performance metrics, and statistics
+- **Progress Tracking**: Real-time progress monitoring for long-running operations
+- **Debug Information**: Comprehensive logging and error reporting
 
+## 🏗️ Architecture
+
+### Backend Components
+
+#### **Flask Application (`app.py`)**
+- **Multi-Workflow Router**: Intelligent routing between Developer and QA workflows
+- **Session Management**: Maintains state across user interactions
+- **File Processing**: Handles uploads, parsing, and content extraction
+- **API Endpoints**: RESTful APIs for all platform operations
+
+#### **AI Code Generator (`Auto_test_gen.py`)**
+- **Multi-Backend Support**: Ollama, LLaMA 2, and fallback mechanisms
+- **Mode-Specific Generation**: Separate logic for Developer and QA modes
+- **Smart Prompt Engineering**: Context-aware prompt construction
+- **Code Separation**: Intelligent separation of main code and unit tests
+
+#### **Smart Reuse Engine (`smart_code_reuse.py`)**
+- **Pattern Analysis**: Deep analysis of existing code patterns
+- **Semantic Matching**: NLP-based matching of prompts to existing code
+- **Metadata Extraction**: Comprehensive code metadata collection
+- **Confidence Algorithms**: Statistical confidence scoring for reuse suggestions
+
+### Frontend Components
+
+#### **Web Interface (`index.html`)**
+- **Responsive Design**: Mobile-friendly, modern UI with dark/light themes
+- **Dynamic Workflows**: Context-sensitive UI based on workflow type
+- **Progress Visualization**: Real-time progress bars and status updates
+- **Accessibility Features**: ARIA labels, keyboard navigation, screen reader support
+
+#### **JavaScript Engine (`script.js`)**
+- **Workflow Orchestration**: Coordinates complex multi-step processes
+- **Real-Time Updates**: WebSocket-like polling for live updates
+- **File Management**: Advanced file upload, parsing, and validation
+- **Code Editor Integration**: Monaco-like editing experience
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+```bash
+# Python 3.8+ required
+python --version
+
+# Install dependencies
+pip install flask transformers torch requests
 ```
-CTS_AutoTest/
-├── app.py                  # Main Flask application
-├── static/
-│   ├── css/
-│   │   └── style.css      # Main stylesheet with responsive design
-│   ├── js/
-│   │   └── script.js      # Frontend JavaScript functionality
-│   ├── uploads/           # User uploaded files (gitignored)
-│   └── logo.png          # Cognizant branding logo
-├── templates/
-│   └── index.html        # Main dashboard template
-├── .gitignore            # Git ignore configuration
-├── .venv/                # Virtual environment (gitignored)
-└── README.md             # Project documentation
-```
 
-## 🚀 **Quick Start**
+### Installation
 
-### **Prerequisites**
-- Python 3.8 or higher
-- pip (Python package manager)
-- Git
-
-### **Installation**
-
-1. **Clone the repository**
+1. **Clone the Repository**
    ```bash
-   git clone https://github.com/gourabmajumdar/CTS_AutoTest.git
-   cd CTS_AutoTest
+   git clone <repository-url>
+   cd ai-code-generation-platform
    ```
 
-2. **Create and activate virtual environment**
+2. **Install Python Dependencies**
    ```bash
-   # Windows
-   python -m venv .venv
-   .venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+
+3. **Set Up AI Backend (Choose One)**
+
+   **Option A: Ollama (Recommended)**
+   ```bash
+   # Install Ollama
+   curl -fsSL https://ollama.ai/install.sh | sh
    
-   # macOS/Linux
-   python3 -m venv .venv
-   source .venv/bin/activate
+   # Pull a code generation model
+   ollama pull deepseek-coder:6.7b
+   # OR
+   ollama pull codellama:7b
    ```
 
-3. **Install dependencies**
+   **Option B: LLaMA 2**
    ```bash
-   pip install flask
+   # Requires Hugging Face authentication
+   # Set up your HF token for meta-llama models
    ```
 
-4. **Run the application**
+4. **Start the Application**
    ```bash
    python app.py
    ```
 
-5. **Access the dashboard**
-   Open your browser and navigate to: `http://localhost:5000`
+5. **Access the Platform**
+   ```
+   Open http://localhost:5000 in your browser
+   ```
 
-## 📖 **Usage Guide**
+### First Run
 
-### **1. Home Page**
-- Welcome interface with project overview
-- Navigation to AutoTest functionality
+1. **Upload Files**: Choose between user stories (Developer) or test cases (QA)
+2. **Configure Options**: Select generation preferences (tests, docs, etc.)
+3. **Generate Code**: Let AI create your code based on requirements
+4. **Review & Edit**: Use the integrated editor to refine generated code
+5. **Execute & Test**: Run generated code and review results
 
-### **2. AutoTest Workflow**
+## 📋 Workflow Guide
 
-#### **Step 1: Upload Files**
-- Click the upload area or drag & drop files
-- Supports: `.rtf`, `.txt`, `.pdf`, `.docx`
-- Multiple file upload supported
+### 🔧 Developer Workflow
 
-#### **Step 2: Ingest Test Data**
-- Click "Ingest Test" to process uploaded files
-- System analyzes and extracts test requirements
-- Progress indicator shows processing status
+1. **File Upload**
+   - Upload JIRA stories, user requirements, or specification documents
+   - Supports: `.txt`, `.md`, `.docx`, `.pdf`
 
-#### **Step 3: Generate Python Code**
-- Click "Generate Code" to create unittest code
-- Automated Python test suite generation
-- Code appears in the text area
+2. **Codebase Integration** (Optional)
+   - Upload existing codebase for context-aware generation
+   - Platform analyzes patterns, libraries, and structures
 
-#### **Step 4: Execute Tests**
-- Click "Execute Code" to run the generated tests
-- Real-time execution with detailed output
-- Results displayed in the interface
+3. **Generation Configuration**
+   ```
+   ✅ Include Unit Tests
+   ✅ Generate Documentation  
+   ✅ Use Existing Libraries
+   ✅ Follow Project Patterns
+   ✅ Include Error Handling
+   ✅ Performance Optimized
+   ```
 
-#### **Step 5: Review Code**
-- Click "Review Code" for quality analysis
-- Comprehensive code review report
-- Download options for reports
+4. **Code Generation**
+   - AI processes requirements and generates implementation
+   - Creates separate files for main code and unit tests
+   - Applies existing codebase patterns and libraries
 
-## 🎨 **Features in Detail**
+5. **Review & Refinement**
+   - Multi-tab editor for easy code review
+   - Syntax highlighting and validation
+   - Download individual files or complete packages
 
-### **Progressive UI States**
-- **Guided Workflow**: Only relevant buttons are enabled at each step
-- **Visual Feedback**: Completed steps show checkmarks and are disabled
-- **State Persistence**: Clear indication of current progress
+### 🧪 QA Workflow
 
-### **File Management**
-- **Smart Upload**: Drag & drop or click to upload
-- **File Validation**: Automatic file type checking
-- **Storage Management**: Uploaded files are gitignored for privacy
+1. **Test Case Upload**
+   - Upload test specifications and requirements
+   - Automatic parsing of test case structure
 
-### **Code Generation**
-- **Intelligent Parsing**: Extracts test cases from various document formats
-- **Python Best Practices**: Generates clean, PEP-8 compliant code
-- **Unittest Framework**: Professional test structure with proper assertions
+2. **Script Generation**
+   - AI generates executable test scripts
+   - Supports multiple testing frameworks
+   - Creates validation and assertion logic
 
-### **Responsive Design**
-- **Mobile Friendly**: Works on all device sizes
-- **Professional Styling**: Cognizant-branded interface
-- **Smooth Animations**: Enhanced user experience with CSS transitions
+3. **Execution Engine**
+   - Run individual or batch test executions
+   - Real-time progress monitoring
+   - Detailed execution reports
 
-## 🔧 **Configuration**
+4. **Results Analysis**
+   - Pass/fail status with detailed output
+   - Performance metrics and analytics
+   - Downloadable HTML reports
 
-### **Environment Variables**
-Create a `.env` file for configuration:
-```env
-FLASK_ENV=development
-DEBUG=True
-SECRET_KEY=your-secret-key-here
-UPLOAD_FOLDER=static/uploads
-MAX_CONTENT_LENGTH=16777216  # 16MB max file size
+## ⚙️ Configuration
+
+### AI Backend Configuration
+
+```python
+# app.py - AI Configuration
+AI_CONFIG = {
+    'backend': 'auto',  # 'ollama', 'llama2', 'auto'
+    'ollama_url': 'http://localhost:11434',
+    'ollama_model': 'deepseek-coder:6.7b'
+}
 ```
 
-### **Customization**
-- **Logo**: Replace `static/logo.png` with your custom logo
-- **Styling**: Modify `static/css/style.css` for custom themes
-- **Functionality**: Extend `app.py` for additional features
+### Generation Options
 
-## 📊 **API Endpoints**
+```javascript
+// script.js - Default Generation Options
+{
+    includeTests: true,      // Generate unit tests
+    generateDocs: true,      // Include documentation
+    useLibraries: true,      // Use existing libraries
+    followPatterns: true,    // Follow code patterns
+    includeErrors: true,     // Add error handling
+    performanceOpt: false    // Performance optimization
+}
+```
 
-- `GET /` - Main dashboard
-- `POST /ingest` - Process uploaded files
-- `POST /generate` - Generate Python test code
-- `POST /execute` - Execute Python code
-- `POST /review` - Generate code review
+## 🔌 API Reference
 
-## 🤝 **Contributing**
+### Core Endpoints
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+#### **POST /ingest**
+Processes uploaded files and determines workflow type.
 
-## 📝 **License**
+```json
+{
+  "files": [
+    {
+      "name": "user_story.txt",
+      "content": "As a user, I want..."
+    }
+  ],
+  "mode": "auto"  // "auto", "developer", "qa"
+}
+```
+
+#### **POST /generate_app_code**
+Generates application code from processed requirements.
+
+```json
+{
+  "success": true,
+  "generated_code": [
+    {
+      "file_name": "implementation.py",
+      "generated_code": "# Generated code...",
+      "story_id": "STORY-001"
+    }
+  ]
+}
+```
+
+#### **POST /execute_tests**
+Executes generated test scripts.
+
+```json
+{
+  "selected_tests": ["test1", "test2"],
+  "execution_mode": "batch"
+}
+```
+
+### Status Endpoints
+
+#### **GET /ai_backend_status**
+Returns current AI backend status and available models.
+
+#### **GET /progress**
+Real-time progress updates for long-running operations.
+
+## 🧠 AI Models & Performance
+
+### Supported Models
+
+| Model | Size | Strengths | Use Case |
+|-------|------|-----------|----------|
+| `deepseek-coder:6.7b` | 6.7B | Code + Tests, Instruction following | **Recommended** |
+| `codegemma:7b` | 7B | Google's code model | Alternative |
+| `codellama:13b-instruct` | 13B | Large context, complex logic | Complex projects |
+| `llama2:7b-chat` | 7B | General purpose | Fallback |
+
+### Performance Optimization
+
+- **Smart Model Selection**: Automatically uses the best available model
+- **Context Window Management**: Optimizes prompts for model context limits
+- **Caching**: Reuses analysis and patterns across sessions
+- **Progressive Enhancement**: Graceful fallback when AI services unavailable
+
+## 🏢 Production Deployment
+
+### Docker Deployment
+
+```dockerfile
+FROM python:3.9-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+EXPOSE 5000
+
+CMD ["python", "app.py"]
+```
+
+### Environment Variables
+
+```bash
+# AI Configuration
+AI_BACKEND=ollama
+OLLAMA_URL=http://localhost:11434
+OLLAMA_MODEL=deepseek-coder:6.7b
+
+# Flask Configuration
+FLASK_ENV=production
+SECRET_KEY=your-secret-key
+
+# Performance
+MAX_UPLOAD_SIZE=50MB
+TIMEOUT_GENERATION=300
+```
+
+### Scaling Considerations
+
+- **Load Balancing**: Multiple Flask instances behind nginx
+- **AI Model Serving**: Dedicated Ollama servers for high throughput
+- **File Storage**: External storage for large codebases
+- **Caching**: Redis for session and analysis caching
+
+## 🤝 Contributing
+
+### Development Setup
+
+```bash
+# Clone and setup
+git clone <repository-url>
+cd ai-code-generation-platform
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# Install development dependencies
+pip install -r requirements-dev.txt
+
+# Run tests
+python -m pytest tests/
+
+# Start development server
+python app.py
+```
+
+### Code Style
+
+- **Python**: PEP 8 compliant, type hints encouraged
+- **JavaScript**: ES6+, functional programming patterns
+- **Documentation**: Comprehensive docstrings and comments
+
+### Testing
+
+```bash
+# Run unit tests
+python -m pytest tests/unit/
+
+# Run integration tests
+python -m pytest tests/integration/
+
+# Run frontend tests
+npm test  # If using npm for frontend testing
+```
+
+## 📈 Roadmap
+
+### Short Term (Next Release)
+- [ ] **Visual Workflow Builder**: Drag-and-drop requirement creation
+- [ ] **Advanced Code Review**: Static analysis integration
+- [ ] **Template Library**: Pre-built templates for common patterns
+- [ ] **Multi-Language Support**: JavaScript, Java, C# generation
+
+### Medium Term
+- [ ] **Cloud Integration**: AWS, Azure, GCP deployment templates
+- [ ] **Team Collaboration**: Multi-user support and sharing
+- [ ] **Version Control**: Git integration and versioning
+- [ ] **API Testing**: Automated API test generation
+
+### Long Term
+- [ ] **Custom Model Training**: Domain-specific model fine-tuning
+- [ ] **Visual Code Generation**: Diagram-to-code conversion
+- [ ] **Enterprise Features**: SSO, audit trails, compliance
+- [ ] **Mobile App**: Native mobile application
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+#### **AI Backend Connection Failed**
+```bash
+# Check Ollama status
+ollama list
+
+# Restart Ollama service
+ollama serve
+
+# Test connection
+curl http://localhost:11434/api/tags
+```
+
+#### **Code Generation Timeout**
+```python
+# Increase timeout in app.py
+AI_CONFIG = {
+    'timeout': 300  # 5 minutes
+}
+```
+
+#### **Memory Issues with Large Models**
+```bash
+# Use smaller models
+ollama pull codellama:7b  # Instead of 13b
+
+# Or increase system memory/swap
+```
+
+### Debug Mode
+
+```bash
+# Enable debug logging
+export FLASK_DEBUG=1
+export PYTHONPATH=.
+
+# Run with verbose logging
+python app.py --debug
+```
+
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 👨‍💻 **Author**
+## 🙏 Acknowledgments
 
-**Gourab Majumdar**
-- Email: gourab.majumder@gmail.com
-- GitHub: [@gourabmajumdar](https://github.com/gourabmajumdar)
+- **Ollama Team**: For the excellent local AI model serving
+- **Meta AI**: For LLaMA model architecture
+- **Hugging Face**: For model hosting and transformers library
+- **Flask Team**: For the robust web framework
+- **Open Source Community**: For countless libraries and tools
 
-## 🙏 **Acknowledgments**
+## 📞 Support
 
-- **Cognizant** - For the inspiration and branding
-- **Flask Community** - For the excellent web framework
-- **Open Source Contributors** - For various tools and libraries used
-
-## 📞 **Support**
-
-If you encounter any issues or have questions:
-
-1. **Check the Issues**: Look through existing GitHub issues
-2. **Create New Issue**: Describe your problem with details
-3. **Documentation**: Refer to this README for common solutions
+- **Documentation**: [Full documentation](docs/)
+- **Issues**: [GitHub Issues](issues/)
+- **Discussions**: [GitHub Discussions](discussions/)
+- **Email**: support@your-platform.com
 
 ---
 
-### 🌟 **Star this repository if you find it helpful!**
-
-**Made with ❤️ for automated testing and code quality improvement**
+**Ready to revolutionize your development workflow?** 🚀 
+[Get Started Now](#quick-start) or [View Live Demo](https://your-demo-url.com)
